@@ -1,0 +1,111 @@
+---
+title: "Introduction"
+author: "Peder Bacher"
+date: "`r Sys.Date()`"
+output:
+  rmarkdown::html_vignette:
+    toc: true
+    toc_debth: 3
+vignette: >
+  %\VignetteIndexEntry{Introduction}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r external-code, cache=FALSE, include=FALSE, purl = FALSE}
+# Have to load the knitr to use hooks
+library(knitr)
+# This vignettes name
+vignettename <- "introduction"
+# REMEMBER: IF CHANGING IN THE shared-init (next block), then copy to the others!
+```
+
+<!--shared-init-start-->
+```{r init, cache=FALSE, include=FALSE, purl=FALSE}
+# Width will scale all
+figwidth <- 12
+# Scale the wide figures (100% out.width)
+figheight <- 4
+# Heights for stacked time series plots
+figheight1 <- 5
+figheight2 <- 6.5
+figheight3 <- 8
+figheight4 <- 9.5
+figheight5 <- 11
+
+# Set the size of squared figures (same height as full: figheight/figwidth)
+owsval <- 0.35
+ows <- paste0(owsval*100,"%")
+ows2 <- paste0(2*owsval*100,"%")
+# 
+fhs <- figwidth * owsval
+
+# Set for square fig: fig.width=fhs, fig.height=fhs, out.width=ows}
+# If two squared the:  fig.width=2*fhs, fig.height=fhs, out.width=ows2
+
+# Check this: https://bookdown.org/yihui/rmarkdown-cookbook/chunk-styling.html
+# Set the knitr options
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "##!!    ",
+  prompt = FALSE,
+  cache = TRUE,
+  cache.path = paste0("../tmp/vignettes/tmp-",vignettename,"/"),
+  fig.align="center",
+  fig.path = paste0("../tmp/vignettes/tmp-",vignettename,"/"),
+  fig.height = figheight,
+  fig.width = figwidth,
+  out.width = "100%"
+)
+options(digits=3)
+
+
+# For cropping output and messages
+cropfun <- function(x, options, func){
+  lines <- options$output.lines
+  ## if (is.null(lines)) {
+  ##   return(func(x, options))  # pass to default hook
+  ## }
+  if(!is.null(lines)){
+      x <- unlist(strsplit(x, "\n"))
+      i <- grep("##!!",x)
+      if(length(i) > lines){
+          # truncate the output, but add ....
+          x <- x[-i[(lines+1):length(i)]]
+          x[i[lines]] <- pst(x[i[lines]], "\n\n## ...output cropped")
+      }
+      # paste these lines together
+      x <- paste(c(x, ""), collapse = "\n")
+  }
+  x <- gsub("!!","",x)
+  func(x, options)
+}
+
+hook_chunk <- knit_hooks$get("chunk")
+
+knit_hooks$set(chunk = function(x, options) {
+    cropfun(x, options, hook_chunk)
+})
+
+```
+
+[onlineforecasting]: https://arxiv.org/abs/2109.12915
+<!--shared-init-end-->
+
+## Intro
+This vignette provides an introduction to the package...
+
+<!-- Links [setup-data](setup-data.html) 
+
+-->
+
+First Load the package, setup the model and calculate the forecasts:
+```{r}
+# Load the package
+library(sdem)
+```
+
+Just start by:
+```{r}
+x <- 1
+```
