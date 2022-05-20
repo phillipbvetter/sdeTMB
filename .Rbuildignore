@@ -6,7 +6,7 @@
 ^vignettes/make.R
 ^vignettes/shared-init.Rmd
 ^tests
-^misc-R$
+^miscR$
 ^.*\.Rhistory$
 ^cran-comments.md
 ^.gitlab

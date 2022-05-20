@@ -8,8 +8,8 @@ library(devtools)
 library(roxygen2)
 
 #----------------------------------------------------------------
-dir.create("~/tmp/sdebenchmarks")
-devtools::create("~/tmp/sdebenchmarks")
+#dir.create("~/tmp/sdebenchmarks")
+#devtools::create("~/tmp/sdebenchmarks")
 
 
 
@@ -19,8 +19,8 @@ devtools::create("~/tmp/sdebenchmarks")
 
 # Load the package directly
 ## document()
-## pack <- as.package("../onlineforecast")
-## load_all(pack)
+pack <- as.package("../sdem")
+load_all(pack)
 
 
 # ----------------------------------------------------------------
