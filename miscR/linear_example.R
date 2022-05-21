@@ -15,15 +15,16 @@ this_path = rstudioapi::getActiveDocumentContext()$path
 setwd(dirname(this_path))
 
 # Loading functions package style 
-# pack = as.package("../R")
-# load_all(pack)
+pack = as.package("../R")
+load_all(pack)
 
-source("../R/makeNLL.R")
-source("../R/write_linearExact_cpp.R")
-source("../R/write_TMB_cpp.R")
-source("../R/write_ExtendedKalman_cpp.R")
-source("../R/IsSystemLinear.R")
-source("../R/hat2pow.R")
+# Loading functions directly
+# source("../R/makeNLL.R")
+# source("../R/write_linearExact_cpp.R")
+# source("../R/write_TMB_cpp.R")
+# source("../R/write_ExtendedKalman_cpp.R")
+# source("../R/IsSystemLinear.R")
+# source("../R/hat2pow.R")
 
 # Construct model list
 model = list()
