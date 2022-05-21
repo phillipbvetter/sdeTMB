@@ -19,3 +19,5 @@ vignettes/*.R
 tmp/
 
 sdem.Rcheck
+
+.DS_Store

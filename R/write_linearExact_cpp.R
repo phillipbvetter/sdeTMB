@@ -175,16 +175,28 @@ fileconn = file(full_modelname)
   temptxt = append(temptxt, sprintf("\tmatrix<Type> Ahat(%i,%i);",n,n))
   temptxt = append(temptxt, sprintf("\tvector<Type> Bhat(%i);",n))
   temptxt = append(temptxt, sprintf("\tmatrix<Type> Qhat(%i,%i);",n,n))
+  temptxt = append(temptxt, sprintf("\tType dt;"))
   
   txt = append(txt, temptxt)
   writeLines(txt,full_modelname)
   
-  # dt for loop
-  txt = append(txt,"\tType dt;\n\tfor(int i=0;i<t.size()-1;i++){\n\t\tdt = t(i+1) - t(i);" )
-  writeLines(txt,full_modelname)
+  flag = length(timedepInput[!timedepInput %in% state])<1 & (diff(data$t)[1] - 1e-10) < diff(data$t) && diff(data$t) < (diff(data$t)[1] + 1e-10) 
+  if(flag){
+    txt = append(txt, sprintf("\tdt = t(1)-t(0);"))
+    txt = append(txt, sprintf("\tMeanAug0 = MeanMat(%s)*dt;",paste(MeanMat.vars2,collapse=", ")))
+    txt = append(txt, sprintf("\tVarAug0 = VarMat(%s)*dt;",paste(VarMat.vars2,collapse=", ")))
+    txt = append(txt, sprintf("\tMeanAug = expm(MeanAug0);"))
+    txt = append(txt, sprintf("\tVarAug = expm(VarAug0);"))
+    txt = append(txt, sprintf("\tAhat = MeanAug.block(0,0,%i,%i);",n,n))
+    txt = append(txt, sprintf("\tBhat = MeanAug.col(%i).head(%i);",n,n))
+    txt = append(txt, sprintf("\tQhat = VarAug.block(%i,%i,%i,%i).transpose() * VarAug.block(0,%i,%i,%i);",n,n,n,n,n,n,n,n) )
+  }
   
-  txt = append(txt, sprintf("\t\tXi << %s;",paste(state,"(i)",collapse=", ",sep="")))
-  txt = append(txt, sprintf("\t\tXip1 << %s;",paste(state,"(i+1)",collapse=", ",sep="")))
+  # dt for loop
+  txt = append(txt,"\n\tfor(int i=0;i<t.size()-1;i++){" )
+  writeLines(txt,full_modelname)
+  if(!flag){
+  txt = append(txt, sprintf("\t\tdt = t(i+1) - t(i);"))
   txt = append(txt, sprintf("\t\tMeanAug0 = MeanMat(%s)*dt;",paste(MeanMat.vars2,collapse=", ")))
   txt = append(txt, sprintf("\t\tVarAug0 = VarMat(%s)*dt;",paste(VarMat.vars2,collapse=", ")))
   txt = append(txt, sprintf("\t\tMeanAug = expm(MeanAug0);"))
@@ -192,6 +204,9 @@ fileconn = file(full_modelname)
   txt = append(txt, sprintf("\t\tAhat = MeanAug.block(0,0,%i,%i);",n,n))
   txt = append(txt, sprintf("\t\tBhat = MeanAug.col(%i).head(%i);",n,n))
   txt = append(txt, sprintf("\t\tQhat = VarAug.block(%i,%i,%i,%i).transpose() * VarAug.block(0,%i,%i,%i);",n,n,n,n,n,n,n,n) )
+  }
+  txt = append(txt, sprintf("\t\tXi << %s;",paste(state,"(i)",collapse=", ",sep="")))
+  txt = append(txt, sprintf("\t\tXip1 << %s;",paste(state,"(i+1)",collapse=", ",sep="")))
   txt = append(txt, sprintf("\t\tZ = Xip1 - (Ahat * Xi + Bhat);"))
   txt = append(txt, "\t\tnll += MVNORM(Qhat)(Z);\n\t}")
   writeLines(txt,full_modelname)
