@@ -32,14 +32,19 @@ model = list()
 model$modelname = "linear_example"
 
 model$sdeEq = list()
-model$sdeEq[[1]] = expression( dX ~ exp(logtheta) * (mu - X) * dt + exp(logsigmaX) * dw1 )
+model$sdeEq[[1]] = expression( dX ~ theta * (mu - X) * dt + sigmaX * dw1 )
 # Note: Currently not allowed to use dw, must be numbered e.g. dw1, dw2,...
 
 model$obsEq = list()
 model$obsEq[[1]] = expression(Y ~ X)
 
 model$obsVar = list()
-model$obsVar[[1]] = expression(exp(logsigmaY))
+model$obsVar[[1]] = expression(sigmaY)
+
+model$algeqs = list()
+model$algeqs[["theta"]] = expression(exp(logtheta))
+model$algeqs[["sigmaX"]] = expression(exp(logsigmaX))
+model$algeqs[["sigmaY"]] = expression(exp(logsigmaY))
 
 # Construct data list (different for kalman filter and for TMB)
 
@@ -234,7 +239,7 @@ print(times <- rbind(time.tmb,
 
 # Parameter values
 log2real = function(x) c(exp(x[1]),x[2],exp(x[3]),exp(x[4]))
-print(pars <- rbind(True = c(theta=1,mu=1,sigmaX=1e-1,sigmaY=1e-2),
+print(pars <- rbind(True = c(theta,mu,sigmaX,sigmaY),
                     TMB = log2real(opt.tmb$par),
                     Kalman = log2real(opt.kalman$par),
                     Exact = log2real(opt.exact$par))

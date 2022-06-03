@@ -1,33 +1,42 @@
 write_linearExact_cpp = function(model,data){
-
-sdeEq = model$sdeEq
-obsEq = model$obsEq
-
-n = length(sdeEq)
-m = length(obsEq)
-# Get state and observation variables
-state = c()
-rhs = list()
-for(i in 1:n){
-  state[i] = deparse(as.name(sub("^d?([[:alnum:]]+)", "\\1", sdeEq[[i]][[1]][[2]])))
-  rhs[[i]]   = sdeEq[[i]][[1]][[3]]
-}
-obs = c()
-for(i in 1:length(obsEq)){
-  obs[i]   = all.vars(obsEq[[i]][[1]][[2]])
-}
-
-# Get the drift and diffusion terms (dt, dw1, dw2...)
-diff.processes = c("dt",sprintf(rep("dw%i",n),1:n))
-diff.terms = list()
-for(i in 1:n){
-  diff.terms[[i]]        = lapply(diff.processes, function(x) { D(rhs[[i]], x) })
-  names(diff.terms[[i]]) = diff.processes
-}
-
-#Initialize C++ file
-full_modelname = paste(model$modelname,".cpp",sep="")
-fileconn = file(full_modelname)
+  
+  # Substitute algebraic expressions
+  for(i in 1:length(model$algeqs)){
+    curlist = list()
+    curlist[[names(model$algeqs)[i]]] = model$algeqs[[i]][[1]]
+    model$sdeEq = lapply(model$sdeEq, function(x) as.expression(do.call("substitute",list(x[[1]],curlist))))
+    model$obsEq = lapply(model$obsEq, function(x) as.expression(do.call("substitute",list(x[[1]],curlist))))
+    model$obsVar = lapply(model$obsVar, function(x) as.expression(do.call("substitute",list(x[[1]],curlist))))
+  }
+  
+  sdeEq = model$sdeEq
+  obsEq = model$obsEq
+  
+  n = length(sdeEq)
+  m = length(obsEq)
+  # Get state and observation variables
+  state = c()
+  rhs = list()
+  for(i in 1:n){
+    state[i] = deparse(as.name(sub("^d?([[:alnum:]]+)", "\\1", sdeEq[[i]][[1]][[2]])))
+    rhs[[i]]   = sdeEq[[i]][[1]][[3]]
+  }
+  obs = c()
+  for(i in 1:length(obsEq)){
+    obs[i]   = all.vars(obsEq[[i]][[1]][[2]])
+  }
+  
+  # Get the drift and diffusion terms (dt, dw1, dw2...)
+  diff.processes = c("dt",sprintf(rep("dw%i",n),1:n))
+  diff.terms = list()
+  for(i in 1:n){
+    diff.terms[[i]]        = lapply(diff.processes, function(x) { D(rhs[[i]], x) })
+    names(diff.terms[[i]]) = diff.processes
+  }
+  
+  #Initialize C++ file
+  full_modelname = paste(model$modelname,".cpp",sep="")
+  fileconn = file(full_modelname)
   
   txt = "#include <TMB.hpp>"
   txt = append(txt, "using namespace density;")
@@ -196,14 +205,14 @@ fileconn = file(full_modelname)
   txt = append(txt,"\n\tfor(int i=0;i<t.size()-1;i++){" )
   writeLines(txt,full_modelname)
   if(!flag){
-  txt = append(txt, sprintf("\t\tdt = t(i+1) - t(i);"))
-  txt = append(txt, sprintf("\t\tMeanAug0 = MeanMat(%s)*dt;",paste(MeanMat.vars2,collapse=", ")))
-  txt = append(txt, sprintf("\t\tVarAug0 = VarMat(%s)*dt;",paste(VarMat.vars2,collapse=", ")))
-  txt = append(txt, sprintf("\t\tMeanAug = expm(MeanAug0);"))
-  txt = append(txt, sprintf("\t\tVarAug = expm(VarAug0);"))
-  txt = append(txt, sprintf("\t\tAhat = MeanAug.block(0,0,%i,%i);",n,n))
-  txt = append(txt, sprintf("\t\tBhat = MeanAug.col(%i).head(%i);",n,n))
-  txt = append(txt, sprintf("\t\tQhat = VarAug.block(%i,%i,%i,%i).transpose() * VarAug.block(0,%i,%i,%i);",n,n,n,n,n,n,n,n) )
+    txt = append(txt, sprintf("\t\tdt = t(i+1) - t(i);"))
+    txt = append(txt, sprintf("\t\tMeanAug0 = MeanMat(%s)*dt;",paste(MeanMat.vars2,collapse=", ")))
+    txt = append(txt, sprintf("\t\tVarAug0 = VarMat(%s)*dt;",paste(VarMat.vars2,collapse=", ")))
+    txt = append(txt, sprintf("\t\tMeanAug = expm(MeanAug0);"))
+    txt = append(txt, sprintf("\t\tVarAug = expm(VarAug0);"))
+    txt = append(txt, sprintf("\t\tAhat = MeanAug.block(0,0,%i,%i);",n,n))
+    txt = append(txt, sprintf("\t\tBhat = MeanAug.col(%i).head(%i);",n,n))
+    txt = append(txt, sprintf("\t\tQhat = VarAug.block(%i,%i,%i,%i).transpose() * VarAug.block(0,%i,%i,%i);",n,n,n,n,n,n,n,n) )
   }
   txt = append(txt, sprintf("\t\tXi << %s;",paste(state,"(i)",collapse=", ",sep="")))
   txt = append(txt, sprintf("\t\tXip1 << %s;",paste(state,"(i+1)",collapse=", ",sep="")))

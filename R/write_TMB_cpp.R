@@ -1,5 +1,14 @@
 write_TMB_cpp = function(model,data){
   
+  # Substitute algebraic expressions
+  for(i in 1:length(model$algeqs)){
+    curlist = list()
+    curlist[[names(model$algeqs)[i]]] = model$algeqs[[i]][[1]]
+    model$sdeEq = lapply(model$sdeEq, function(x) as.expression(do.call("substitute",list(x[[1]],curlist))))
+    model$obsEq = lapply(model$obsEq, function(x) as.expression(do.call("substitute",list(x[[1]],curlist))))
+    model$obsVar = lapply(model$obsVar, function(x) as.expression(do.call("substitute",list(x[[1]],curlist))))
+  }
+  
   sdeEq = model$sdeEq
   obsEq = model$obsEq
   
