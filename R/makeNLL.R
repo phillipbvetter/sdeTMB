@@ -1,4 +1,4 @@
-makeNLL = function(model,data,map=list(),method="TMB",exact=FALSE){
+makeNLL = function(model,data,map=list(),method="TMB",exact=FALSE,recompile=TRUE){
   
   # Initialize
   sdeEq = model$sdeEq
@@ -17,13 +17,26 @@ makeNLL = function(model,data,map=list(),method="TMB",exact=FALSE){
   # Check if the system is linear in the states and observations or not
   IsLinear = IsSystemLinear(model)
   
+  # Should we recompile?
+  recompileOrNot = function(recompile){
+    if(recompile){
+      
+    }
+  }
+  
   ############################################################################################################
   # CASE 1 : The system is linear and the exact matrix exponential solution is desired
   ############################################################################################################
   if(IsLinear & exact){
+    if(recompile){
     write_linearExact_cpp(model,data)
-    #Compile the C++ file
     compile(full_modelname)
+    }
+    if(!file.exists(full_modelname)){
+      print("You asked me not to recompile, but the C++ file doesn't exist so I will compile anyway")
+      write_linearExact_cpp(model,data)
+      compile(full_modelname)
+    }
     dyn.load(dynlib(modelname))
     # Prepare list of parameter values
     tmbpars = list()
@@ -42,9 +55,15 @@ makeNLL = function(model,data,map=list(),method="TMB",exact=FALSE){
   ############################################################################################################
   if(IsLinear & !exact){
     if(method=="TMB"){
-      write_TMB_cpp(model,data)
-      #Compile the C++ file
-      compile(full_modelname)
+      if(recompile){
+        write_TMB_cpp(model,data)
+        compile(full_modelname)
+      }
+      if(!file.exists(full_modelname)){
+        print("You asked me not to recompile, but the C++ file doesn't exist so I will compile anyway")
+        write_TMB_cpp(model,data)
+        compile(full_modelname)
+      }
       dyn.load(dynlib(modelname))
       # Prepare data for TMB
       tmbpars = list()
@@ -56,9 +75,15 @@ makeNLL = function(model,data,map=list(),method="TMB",exact=FALSE){
       # Return neg. log likelihood
       nll = MakeADFun(tmbdata, tmbpars, random=state, DLL=modelname, map=map)
     } else if (method=="kalman") {
-      write_ExtendedKalman_cpp(model,data)
-      #Compile the C++ file
-      compile(full_modelname)
+      if(recompile){
+        write_ExtendedKalman_cpp(model,data)
+        compile(full_modelname)
+      }
+      if(!file.exists(full_modelname)){
+        print("You asked me not to recompile, but the C++ file doesn't exist so I will compile anyway")
+        write_ExtendedKalman_cpp(model,data)
+        compile(full_modelname)
+      }
       dyn.load(dynlib(modelname))
       # Prepare data for TMB
       tmbpars = data$pars
@@ -73,9 +98,15 @@ makeNLL = function(model,data,map=list(),method="TMB",exact=FALSE){
   ############################################################################################################
   if(!IsLinear){
     if(method=="TMB"){
-      write_TMB_cpp(model,data)
-      #Compile the C++ file
-      compile(full_modelname)
+      if(recompile){
+        write_TMB_cpp(model,data)
+        compile(full_modelname)
+      }
+      if(!file.exists(full_modelname)){
+        print("You asked me not to recompile, but the C++ file doesn't exist so I will compile anyway")
+        write_TMB_cpp(model,data)
+        compile(full_modelname)
+      }
       dyn.load(dynlib(modelname))
       # Prepare data for TMB
       tmbpars = list()
@@ -87,9 +118,15 @@ makeNLL = function(model,data,map=list(),method="TMB",exact=FALSE){
       # Return neg. log likelihood
       nll = MakeADFun(tmbdata, tmbpars, random=state, DLL=modelname, map=map)
     } else if (method=="kalman"){
-      write_ExtendedKalman_cpp(model,data)
-      #Compile the C++ file
-      compile(full_modelname)
+      if(recompile){
+        write_ExtendedKalman_cpp(model,data)
+        compile(full_modelname)
+      }
+      if(!file.exists(full_modelname)){
+        print("You asked me not to recompile, but the C++ file doesn't exist so I will compile anyway")
+        write_ExtendedKalman_cpp(model,data)
+        compile(full_modelname)
+      }
       dyn.load(dynlib(modelname))
       # Prepare data for TMB
       tmbpars = data$pars

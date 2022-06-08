@@ -286,16 +286,7 @@ matrix<Type> constructE(matrix<Type> E,vector<Type> p){
   txt = append(txt, "\tDATA_MATRIX(P0);")
   txt = append(txt, "\tDATA_SCALAR(dt);")
   writeLines(txt,full_modelname)  
-  
-  # Constants
-  # for(i in 1:length(data$constants)){
-  #   nam = names(data$constants)[i]
-  #   if(length(data$constants[[i]])>1){
-  #     txt = append( txt , paste(sprintf("\tvector<Type> %s <<",nam),paste(data$constants[[i]],collapse=",")))
-  #   } else {
-  #     txt = append( txt , sprintf("\tType %s = %f;",nam,data$constants[[i]]))
-  #   }
-  # }
+
   # Constants
   for(i in 1:length(data$constants)){
     nam = names(data$constants)[i]
@@ -316,17 +307,20 @@ matrix<Type> constructE(matrix<Type> E,vector<Type> p){
   txt = append(txt,"\tvector<Type> x0 = X0;\n\tmatrix<Type> p0 = P0;\n\tvector<Type> x1 = x0;\n\tmatrix<Type> p1 = p0;")
   writeLines(txt,full_modelname)
   
+  txt = append(txt, "\tint kkk = CppAD::Integer((diff(t)/dt).sum() + 1);")
+  writeLines(txt,full_modelname)
+  
   k = sum(diff(data$t)/data$dt)+1
   txt = append(txt, 
                sprintf("\tvector<vector<Type>> xPrior(t.size());
 \tvector<vector<Type>> xPost(t.size());
 \tvector<matrix<Type>> pPrior(t.size());
 \tvector<matrix<Type>> pPost(t.size());
-\tvector<vector<Type>> xPrior_all(%s);
-\tvector<matrix<Type>> pPrior_all(%s);
-\tvector<vector<Type>> F_all(%s);
-\tvector<matrix<Type>> A_all(%s);
-\tvector<matrix<Type>> G_all(%s);
+\tvector<vector<Type>> xPrior_all(kkk);
+\tvector<matrix<Type>> pPrior_all(kkk);
+\tvector<vector<Type>> F_all(kkk);
+\tvector<matrix<Type>> A_all(kkk);
+\tvector<matrix<Type>> G_all(kkk);
 \txPrior(0) = x0;
 \tpPrior(0) = p0;									
 \txPost(0) = x0;
@@ -336,7 +330,7 @@ matrix<Type> constructE(matrix<Type> E,vector<Type> p){
 \tmatrix<Type> I(%s,%s);
 \tI.setIdentity();
 \tmatrix<Type> V(%s,%s);
-\tV.setZero();",k,k,k,k,k,m,n,n,m,m))
+\tV.setZero();",m,n,n,m,m))
   writeLines(txt,full_modelname)
   
   # Observation variance diagonal
