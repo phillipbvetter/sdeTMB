@@ -9,6 +9,7 @@ rm(list=ls())
 library(devtools)
 library(Deriv)
 library(TMB)
+library(ctsmr)
 
 # Set directory
 this_path = rstudioapi::getActiveDocumentContext()$path
@@ -28,8 +29,6 @@ load_all(pack)
 
 # Construct model list
 model = list()
-
-model$modelname = "linear_example"
 
 model$sdeEq = list()
 model$sdeEq[[1]] = expression( dX ~ theta * (mu - X) * dt + sigmaX * dw1 )
@@ -101,7 +100,7 @@ data.tmb = list()
 data.tmb$t = tsim
 data.tmb$Y = Y.tmb
 data.tmb$iobsY = iobs-1
-data.tmb$X = Xsim
+data.tmb$X = rep(0.5,length(Xsim))
 data.tmb$pars = list(
   logtheta = log(0.1),
   mu = 2,
@@ -130,11 +129,13 @@ data.kalman$pars = list(
 # CASE 1 - RESULTS USING TMB-STYLE
 ################################################################################
 
+model$modelname = "linear_example_TMB"
+
 # construct nll for tmb-style
 nll.tmb = makeNLL(model,data.tmb,method="TMB")
 
 # Estimate parameters and latent variables
-time.tmb = system.time(opt.tmb <- nlminb(nll.tmb$par,nll.tmb$fn,nll.tmb$gr))
+time.tmb = system.time(opt.tmb <- nlminb(nll.tmb$par,nll.tmb$fn,nll.tmb$gr),gcFirst=T)
 sdr <- sdreport(nll.tmb)
 
 # Get predictions of states with std.dev.
@@ -170,7 +171,7 @@ model.kalman$modelname = "linear_example_kalman"
 nll.kalman = makeNLL(model.kalman,data.kalman,method="kalman")
 
 # Estimate parameters and latent variables
-time.kalman = system.time(opt.kalman <- nlminb(nll.kalman$par,nll.kalman$fn,nll.kalman$gr))
+time.kalman = system.time(opt.kalman <- nlminb(nll.kalman$par,nll.kalman$fn,nll.kalman$gr),gcFirst=T)
 
 Xpred = unlist( nll.kalman$report()$xPost )
 Xsd   = sqrt(unlist( nll.kalman$report()$pPost ))
@@ -202,7 +203,7 @@ model.exact$modelname = "linear_example_exact"
 # construct nll for exact-style
 nll.exact = makeNLL(model.exact,data.tmb,exact=TRUE)
 # Estimate parameters and latent variables
-time.exact = system.time(opt.exact <- nlminb(nll.exact$par,nll.exact$fn,nll.exact$gr))
+time.exact = system.time(opt.exact <- nlminb(nll.exact$par,nll.exact$fn,nll.exact$gr),gcFirst=T)
 sdr <- sdreport(nll.exact)
 
 # Get predictions of states with std.dev.
@@ -228,13 +229,43 @@ points(tsim[iobs],Y.tmb)
 legend("topright",legend=c("True","Measured","Smoothed"),lty=c("solid",NA,"solid"),pch=c(NA,1,NA),col=c("black","black","red"))
 
 ################################################################################
+# CASE 4 - USING CTSM-R
+################################################################################
+
+# Empty model object
+obj = ctsm$new()
+
+# Add a system equation
+obj$addSystem(dx ~ exp(logtheta)*(mu-x)*dt + exp(logsigma)*dw)
+
+# Add an observation equation
+obj$addObs(y ~ x)
+
+# Set the observation variance
+obj$setVariance(y ~ exp(logsigmaY))
+
+# Set initial model parameters
+obj$setParameter(logtheta  = c(init=log(0.1),lb=-5,  ub=log(10)))
+obj$setParameter(mu        = c(init=2,       lb=-10, ub=10))
+obj$setParameter(logsigma  = c(init=log(1),  lb=-5,  ub=log(2)))
+obj$setParameter(logsigmaY = c(init=log(1),  lb=-5,  ub=log(2)))
+
+# Set initial state values
+obj$setParameter(x = c(init=0.5,lb=0.3,ub=0.8))
+
+dat = data.frame(t=tsim,y=Y.kalman)
+
+time.ctsmr = system.time(fit <- obj$estimate(dat),gcFirst=T)
+
+################################################################################
 # COMPARE RESULTS
 ################################################################################
 
 # Run-time for optimization
-print(times <- rbind(time.tmb, 
-                     time.kalman,
-                     time.exact)
+print(times <- rbind(TMB = time.tmb, 
+                     Kalman = time.kalman,
+                     Exact = time.exact,
+                     CTSMR = time.ctsmr)[,c(1,3)]
       )
 
 # Parameter values
@@ -242,11 +273,13 @@ log2real = function(x) c(exp(x[1]),x[2],exp(x[3]),exp(x[4]))
 print(pars <- rbind(True = c(theta,mu,sigmaX,sigmaY),
                     TMB = log2real(opt.tmb$par),
                     Kalman = log2real(opt.kalman$par),
-                    Exact = log2real(opt.exact$par))
+                    Exact = log2real(opt.exact$par),
+                    CTSMR = log2real(fit$xm[c("logtheta","mu","logsigma","logsigmaY")]))
       )
 
 # Objective value at optimum
 print(nll <- rbind(TMB = opt.tmb$objective,
                    Kalman = opt.kalman$objective,
-                   Exact = opt.exact$objective)
+                   Exact = opt.exact$objective,
+                   CTSMR = fit$f)
       )
