@@ -1,6 +1,15 @@
 makeNLL = function(model,data,map=list(),method="TMB",compile=TRUE,silent=TRUE){
   # method are "TMB", "kalman" and "exactTMB"
   
+  # Substitute algebraic expressions
+  for(i in 1:length(model$algeqs)){
+    curlist = list()
+    curlist[[names(model$algeqs)[i]]] = model$algeqs[[i]][[1]]
+    model$sdeEq = lapply(model$sdeEq, function(x) as.expression(do.call("substitute",list(x[[1]],curlist))))
+    model$obsEq = lapply(model$obsEq, function(x) as.expression(do.call("substitute",list(x[[1]],curlist))))
+    model$obsVar = lapply(model$obsVar, function(x) as.expression(do.call("substitute",list(x[[1]],curlist))))
+  }
+  
   # Initialize
   sdeEq = model$sdeEq
   obsEq = model$obsEq
@@ -47,7 +56,7 @@ if(IsLinear){
       tmbpars[[state[i]]] = data[[state[i]]]
     }
     tmbpars = c(tmbpars, data$pars)
-    tmbdata = data
+    tmbdata = c(data,data$constants)
     # Return neg. log likelihood
     nll = MakeADFun(tmbdata, tmbpars, random=state, DLL=modelname, map=map,silent=silent)
   }
@@ -60,7 +69,7 @@ if(IsLinear){
       tmbpars[[state[i]]] = data[[state[i]]]
     }
     tmbpars = c(tmbpars, data$pars)
-    tmbdata = data
+    tmbdata = c(data,data$constants)
     # Return neg. log likelihood
     nll = MakeADFun(tmbdata, tmbpars, random=state, DLL=modelname, map=map,silent=silent)
   }
@@ -69,7 +78,7 @@ if(IsLinear){
     # dyn.load(dynlib(modelname))
     # Prepare data for TMB
     tmbpars = data$pars
-    tmbdata = data
+    tmbdata = c(data,data$constants)
     # Return neg. log likelihood
     nll = MakeADFun(tmbdata, tmbpars, DLL=modelname, map=map,silent=silent)
   }
@@ -92,7 +101,7 @@ if(IsLinear){
         tmbpars[[state[i]]] = data[[state[i]]]
       }
       tmbpars = c(tmbpars, data$pars)
-      tmbdata = data
+      tmbdata = c(data,data$constants)
       # Return neg. log likelihood
       nll = MakeADFun(tmbdata, tmbpars, random=state, DLL=modelname, map=map,silent=silent)
     }
@@ -101,7 +110,7 @@ if(IsLinear){
       # dyn.load(dynlib(modelname))
       # Prepare data for TMB
       tmbpars = data$pars
-      tmbdata = data
+      tmbdata = c(data,data$constants)
       # Return neg. log likelihood
       nll = MakeADFun(tmbdata, tmbpars, DLL=modelname, map=map,silent=silent)
       }
