@@ -54,14 +54,14 @@ write_ExtendedKalman_cpp = function(model,data) {
   txt = append(txt, "template <class Type>
 vector<Type> isNA(vector<Type> x){
   int n = x.size();
-	vector<Type> NA_boolvec(n);
-	NA_boolvec.fill(1.0);
+	vector<Type> ans(n);
+	ans.fill(1.0);
 	for(int i=0;i<n;i++){
 		if(R_IsNA(asDouble(x(i)))){
-			NA_boolvec(i) = 0.0;
+			ans(i) = 0.0;
 		}
 	}
-	return NA_boolvec;
+	return ans;
 }")
   txt = append(txt, "template<class Type>
 vector<Type> removeNAs(vector<Type> y,vector<Type> NAs){
