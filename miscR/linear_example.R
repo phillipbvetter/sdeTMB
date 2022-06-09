@@ -201,7 +201,7 @@ legend("topright",legend=c("True","Measured","Posterior"),lty=c("solid",NA,"soli
 model.exact = model
 model.exact$modelname = "linear_example_exact"
 # construct nll for exact-style
-nll.exact = makeNLL(model.exact,data.tmb,exact=TRUE)
+nll.exact = makeNLL(model.exact,data.tmb,method="TMBexact")
 # Estimate parameters and latent variables
 time.exact = system.time(opt.exact <- nlminb(nll.exact$par,nll.exact$fn,nll.exact$gr),gcFirst=T)
 sdr <- sdreport(nll.exact)

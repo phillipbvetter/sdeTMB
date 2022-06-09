@@ -102,14 +102,13 @@ data.tmb$t = tsim
 data.tmb$iobsY = iobs-1
 data.tmb$Y = Y.tmb[1,]
 data.tmb$X = rep(mean(data.tmb$Y),length(data.tmb$Y))
+data.tmb$pars = list(
+  logtheta = log(theta.init),
+  mu = mu.init,
+  logsigmaX = log(sigmaX.init),
+  logsigmaY = log(sigmaY.init)
+)
 
-pars.tmb = list()
-pars.tmb$logtheta = log(theta.init)
-pars.tmb$mu = mu.init
-pars.tmb$logsigmaX = log(sigmaX.init)
-pars.tmb$logsigmaY = log(sigmaY.init)
-
-data.tmb$pars = pars.tmb
 ################ KALMAN DATA ################
 ################ KALMAN DATA ################
 ################ KALMAN DATA ################
@@ -120,14 +119,12 @@ data.kalman$dt = diff(tsim)[1]/10 #time-step for integration in ODE for 1st and 
 data.kalman$Y = Y.kalman[1,]
 data.kalman$X0 = mean(data.kalman$Y,na.rm=T)
 data.kalman$P0 = sd(data.kalman$Y,na.rm=T)
-
-pars.kalman = list()
-pars.kalman$logtheta = log(theta.init)
-pars.kalman$mu = mu.init
-pars.kalman$logsigmaX = log(sigmaX.init)
-pars.kalman$logsigmaY = log(sigmaY.init)
-
-data.kalman$pars = pars.kalman
+data.kalman$pars = list(
+  logtheta = log(theta.init),
+  mu = mu.init,
+  logsigmaX = log(sigmaX.init),
+  logsigmaY = log(sigmaY.init)
+)
 
 # optimization upper and lower bounds
 lb = c( log(1e-5), -10, log(1e-5), log(1e-5) )
@@ -138,23 +135,24 @@ ub = c( log(10), 10, log(2), log(2) )
 ################################################################################
 
 model$modelname = "linear_example_TMB"
-if(!file.exists("linear_example_TMB.cpp")){
-  write_TMB_cpp(model,data.tmb)
-  compile("linear_example_TMB.cpp")
-}
-dyn.load(dynlib("linear_example_TMB"))
+# if(!file.exists("linear_example_TMB.cpp")){
+#   write_TMB_cpp(model,data.tmb)
+#   compile("linear_example_TMB.cpp")
+# }
+# dyn.load(dynlib("linear_example_TMB"))
 
 tmb.opt.results = list()
 tmb.pars.results = list()
 tmb.cor.results = list()
 tmb.time.results = list()
 
-
+flag=TRUE
 for(i in 1:N){
   data.tmb$Y = Y.tmb[i,]
-  pars.tmb$X = rep(mean(data.tmb$Y),length(data.tmb$t))
+  data.tmb$X = rep(mean(data.tmb$Y),length(data.tmb$t))
   # Return neg. log likelihood
-  nll = MakeADFun(data.tmb, pars.tmb, random="X", DLL="linear_example_TMB",silent=T)
+  nll = makeNLL(model,data.tmb,method="TMB",compile=flag)
+  flag = FALSE
   # Estimate parameters and latent variables
   out <- tryCatch(
     {
@@ -176,22 +174,19 @@ for(i in 1:N){
 
 # so cpp files do not overwrite
 model$modelname = "linear_example_exact"
-if(!file.exists("linear_example_exact.cpp")){
-  write_linearExact_cpp(model,data.tmb)
-  compile("linear_example_exact.cpp")
-}
-dyn.load(dynlib("linear_example_exact"))
 
 exact.opt.results = list()
 exact.pars.results = list()
 exact.cor.results = list()
 exact.time.results = list()
 
+flag=TRUE
 for(i in 1:N){
   data.tmb$Y = Y.tmb[i,]
-  pars.tmb$X = rep(mean(data.tmb$Y),length(data.tmb$t))
+  data.tmb$X = rep(mean(data.tmb$Y),length(data.tmb$t))
   # Return neg. log likelihood
-  nll = MakeADFun(data.tmb, pars.tmb, random="X", DLL="linear_example_exact",silent=T)
+  nll = makeNLL(model,data.tmb,method="TMBexact",compile=flag)
+  flag = FALSE
   # Estimate parameters and latent variables
   out <- tryCatch(
     {
@@ -213,23 +208,21 @@ for(i in 1:N){
 ################################################################################
 
 model$modelname = "linear_example_kalman"
-if(!file.exists("linear_example_kalman.cpp")){
-  write_ExtendedKalman_cpp(model,data.kalman)
-  compile("linear_example_kalman.cpp")
-}
-dyn.load(dynlib("linear_example_kalman"))
 
 kalman.pars.results = list()
 kalman.cor.results = list()
 kalman.opt.results = list()
 kalman.time.results = list()
 
+flag = TRUE
 for(i in 1:N){
   data.kalman$Y = Y.kalman[i,]
   data.kalman$X0 = mean(data.kalman$Y,na.rm=T)
   data.kalman$P0 = matrix(sd(data.kalman$Y,na.rm=T))
   # Return neg. log likelihood
-  nll = MakeADFun(data.kalman, pars.kalman, DLL="linear_example_kalman",silent=T)
+  # nll = MakeADFun(data.kalman, pars.kalman, DLL="linear_example_kalman",silent=T)
+  nll = makeNLL(model,data.kalman,method="kalman",compile=flag)
+  flag = FALSE
   # Estimate parameters and latent variables
   out <- tryCatch(
     {

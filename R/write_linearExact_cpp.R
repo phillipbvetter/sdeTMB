@@ -116,13 +116,13 @@ write_linearExact_cpp = function(model,data){
   writeLines(txt,full_modelname)
   
   temptxt = sprintf("template<class Type>\nmatrix<Type> MeanMat(%s){",MeanMat.vars1)
-  temptxt = append(temptxt, sprintf("\tmatrix<Type> G(%i,%i);",n+1,n+1))
+  temptxt = append(temptxt, sprintf("\tmatrix<Type> A(%i,%i);",n+1,n+1))
   for(i in 1:(n+1)){
     for(j in 1:(n+1)){
-      temptxt = append( temptxt , sprintf("\tG(%i,%i) = %s;",i-1,j-1,MeanAug[i,j]))
+      temptxt = append( temptxt , sprintf("\tA(%i,%i) = %s;",i-1,j-1,MeanAug[i,j]))
     }
   }
-  temptxt = append(temptxt, "\treturn G;\n}")
+  temptxt = append(temptxt, "\treturn A;\n}")
   txt = append(txt, temptxt)
   writeLines(txt,full_modelname)
   
