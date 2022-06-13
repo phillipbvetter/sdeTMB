@@ -314,8 +314,10 @@ matrix<Type> constructE(matrix<Type> E,vector<Type> p){
   txt = append(txt, 
                sprintf("\tvector<vector<Type>> xPrior(t.size());
 \tvector<vector<Type>> xPost(t.size());
+\tvector<vector<Type>> xSmooth(t.size());
 \tvector<matrix<Type>> pPrior(t.size());
 \tvector<matrix<Type>> pPost(t.size());
+\tvector<matrix<Type>> pSmooth(t.size());
 \tvector<matrix<Type>> Erep(t.size());
 \tvector<matrix<Type>> Crep(t.size());
 \tvector<matrix<Type>> C2rep(t.size());
@@ -334,8 +336,8 @@ matrix<Type> constructE(matrix<Type> E,vector<Type> p){
 \tpPrior(0) = p0;									
 \txPost(0) = x0;
 \tpPost(0) = p0;
-\tmatrix<Type> C,R,K,E,C2,V2,Ri,A,G;	
-\tvector<Type> e0,e,y(%s),NAs,F,ynew;
+\tmatrix<Type> C,R,K,E,C2,V2,Ri,A,G,Lt;	
+\tvector<Type> e0,e,y(%s),NAs,F,ynew,xtemp;
 \tmatrix<Type> I(%s,%s);
 \tI.setIdentity();
 \tmatrix<Type> V(%s,%s);
@@ -401,11 +403,26 @@ matrix<Type> constructE(matrix<Type> E,vector<Type> p){
 		}
 		xPost(i+1) = x0;
 		pPost(i+1) = p0;
-  }
-REPORT(xPrior);
+  }")
+  txt = append(txt, sprintf("/* State Smoother */
+	xSmooth(0) = xPost(0);
+	pSmooth(0) = pPost(0);
+	xSmooth(t.size()-1) = xPost(t.size()-1);
+	pSmooth(t.size()-1) = pPost(t.size()-1);
+	for(int i=t.size()-2;i>=0;i--){
+	\tx0 = xPrior(i+1);
+	\txtemp = xSmooth(i+1) - xPrior(i+1);
+	\tLt = pPost(i) * dfdx(%s).transpose() * pPrior(i+1).inverse();
+	\txSmooth(i) = xPost(i) + Lt * xtemp;
+	\tpSmooth(i) = pPost(i) + Lt * ( pSmooth(i+1) - pPrior(i+1) ) * Lt.transpose();
+		
+	}",paste(dfdxvars2,collapse=", ")))
+	txt = append(txt ,"REPORT(xPrior);
 REPORT(xPost);
+REPORT(xSmooth);
 REPORT(pPrior);
 REPORT(pPost);
+REPORT(pSmooth);
 REPORT(xPrior_all);
 REPORT(pPrior_all);
 REPORT(F_all);
