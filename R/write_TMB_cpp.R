@@ -1,14 +1,5 @@
 write_TMB_cpp = function(model,data){
   
-  # Substitute algebraic expressions
-  # for(i in 1:length(model$algeqs)){
-  #   curlist = list()
-  #   curlist[[names(model$algeqs)[i]]] = model$algeqs[[i]][[1]]
-  #   model$sdeEq = lapply(model$sdeEq, function(x) as.expression(do.call("substitute",list(x[[1]],curlist))))
-  #   model$obsEq = lapply(model$obsEq, function(x) as.expression(do.call("substitute",list(x[[1]],curlist))))
-  #   model$obsVar = lapply(model$obsVar, function(x) as.expression(do.call("substitute",list(x[[1]],curlist))))
-  # }
-  
   sdeEq = model$sdeEq
   obsEq = model$obsEq
   
@@ -117,15 +108,6 @@ write_TMB_cpp = function(model,data){
     
   }
   writeLines(txt,full_modelname)
-  # Constants
-  # for(i in 1:length(data$constants)){
-  #   nam = names(data$constants)[i]
-  #   if(length(data$constants[[i]])>1){
-  #     txt = append( txt , paste(sprintf("\tvector<Type> %s <<",nam),paste(data$constants[[i]],collapse=",")))
-  #   } else {
-  #     txt = append( txt , sprintf("\tType %s = %f;",nam,data$constants[[i]]))
-  #   }
-  # }
   for(i in 1:length(data$constants)){
     nam = names(data$constants)[i]
     if(length(data$constants[[i]])>1){
@@ -158,7 +140,7 @@ write_TMB_cpp = function(model,data){
   txt = append(txt, sprintf("\t\tG = Gmat(%s);",paste(gvars2,collapse=", ")))
   txt = append(txt, sprintf("\t\tXi << %s;",paste(state,"(i)",collapse=", ",sep="")))
   txt = append(txt, sprintf("\t\tXip1 << %s;",paste(state,"(i+1)",collapse=", ",sep="")))
-  txt = append(txt, sprintf("\t\tZ = Xip1 - Xi - f * dt;",paste(state,"(i)",collapse=", ",sep="")))
+  txt = append(txt, sprintf("\t\tZ = Xip1 - Xi - f * dt;"))
   txt = append(txt, sprintf("\t\tV = G*G.transpose()*dt;"))
   txt = append(txt, "\t\tnll += MVNORM(V)(Z);\n\t}")
   writeLines(txt,full_modelname)
@@ -181,7 +163,8 @@ write_TMB_cpp = function(model,data){
   
   # Write observation contribution to likelihood
   for(i in 1:m){
-    txt = append(txt, sprintf("\tfor(int i=0;i<%s.size(); ++i){\n\t\tint j=CppAD::Integer(%s(i));",obs[i],sprintf(rep("iobs%s",m),obs)[i]))
+    txt = append(txt, sprintf("\tfor(int i=0;i<%s.size(); ++i){",obs[i]))
+    txt = append(txt, sprintf("\t\tint j=CppAD::Integer(%s(i));",sprintf(rep("iobs%s",m),obs)[i]))
     txt = append(txt, sprintf("\t\tnll -= dnorm(%s,%s,%s,1);\n\t}",obsvars2[i],hvars2[i],deparse(model$obsVar[[i]][[1]])))
   }
   

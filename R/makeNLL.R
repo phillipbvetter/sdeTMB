@@ -13,7 +13,6 @@ makeNLL = function(model,data,map=list(),method="TMB",compile=TRUE,silent=TRUE){
   # Initialize
   sdeEq = model$sdeEq
   obsEq = model$obsEq
-  modelname = model$modelname
 
   state = c()
   n = length(sdeEq)
@@ -22,99 +21,98 @@ makeNLL = function(model,data,map=list(),method="TMB",compile=TRUE,silent=TRUE){
   }
   
   # Check if the system is linear in the states and observations or not
-  IsLinear = IsSystemLinear(model)
+  Shhh = FALSE
+  if(!compile){
+    Shhh = TRUE
+  }
+  IsLinear = IsSystemLinear(model,Shhh)
   
   # Function for recompilation
-  recompFun = function(compile,method,model,data,modelname){
-    full_modelname = paste(modelname,".cpp",sep="")
+  recompFun = function(compile,method,model,data){
+    full_modelname = paste(model$modelname,".cpp",sep="")
     if(compile){
       switch(method,
-             "TMB" = write_TMB_cpp(model,data),
-             "kalman" = write_ExtendedKalman_cpp(model,data),
-             "TMBexact" = write_linearExact_cpp(model,data)
+             TMB = write_TMB_cpp(model,data),
+             kalman = write_ExtendedKalman_cpp(model,data),
+             TMBexact = write_linearExact_cpp(model,data)
       )
       compile(full_modelname)
-      dyn.load(dynlib(modelname))
+      #reload the library
+      try(dyn.unload(dynlib(model$modelname)),silent=T)
+      dyn.load(dynlib(model$modelname))
     }
     if(!file.exists(full_modelname)){
       print("You asked me not to compile, but the model C++ file doesn't exist so I will compile anyway")
-      recompFun(TRUE,method,model,data,modelname)
+      recompFun(TRUE,method,model,data)
     }
-    if(!any(modelname==names(getLoadedDLLs()))) dyn.load(dynlib(modelname))
+    #if you restart R and do not require recompilation, then just load the library
+    if(!any(model$modelname==names(getLoadedDLLs()))) dyn.load(dynlib(model$modelname))
   }
   
   ############################################################################################################
   # CASE 1 : The system is linear and the exact matrix exponential solution is desired
   ############################################################################################################
 if(IsLinear){
-  if(method=="TMBexact"){
-    recompFun(compile,method,model,data,modelname)
-    # dyn.load(dynlib(modelname))
-    # Prepare list of parameter values
-    tmbpars = list()
-    for(i in 1:n){
-      tmbpars[[state[i]]] = data[[state[i]]]
-    }
-    tmbpars = c(tmbpars, data$pars)
-    tmbdata = c(data,data$constants)
-    # Return neg. log likelihood
-    nll = MakeADFun(tmbdata, tmbpars, random=state, DLL=modelname, map=map,silent=silent)
-  }
-  if(method=="TMB"){
-    recompFun(compile,method,model,data,modelname)
-    # dyn.load(dynlib(modelname))
-    # Prepare data for TMB
-    tmbpars = list()
-    for(i in 1:n){
-      tmbpars[[state[i]]] = data[[state[i]]]
-    }
-    tmbpars = c(tmbpars, data$pars)
-    tmbdata = c(data,data$constants)
-    # Return neg. log likelihood
-    nll = MakeADFun(tmbdata, tmbpars, random=state, DLL=modelname, map=map,silent=silent)
-  }
-  if (method=="kalman") {
-    recompFun(compile,method,model,data,modelname)
-    # dyn.load(dynlib(modelname))
-    # Prepare data for TMB
-    tmbpars = data$pars
-    tmbdata = c(data,data$constants)
-    # Return neg. log likelihood
-    nll = MakeADFun(tmbdata, tmbpars, DLL=modelname, map=map,silent=silent)
-  }
+  switch(method,
+         #METHOD 1
+         TMB =, #TMB is identical to TMBexact
+         #METHOD 2
+         TMBexact = {
+           recompFun(compile,method,model,data)
+           tmbpars = list()
+           for(i in 1:n){
+             tmbpars[[state[i]]] = data[[state[i]]]
+           }
+           tmbpars = c(tmbpars, data$pars)
+           tmbdata = c(data,data$constants)
+           # Return neg. log likelihood
+           nll = MakeADFun(tmbdata, tmbpars, random=state, DLL=model$modelname, map=map, silent=silent)
+         },
+         #METHOD 3
+         kalman = {
+           recompFun(compile,method,model,data)
+           # Prepare data
+           tmbpars = data$pars
+           tmbdata = c(data,data$constants)
+           # Return neg. log likelihood
+           nll = MakeADFun(tmbdata, tmbpars, DLL=model$modelname, map=map, silent=silent)
+         }
+  )
 }
-
+  
   ############################################################################################################
-  # CASE 3 :The system is non-linear and a solution is sought via TMB or Kalman filtering (We need other methods here)
+  # CASE 2 :The system is non-linear and a solution is sought via TMB or Kalman filtering (We need other methods here)
   ############################################################################################################
+  
   if(!IsLinear){
     if(method=="TMBexact"){
       print("The system is non-linear so the exact method is not available. I will proceed with the approximate TMB method")
       method = "TMB"
     }
-    if(method=="TMB"){
-      recompFun(compile,method,model,data,modelname)
-      # dyn.load(dynlib(modelname))
-      # Prepare data for TMB
-      tmbpars = list()
-      for(i in 1:n){
-        tmbpars[[state[i]]] = data[[state[i]]]
-      }
-      tmbpars = c(tmbpars, data$pars)
-      tmbdata = c(data,data$constants)
-      # Return neg. log likelihood
-      nll = MakeADFun(tmbdata, tmbpars, random=state, DLL=modelname, map=map,silent=silent)
-    }
-    if(method=="kalman"){
-      recompFun(compile,method,model,data,modelname)
-      # dyn.load(dynlib(modelname))
-      # Prepare data for TMB
-      tmbpars = data$pars
-      tmbdata = c(data,data$constants)
-      # Return neg. log likelihood
-      nll = MakeADFun(tmbdata, tmbpars, DLL=modelname, map=map,silent=silent)
-      }
+    switch(method,
+           #METHOD 1
+           TMB = {
+             recompFun(compile,method,model,data)
+             # Prepare data for TMB
+             tmbpars = list()
+             for(i in 1:n){
+               tmbpars[[state[i]]] = data[[state[i]]]
+             }
+             tmbpars = c(tmbpars, data$pars)
+             tmbdata = c(data,data$constants)
+             # Return neg. log likelihood
+             nll = MakeADFun(tmbdata, tmbpars, random=state, DLL=model$modelname, map=map, silent=silent)
+           },
+           #METHOD 2
+           kalman = {
+             recompFun(compile,method,model,data,modelname)
+             # Prepare data for TMB
+             tmbpars = data$pars
+             tmbdata = c(data,data$constants)
+             # Return neg. log likelihood
+             nll = MakeADFun(tmbdata, tmbpars, DLL=modelname, map=map, silent=silent)
+           }
+    )
   }
-  
   return(nll)
 }

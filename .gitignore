@@ -21,3 +21,7 @@ tmp/
 sdem.Rcheck
 
 .DS_Store
+
+miscR/linear_example_kalman.so
+miscR/linear_example_kalman.o
+miscR/linear_example_kalman.cpp

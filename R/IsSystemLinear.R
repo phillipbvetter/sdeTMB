@@ -1,4 +1,4 @@
-IsSystemLinear = function(model){
+IsSystemLinear = function(model,silent=FALSE){
   
   sdeEq = model$sdeEq
   obsEq = model$obsEq
@@ -36,7 +36,7 @@ IsSystemLinear = function(model){
     # Cheeck if previously present state were lost after differentiation
     C = all(unlist(lapply(present.states,function(x) !any(x==B[[x]]))))
     if(!C){
-      print("The system is nonlinear")
+      if(!silent){print("The system is nonlinear")}
       return(linear=FALSE)
     }
     # 2. Diffusion terms
@@ -45,7 +45,7 @@ IsSystemLinear = function(model){
       prev.vars = all.vars(eq)
       present.states = states[states %in% prev.vars]
       if( length(present.states) > 0 ){
-        print("The system is nonlinear")
+        if(!silent){print("The system is nonlinear")}
         return(linear=FALSE)
       }
     }
@@ -61,10 +61,11 @@ IsSystemLinear = function(model){
     # Cheeck if previously present states were lost after differentiation
     C = all(unlist(lapply(present.states,function(x) !any(x==B[[x]]))))
     if(!C){
-      print("The system is nonlinear")
+      if(!silent){print("The system is nonlinear")}
       return(linear=FALSE)
     }
   }
-  print("The system is linear")
+  
+  if(!silent){print("The system is linear")}
   return(linear=TRUE)
 }
