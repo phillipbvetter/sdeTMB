@@ -312,21 +312,13 @@ matrix<Type> constructE(matrix<Type> E,vector<Type> p){
   
   k = sum(diff(data$t)/data$dt)+1
   txt = append(txt, 
-               sprintf("\tvector<vector<Type>> xPrior(t.size());
+               sprintf("
+\tvector<vector<Type>> xPrior(t.size());
 \tvector<vector<Type>> xPost(t.size());
-\tvector<vector<Type>> xSmooth(t.size());
+\tvector<vector<Type>> xPriorPost(2*t.size());
 \tvector<matrix<Type>> pPrior(t.size());
 \tvector<matrix<Type>> pPost(t.size());
-\tvector<matrix<Type>> pSmooth(t.size());
-\tvector<matrix<Type>> Erep(t.size());
-\tvector<matrix<Type>> Crep(t.size());
-\tvector<matrix<Type>> C2rep(t.size());
-\tvector<matrix<Type>> V2rep(t.size());
-\tvector<matrix<Type>> Rrep(t.size());
-\tvector<matrix<Type>> Rirep(t.size());
-\tvector<matrix<Type>> Krep(t.size());
-\tvector<vector<Type>> e0rep(t.size());
-\tvector<vector<Type>> erep(t.size());
+\tvector<matrix<Type>> pPriorPost(2*t.size());
 \tvector<vector<Type>> xPrior_all(kkk);
 \tvector<matrix<Type>> pPrior_all(kkk);
 \tvector<vector<Type>> F_all(kkk);
@@ -336,6 +328,11 @@ matrix<Type> constructE(matrix<Type> E,vector<Type> p){
 \tpPrior(0) = p0;									
 \txPost(0) = x0;
 \tpPost(0) = p0;
+\txPriorPost(0) = x0;
+\txPriorPost(1) = x0;
+\tpPriorPost(0) = p0;
+\tpPriorPost(1) = p0;
+
 \tmatrix<Type> C,R,K,E,C2,V2,Ri,A,G,Lt;	
 \tvector<Type> e0,e,y(%s),NAs,F,ynew,xtemp;
 \tmatrix<Type> I(%s,%s);
@@ -367,7 +364,10 @@ matrix<Type> constructE(matrix<Type> E,vector<Type> p){
 			G_all(i*N+j) = G;
 		}
 		xPrior(i+1) = x0;
-		pPrior(i+1) = p0;")
+		pPrior(i+1) = p0;
+		xPriorPost(2*i+2) = x0;
+		pPriorPost(2*i+2) = p0;
+		")
   
   obsvars0 = unlist(lapply(obsEq,function(x) deparse(x[[1]][[2]])))
   obsvars2 = paste(obsvars0,"(i)",sep="")
@@ -391,52 +391,37 @@ matrix<Type> constructE(matrix<Type> E,vector<Type> p){
 			x0  = x0 + K*e;
 			p0  = (I-K*C2)*p0*(I-K*C2).transpose() + K*V2*K.transpose();
 			nll += 0.5*atomic::logdet(R) + 0.5*(e*(Ri*e)).sum() + 0.5*log(2*M_PI)*asDouble(s);
-			Erep(i) = E;
-			e0rep(i) = e0;
-			erep(i) = e;
-			Crep(i) = C;
-			C2rep(i) = C2;
-			V2rep(i) = V2;
-			Rrep(i) = R;
-			Rirep(i) = Ri;
-			Krep(i) = K;
 		}
 		xPost(i+1) = x0;
 		pPost(i+1) = p0;
+		xPriorPost(2*i+3) = x0;
+    pPriorPost(2*i+3) = p0;
   }")
-  txt = append(txt, sprintf("/* State Smoother */
-	xSmooth(0) = xPost(0);
-	pSmooth(0) = pPost(0);
-	xSmooth(t.size()-1) = xPost(t.size()-1);
-	pSmooth(t.size()-1) = pPost(t.size()-1);
-	for(int i=t.size()-2;i>=0;i--){
-	\tx0 = xPrior(i+1);
-	\txtemp = xSmooth(i+1) - xPrior(i+1);
-	\tLt = pPost(i) * dfdx(%s).transpose() * pPrior(i+1).inverse();
-	\txSmooth(i) = xPost(i) + Lt * xtemp;
-	\tpSmooth(i) = pPost(i) + Lt * ( pSmooth(i+1) - pPrior(i+1) ) * Lt.transpose();
-		
-	}",paste(dfdxvars2,collapse=", ")))
-	txt = append(txt ,"REPORT(xPrior);
+#   txt = append(txt, sprintf("/* State Smoother */
+# 	xSmooth(0) = xPost(0);
+# 	pSmooth(0) = pPost(0);
+# 	xSmooth(t.size()-1) = xPost(t.size()-1);
+# 	pSmooth(t.size()-1) = pPost(t.size()-1);
+# 	for(int i=t.size()-2;i>=0;i--){
+# 	\tx0 = xPrior(i+1);
+# 	\txtemp = xSmooth(i+1) - xPrior(i+1);
+# 	\tLt = pPost(i) * dfdx(%s).transpose() * pPrior(i+1).inverse();
+# 	\txSmooth(i) = xPost(i) + Lt * xtemp;
+# 	\tpSmooth(i) = pPost(i) + Lt * ( pSmooth(i+1) - pPrior(i+1) ) * Lt.transpose();
+# 		
+# 	}",paste(dfdxvars2,collapse=", ")))
+	txt = append(txt ,"
+REPORT(xPrior);
 REPORT(xPost);
-REPORT(xSmooth);
+REPORT(xPriorPost);
+REPORT(xPrior_all);
 REPORT(pPrior);
 REPORT(pPost);
-REPORT(pSmooth);
-REPORT(xPrior_all);
+REPORT(pPriorPost);
 REPORT(pPrior_all);
 REPORT(F_all);
 REPORT(A_all);
 REPORT(G_all);
-REPORT(Erep);
-REPORT(Crep);
-REPORT(C2rep);
-REPORT(Rrep);
-REPORT(Rirep);
-REPORT(V2rep);
-REPORT(Krep);
-REPORT(e0rep);
-REPORT(erep);
 return nll;
 }")
   writeLines(txt,full_modelname)
