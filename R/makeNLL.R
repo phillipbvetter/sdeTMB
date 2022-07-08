@@ -105,12 +105,12 @@ if(IsLinear){
            },
            #METHOD 2
            kalman = {
-             recompFun(compile,method,model,data,modelname)
+             recompFun(compile,method,model,data)
              # Prepare data for TMB
              tmbpars = data$pars
              tmbdata = c(data,data$constants)
              # Return neg. log likelihood
-             nll = MakeADFun(tmbdata, tmbpars, DLL=modelname, map=map, silent=silent)
+             nll = MakeADFun(tmbdata, tmbpars, DLL=model$modelname, map=map, silent=silent)
            }
     )
   }
