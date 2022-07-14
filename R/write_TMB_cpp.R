@@ -32,11 +32,17 @@ write_TMB_cpp = function(model,data){
   timedepInput = timedepInput[!timedepInput %in% names(c(data$pars, data$constants))]
   
   #Initialize C++ file
-  full_modelname = paste(model$modelname,".cpp",sep="")
+  full_modelname = paste(model$modelname2,".cpp",sep="")
   fileconn = file(full_modelname)
   
   txt = "#include <TMB.hpp>"
   txt = append(txt, "using namespace density;")
+  writeLines(txt,full_modelname)
+  
+  txt = append(txt, "template<class Type>
+bool isNA(Type x){
+\treturn R_IsNA(asDouble(x));
+}")
   writeLines(txt,full_modelname)
   
   # Construct diffusion matrix function
@@ -164,8 +170,11 @@ write_TMB_cpp = function(model,data){
   # Write observation contribution to likelihood
   for(i in 1:m){
     txt = append(txt, sprintf("\tfor(int i=0;i<%s.size(); ++i){",obs[i]))
-    txt = append(txt, sprintf("\t\tint j=CppAD::Integer(%s(i));",sprintf(rep("iobs%s",m),obs)[i]))
-    txt = append(txt, sprintf("\t\tnll -= dnorm(%s,%s,%s,1);\n\t}",obsvars2[i],hvars2[i],deparse(model$obsVar[[i]][[1]])))
+    txt = append(txt, "\t\tif(!isNA(Y(i))){")
+    txt = append(txt, sprintf("\t\t\tint j=CppAD::Integer(%s(i));",sprintf(rep("iobs%s",m),obs)[i]))
+    txt = append(txt, sprintf("\t\t\tnll -= dnorm(%s,%s,%s,1);",obsvars2[i],hvars2[i],deparse(model$obsVar[[i]][[1]])))
+    txt = append(txt, "\t\t}")
+    txt = append(txt, "\t}")
   }
   
   txt = append(txt, "return(nll);\n}")

@@ -1,4 +1,4 @@
-makeNLL = function(model,data,map=list(),method="TMB",compile=TRUE,silent=TRUE){
+makeNLL = function(model,data,map=list(),method="TMB",compile=TRUE,silent=TRUE,pathdir=""){
   # method are "TMB", "kalman" and "exactTMB"
   
   # Substitute algebraic expressions
@@ -13,6 +13,9 @@ makeNLL = function(model,data,map=list(),method="TMB",compile=TRUE,silent=TRUE){
   # Initialize
   sdeEq = model$sdeEq
   obsEq = model$obsEq
+  
+  # Overwrite modelname with path extension
+  model$modelname2 = paste(pathdir,model$modelname,sep="")
 
   state = c()
   n = length(sdeEq)
@@ -28,25 +31,25 @@ makeNLL = function(model,data,map=list(),method="TMB",compile=TRUE,silent=TRUE){
   IsLinear = IsSystemLinear(model,Shhh)
   
   # Function for recompilation
-  recompFun = function(compile,method,model,data){
-    full_modelname = paste(model$modelname,".cpp",sep="")
+  recompFun = function(compile,method,model,data,pathdir){
+    modelname_with_extension = paste(model$modelname2,".cpp",sep="")
     if(compile){
       switch(method,
              TMB = write_TMB_cpp(model,data),
              kalman = write_ExtendedKalman_cpp(model,data),
              TMBexact = write_linearExact_cpp(model,data)
       )
-      compile(full_modelname)
+      compile(modelname_with_extension)
       #reload the library
-      try(dyn.unload(dynlib(model$modelname)),silent=T)
-      dyn.load(dynlib(model$modelname))
+      try(dyn.unload(dynlib(model$modelname2)),silent=T)
+      try(dyn.load(dynlib(model$modelname2)),silent=T)
     }
-    if(!file.exists(full_modelname)){
+    if(!file.exists(modelname_with_extension)){
       print("You asked me not to compile, but the model C++ file doesn't exist so I will compile anyway")
       recompFun(TRUE,method,model,data)
     }
-    #if you restart R and do not require recompilation, then just load the library
-    if(!any(model$modelname==names(getLoadedDLLs()))) dyn.load(dynlib(model$modelname))
+    #load the library
+    try(dyn.load(dynlib(model$modelname2)),silent=T)
   }
   
   ############################################################################################################

@@ -45,7 +45,7 @@ write_ExtendedKalman_cpp = function(model,data) {
   timedepInput = timedepInput[!timedepInput %in% state]
   
   #Initialize C++ file
-  full_modelname = paste(model$modelname,".cpp",sep="")
+  full_modelname = paste(model$modelname2,".cpp",sep="")
   fileconn = file(full_modelname)
   
   txt = "#include <TMB.hpp>"
