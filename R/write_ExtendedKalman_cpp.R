@@ -107,6 +107,10 @@ matrix<Type> constructE(matrix<Type> E,vector<Type> p){
   for(i in 1:n){
     fvars2 = sub(pattern=sprintf("^%s$",state[i]),replacement=sprintf("x0(%s)",i-1),fvars2)
   }
+  if(length(fvars2)<1){
+    fvars1 = "Type a"
+    fvars2 = "Type(0.0)"
+  }
   
   temptxt = sprintf("template<class Type>\nvector<Type> f(%s){",fvars1)
   temptxt = append(temptxt, sprintf("\tvector<Type> ans(%i);",n))
@@ -135,6 +139,10 @@ matrix<Type> constructE(matrix<Type> E,vector<Type> p){
   }
   for(i in 1:n){
     dfdxvars2 = sub(pattern=sprintf("^%s$",state[i]),replacement=sprintf("x0(%s)",i-1),dfdxvars2)
+  }
+  if(length(dfdxvars2)<1){
+    dfdxvars1 = "Type a"
+    dfdxvars2 = "Type(0.0)"
   }
   
   dfdx = matrix(0,nrow=n,ncol=n)
