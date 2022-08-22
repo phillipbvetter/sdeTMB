@@ -105,7 +105,7 @@ matrix<Type> constructE(matrix<Type> E,vector<Type> p){
     }
   }
   for(i in 1:n){
-    fvars2 = sub(pattern=sprintf("^%s$",state[i]),replacement=sprintf("x0(%s)",i-1),fvars2)
+    fvars2 = sub(pattern=sprintf("^%s$",state[i]),replacement=sprintf("__x0(%s)",i-1),fvars2)
   }
   if(length(fvars2)<1){
     fvars1 = "Type a"
@@ -138,7 +138,7 @@ matrix<Type> constructE(matrix<Type> E,vector<Type> p){
     }
   }
   for(i in 1:n){
-    dfdxvars2 = sub(pattern=sprintf("^%s$",state[i]),replacement=sprintf("x0(%s)",i-1),dfdxvars2)
+    dfdxvars2 = sub(pattern=sprintf("^%s$",state[i]),replacement=sprintf("__x0(%s)",i-1),dfdxvars2)
   }
   if(length(dfdxvars2)<1){
     dfdxvars1 = "Type a"
@@ -178,7 +178,7 @@ matrix<Type> constructE(matrix<Type> E,vector<Type> p){
     }
   }
   for(i in 1:n){
-    gvars2 = sub(pattern=sprintf("^%s$",state[i]),replacement=sprintf("x0(%s)",i-1),gvars2)
+    gvars2 = sub(pattern=sprintf("^%s$",state[i]),replacement=sprintf("__x0(%s)",i-1),gvars2)
   }
   
   g = matrix(0,nrow=n,ncol=n)
@@ -212,7 +212,7 @@ matrix<Type> constructE(matrix<Type> E,vector<Type> p){
     }
   }
   for(i in 1:n){
-    hvars2 = sub(pattern=sprintf("^%s$",state[i]),replacement=sprintf("x0(%s)",i-1),hvars2)
+    hvars2 = sub(pattern=sprintf("^%s$",state[i]),replacement=sprintf("__x0(%s)",i-1),hvars2)
   }
   
   h = c()
@@ -245,7 +245,7 @@ matrix<Type> constructE(matrix<Type> E,vector<Type> p){
     }
   }
   for(i in 1:n){
-    dhdxvars2 = sub(pattern=sprintf("^%s$",state[i]),replacement=sprintf("x0(%s)",i-1),dhdxvars2)
+    dhdxvars2 = sub(pattern=sprintf("^%s$",state[i]),replacement=sprintf("__x0(%s)",i-1),dhdxvars2)
   }
   if(length(dhdxvars2)<1){
     dhdxvars1 = "Type a"
@@ -304,133 +304,120 @@ matrix<Type> constructE(matrix<Type> E,vector<Type> p){
       txt = append( txt , sprintf("\tDATA_SCALAR(%s);",nam))
     }
   }
-  txt = append(txt,"\tint N;")
-  txt = append(txt, "\tint s;")
+  txt = append(txt,"\tint __N;")
+  txt = append(txt, "\tint __s;")
   writeLines(txt,full_modelname)
   
   # Likelihood
-  txt = append(txt,"\tType nll = 0;\n")
+  txt = append(txt,"\tType __nll = 0;\n")
   writeLines(txt,full_modelname)
   
-  txt = append(txt,"\tvector<Type> x0 = X0;\n\tmatrix<Type> p0 = P0;\n\tvector<Type> x1 = x0;\n\tmatrix<Type> p1 = p0;")
+  txt = append(txt,"\tvector<Type> __x0 = X0;\n\tmatrix<Type> __p0 = P0;\n\tvector<Type> __x1 = __x0;\n\tmatrix<Type> __p1 = __p0;")
   writeLines(txt,full_modelname)
   
-  txt = append(txt, "\tint kkk = CppAD::Integer((diff(t)/dt).sum() + 1);")
+  txt = append(txt, "\tint __k = CppAD::Integer((diff(t)/dt).sum() + 1);")
   writeLines(txt,full_modelname)
   
   k = sum(diff(data$t)/data$dt)+1
   txt = append(txt, 
                sprintf("
-\tvector<vector<Type>> xPrior(t.size());
-\tvector<vector<Type>> xPost(t.size());
-\tvector<vector<Type>> xPriorPost(2*t.size());
-\tvector<matrix<Type>> pPrior(t.size());
-\tvector<matrix<Type>> pPost(t.size());
-\tvector<matrix<Type>> pPriorPost(2*t.size());
-\tvector<vector<Type>> xPrior_all(kkk);
-\tvector<matrix<Type>> pPrior_all(kkk);
-\tvector<vector<Type>> F_all(kkk);
-\tvector<matrix<Type>> A_all(kkk);
-\tvector<matrix<Type>> G_all(kkk);
-\txPrior(0) = x0;
-\tpPrior(0) = p0;									
-\txPost(0) = x0;
-\tpPost(0) = p0;
-\txPriorPost(0) = x0;
-\txPriorPost(1) = x0;
-\tpPriorPost(0) = p0;
-\tpPriorPost(1) = p0;
+\tvector<vector<Type>> __xPrior(t.size());
+\tvector<vector<Type>> __xPost(t.size());
+\tvector<vector<Type>> __xPriorPost(2*t.size());
+\tvector<matrix<Type>> __pPrior(t.size());
+\tvector<matrix<Type>> __pPost(t.size());
+\tvector<matrix<Type>> __pPriorPost(2*t.size());
+\tvector<vector<Type>> __xPrior_all(__k);
+\tvector<matrix<Type>> __pPrior_all(__k);
+\tvector<vector<Type>> __F_all(__k);
+\tvector<matrix<Type>> __A_all(__k);
+\tvector<matrix<Type>> __G_all(__k);
+\t__xPrior(0) = __x0;
+\t__pPrior(0) = __p0;									
+\t__xPost(0) = __x0;
+\t__pPost(0) = __p0;
+\t__xPriorPost(0) = __x0;
+\t__xPriorPost(1) = __x0;
+\t__pPriorPost(0) = __p0;
+\t__pPriorPost(1) = __p0;
 
-\tmatrix<Type> C,R,K,E,C2,V2,Ri,A,G,Lt;	
-\tvector<Type> e0,e,y(%s),NAs,F,ynew,xtemp;
-\tmatrix<Type> I(%s,%s);
-\tI.setIdentity();
-\tmatrix<Type> V(%s,%s);
-\tV.setZero();",m,n,n,m,m))
+\tmatrix<Type> __C,__R,__K,__E,__C2,__V2,__Ri,__A,__G;	
+\tvector<Type> __e0,__e,__y(%s),__NAs,__F,__ynew;
+\tmatrix<Type> __I(%s,%s);
+\t__I.setIdentity();
+\tmatrix<Type> __V(%s,%s);
+\t__V.setZero();",m,n,n,m,m))
   writeLines(txt,full_modelname)
   
   # Observation variance diagonal
   varobs = paste(unlist(lapply(model$obsVar,function(x) deparse(x[[1]]))),collapse=", ")
-  txt = append(txt, sprintf("\tV.diagonal() << %s;",varobs))
+  txt = append(txt, sprintf("\t__V.diagonal() << %s;",varobs))
   writeLines(txt,full_modelname)
   
   # integration for-loop
   txt = append(txt, "\n\tfor(int i=0;i<t.size()-1;i++){
-\t\tN = CppAD::Integer((t(i+1)-t(i))/dt);
-\t\tfor(int j=0;j<N;j++){")
-  txt = append(txt, sprintf("\t\t\tA  = dfdx(%s);",paste(dfdxvars2,collapse=", ")) )
-  txt = append(txt, sprintf("\t\t\tF  = f(%s);",paste(fvars2,collapse=", ")) )
-  txt = append(txt, sprintf("\t\t\tG  = g(%s);",paste(gvars2,collapse=", ")) )
-  txt = append(txt,"\t\t\tx1 = x0 + F * dt;
-			p1 = p0 + ( A*p0 + p0*A.transpose() + G*G.transpose() ) * dt;
-			x0 = x1;
-			p0 = p1;
-			xPrior_all(i*N+j) = x0;
-			pPrior_all(i*N+j) = p0;
-			F_all(i*N+j) = F;
-			A_all(i*N+j) = A;
-			G_all(i*N+j) = G;
+\t\t__N = CppAD::Integer((t(i+1)-t(i))/dt);
+\t\tfor(int j=0;j<__N;j++){")
+  txt = append(txt, sprintf("\t\t\t__A  = dfdx(%s);",paste(dfdxvars2,collapse=", ")) )
+  txt = append(txt, sprintf("\t\t\t__F  = f(%s);",paste(fvars2,collapse=", ")) )
+  txt = append(txt, sprintf("\t\t\t__G  = g(%s);",paste(gvars2,collapse=", ")) )
+  txt = append(txt,"\t\t\t__x1 = __x0 + __F * dt;
+			__p1 = __p0 + ( __A*__p0 + __p0*__A.transpose() + __G*__G.transpose() ) * dt;
+			__x0 = __x1;
+			__p0 = __p1;
+			__xPrior_all(i*__N+j) = __x0;
+			__pPrior_all(i*__N+j) = __p0;
+			__F_all(i*__N+j) = __F;
+			__A_all(i*__N+j) = __A;
+			__G_all(i*__N+j) = __G;
 		}
-		xPrior(i+1) = x0;
-		pPrior(i+1) = p0;
-		xPriorPost(2*i+2) = x0;
-		pPriorPost(2*i+2) = p0;
+		__xPrior(i+1) = __x0;
+		__pPrior(i+1) = __p0;
+		__xPriorPost(2*i+2) = __x0;
+		__pPriorPost(2*i+2) = __p0;
 		")
   
   obsvars0 = unlist(lapply(obsEq,function(x) deparse(x[[1]][[2]])))
   obsvars2 = paste(obsvars0,"(i)",sep="")
   
-  txt = append(txt, sprintf("\t\ty << %s;", paste(obsvars2,collapse=", ")))
-  txt = append(txt, sprintf("\t\tNAs = isNA(y);
-    s = CppAD::Integer(sum(NAs));
+  txt = append(txt, sprintf("\t\t__y << %s;", paste(obsvars2,collapse=", ")))
+  txt = append(txt, sprintf("\t\t__NAs = isNA(__y);
+    __s = CppAD::Integer(sum(__NAs));
 		/*if all are NA we skip, otherwise update (reduce dimensions with E matrix)*/
-		if( s > 0 ){
-		  ynew = removeNAs(y,NAs);
-			matrix<Type> E0(s,%s);
-			E 	= constructE(E0,NAs);",m))
-  txt = append(txt, sprintf("\t\t\te0  = ynew - h(%s);",paste(hvars2,collapse=", ")))
-  txt = append(txt, "\t\t\te 	= E*e0;")
-  txt = append(txt, sprintf("\t\t\tC  	= dhdx(%s);",paste(dhdxvars2,collapse=", ")))
-  txt = append(txt,"\t\t\tC2 	= E*C;
-			V2  = E*V*E.transpose();
-			R 	= C2*p0*C2.transpose() + V2;
-			Ri  = R.inverse();
-			K 	= p0 * C2.transpose() * Ri;
-			x0  = x0 + K*e;
-			p0  = (I-K*C2)*p0*(I-K*C2).transpose() + K*V2*K.transpose();
-			nll += 0.5*atomic::logdet(R) + 0.5*(e*(Ri*e)).sum() + 0.5*log(2*M_PI)*asDouble(s);
+		if( __s > 0 ){
+		  __ynew = removeNAs(__y,__NAs);
+			matrix<Type> __E0(__s,%s);
+			__E 	= constructE(__E0,__NAs);",m))
+  txt = append(txt, sprintf("\t\t\t__e0  = __ynew - h(%s);",paste(hvars2,collapse=", ")))
+  txt = append(txt, "\t\t\t__e 	= __E*__e0;")
+  txt = append(txt, sprintf("\t\t\t__C  	= dhdx(%s);",paste(dhdxvars2,collapse=", ")))
+  txt = append(txt,"\t\t\t__C2 	= __E*__C;
+			__V2  = __E*__V*__E.transpose();
+			__R 	= __C2*__p0*__C2.transpose() + __V2;
+			__Ri  = __R.inverse();
+			__K 	= __p0 * __C2.transpose() * __Ri;
+			__x0  = __x0 + __K*__e;
+			__p0  = (__I-__K*__C2)*__p0*(__I-__K*__C2).transpose() + __K*__V2*__K.transpose();
+			__nll += 0.5*atomic::logdet(__R) + 0.5*(__e*(__Ri*__e)).sum() + 0.5*log(2*M_PI)*asDouble(__s);
 		}
-		xPost(i+1) = x0;
-		pPost(i+1) = p0;
-		xPriorPost(2*i+3) = x0;
-    pPriorPost(2*i+3) = p0;
+		__xPost(i+1) = __x0;
+		__pPost(i+1) = __p0;
+		__xPriorPost(2*i+3) = __x0;
+    __pPriorPost(2*i+3) = __p0;
   }")
-#   txt = append(txt, sprintf("/* State Smoother */
-# 	xSmooth(0) = xPost(0);
-# 	pSmooth(0) = pPost(0);
-# 	xSmooth(t.size()-1) = xPost(t.size()-1);
-# 	pSmooth(t.size()-1) = pPost(t.size()-1);
-# 	for(int i=t.size()-2;i>=0;i--){
-# 	\tx0 = xPrior(i+1);
-# 	\txtemp = xSmooth(i+1) - xPrior(i+1);
-# 	\tLt = pPost(i) * dfdx(%s).transpose() * pPrior(i+1).inverse();
-# 	\txSmooth(i) = xPost(i) + Lt * xtemp;
-# 	\tpSmooth(i) = pPost(i) + Lt * ( pSmooth(i+1) - pPrior(i+1) ) * Lt.transpose();
-# 		
-# 	}",paste(dfdxvars2,collapse=", ")))
 	txt = append(txt ,"
-REPORT(xPrior);
-REPORT(xPost);
-REPORT(xPriorPost);
-REPORT(xPrior_all);
-REPORT(pPrior);
-REPORT(pPost);
-REPORT(pPriorPost);
-REPORT(pPrior_all);
-REPORT(F_all);
-REPORT(A_all);
-REPORT(G_all);
-return nll;
+REPORT(__xPrior);
+REPORT(__xPost);
+REPORT(__xPriorPost);
+REPORT(__xPrior_all);
+REPORT(__pPrior);
+REPORT(__pPost);
+REPORT(__pPriorPost);
+REPORT(__pPrior_all);
+REPORT(__F_all);
+REPORT(__A_all);
+REPORT(__G_all);
+return __nll;
 }")
   writeLines(txt,full_modelname)
   

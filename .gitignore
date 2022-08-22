@@ -25,3 +25,9 @@ sdem.Rcheck
 miscR/linear_example_kalman.so
 miscR/linear_example_kalman.o
 miscR/linear_example_kalman.cpp
+miscR/linear_example_TMB.so
+miscR/linear_example_TMB.o
+miscR/linear_example_TMB.cpp
+miscR/linear_example_exact.so
+miscR/linear_example_exact.o
+miscR/linear_example_exact.cpp

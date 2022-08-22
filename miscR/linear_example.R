@@ -11,21 +11,13 @@ library(Deriv)
 library(TMB)
 library(ctsmr)
 
-# Set directory
+
 this_path = rstudioapi::getActiveDocumentContext()$path
 setwd(dirname(this_path))
 
 # Loading functions package style 
 pack = as.package("../R")
 load_all(pack)
-
-# Loading functions directly
-# source("../R/makeNLL.R")
-# source("../R/write_linearExact_cpp.R")
-# source("../R/write_TMB_cpp.R")
-# source("../R/write_ExtendedKalman_cpp.R")
-# source("../R/IsSystemLinear.R")
-# source("../R/hat2pow.R")
 
 # Construct model list
 model = list()
@@ -173,8 +165,8 @@ nll.kalman = makeNLL(model.kalman,data.kalman,method="kalman")
 # Estimate parameters and latent variables
 time.kalman = system.time(opt.kalman <- nlminb(nll.kalman$par,nll.kalman$fn,nll.kalman$gr),gcFirst=T)
 
-Xpred = unlist( nll.kalman$report()$xPost )
-Xsd   = sqrt(unlist( nll.kalman$report()$pPost ))
+Xpred = unlist( nll.kalman$report()$"__xPost" )
+Xsd   = sqrt(unlist( nll.kalman$report()$"__pPost" ))
 
 # Setup plot
 plot(tsim, Xsim, type="n", xlab="Time t", ylab="State x")

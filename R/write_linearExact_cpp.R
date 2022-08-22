@@ -170,54 +170,57 @@ write_linearExact_cpp = function(model,data){
   writeLines(txt,full_modelname)
   
   # Likelihood
-  txt = append(txt,"\tType nll = 0;")
+  txt = append(txt,"\tType __nll = 0;")
   writeLines(txt,full_modelname)
   
   # Create variables
-  temptxt = sprintf("\tvector<Type> Xi(%i);",n)
-  temptxt = append(temptxt, sprintf("\tvector<Type> Xip1(%i);",n))
-  temptxt = append(temptxt, sprintf("\tvector<Type> Z(%i);",n))
-  temptxt = append(temptxt, sprintf("\tmatrix<Type> MeanAug0(%i,%i);",n+1,n+1))
-  temptxt = append(temptxt, sprintf("\tmatrix<Type> VarAug0(%i,%i);",2*n,2*n))
-  temptxt = append(temptxt, sprintf("\tmatrix<Type> MeanAug(%i,%i);",n+1,n+1))
-  temptxt = append(temptxt, sprintf("\tmatrix<Type> VarAug(%i,%i);",2*n,2*n))
-  temptxt = append(temptxt, sprintf("\tmatrix<Type> Ahat(%i,%i);",n,n))
-  temptxt = append(temptxt, sprintf("\tvector<Type> Bhat(%i);",n))
-  temptxt = append(temptxt, sprintf("\tmatrix<Type> Qhat(%i,%i);",n,n))
-  temptxt = append(temptxt, sprintf("\tType dt;"))
+  temptxt = sprintf("\tvector<Type> __Xi(%i);",n)
+  temptxt = append(temptxt, sprintf("\tvector<Type> __Xip1(%i);",n))
+  temptxt = append(temptxt, sprintf("\tvector<Type> __Z(%i);",n))
+  temptxt = append(temptxt, sprintf("\tmatrix<Type> __MeanAug0(%i,%i);",n+1,n+1))
+  temptxt = append(temptxt, sprintf("\tmatrix<Type> __VarAug0(%i,%i);",2*n,2*n))
+  temptxt = append(temptxt, sprintf("\tmatrix<Type> __MeanAug(%i,%i);",n+1,n+1))
+  temptxt = append(temptxt, sprintf("\tmatrix<Type> __VarAug(%i,%i);",2*n,2*n))
+  temptxt = append(temptxt, sprintf("\tmatrix<Type> __Ahat(%i,%i);",n,n))
+  temptxt = append(temptxt, sprintf("\tvector<Type> __Bhat(%i);",n))
+  temptxt = append(temptxt, sprintf("\tmatrix<Type> __Qhat(%i,%i);",n,n))
+  temptxt = append(temptxt, sprintf("\tType __dt;"))
   
   txt = append(txt, temptxt)
   writeLines(txt,full_modelname)
   
-  flag = length(timedepInput[!timedepInput %in% state])<1 & (diff(data$t)[1] - 1e-10) < diff(data$t) && diff(data$t) < (diff(data$t)[1] + 1e-10) 
+  flag0 = length(timedepInput[!timedepInput %in% state]) < 1 #there must be no time-dependent inputs
+  flag1 = any(abs(diff(data$t) - diff(data$t)[1]) < .Machine$double.eps^0.5) #the time-steps should be constant
+  flag = flag0 & flag1
+     
   if(flag){
-    txt = append(txt, sprintf("\tdt = t(1)-t(0);"))
-    txt = append(txt, sprintf("\tMeanAug0 = MeanMat(%s)*dt;",paste(MeanMat.vars2,collapse=", ")))
-    txt = append(txt, sprintf("\tVarAug0 = VarMat(%s)*dt;",paste(VarMat.vars2,collapse=", ")))
-    txt = append(txt, sprintf("\tMeanAug = expm(MeanAug0);"))
-    txt = append(txt, sprintf("\tVarAug = expm(VarAug0);"))
-    txt = append(txt, sprintf("\tAhat = MeanAug.block(0,0,%i,%i);",n,n))
-    txt = append(txt, sprintf("\tBhat = MeanAug.col(%i).head(%i);",n,n))
-    txt = append(txt, sprintf("\tQhat = VarAug.block(%i,%i,%i,%i).transpose() * VarAug.block(0,%i,%i,%i);",n,n,n,n,n,n,n,n) )
+    txt = append(txt, sprintf("\t__dt = t(1)-t(0);"))
+    txt = append(txt, sprintf("\t__MeanAug0 = MeanMat(%s)*__dt;",paste(MeanMat.vars2,collapse=", ")))
+    txt = append(txt, sprintf("\t__VarAug0 = VarMat(%s)*__dt;",paste(VarMat.vars2,collapse=", ")))
+    txt = append(txt, sprintf("\t__MeanAug = expm(__MeanAug0);"))
+    txt = append(txt, sprintf("\t__VarAug = expm(__VarAug0);"))
+    txt = append(txt, sprintf("\t__Ahat = __MeanAug.block(0,0,%i,%i);",n,n))
+    txt = append(txt, sprintf("\t__Bhat = __MeanAug.col(%i).head(%i);",n,n))
+    txt = append(txt, sprintf("\t__Qhat = __VarAug.block(%i,%i,%i,%i).transpose() * __VarAug.block(0,%i,%i,%i);",n,n,n,n,n,n,n) )
   }
   
   # dt for loop
   txt = append(txt,"\n\tfor(int i=0;i<t.size()-1;i++){" )
   writeLines(txt,full_modelname)
   if(!flag){
-    txt = append(txt, sprintf("\t\tdt = t(i+1) - t(i);"))
-    txt = append(txt, sprintf("\t\tMeanAug0 = MeanMat(%s)*dt;",paste(MeanMat.vars2,collapse=", ")))
-    txt = append(txt, sprintf("\t\tVarAug0 = VarMat(%s)*dt;",paste(VarMat.vars2,collapse=", ")))
-    txt = append(txt, sprintf("\t\tMeanAug = expm(MeanAug0);"))
-    txt = append(txt, sprintf("\t\tVarAug = expm(VarAug0);"))
-    txt = append(txt, sprintf("\t\tAhat = MeanAug.block(0,0,%i,%i);",n,n))
-    txt = append(txt, sprintf("\t\tBhat = MeanAug.col(%i).head(%i);",n,n))
-    txt = append(txt, sprintf("\t\tQhat = VarAug.block(%i,%i,%i,%i).transpose() * VarAug.block(0,%i,%i,%i);",n,n,n,n,n,n,n,n) )
+    txt = append(txt, sprintf("\t\t__dt = t(i+1) - t(i);"))
+    txt = append(txt, sprintf("\t\t__MeanAug0 = MeanMat(%s)*__dt;",paste(MeanMat.vars2,collapse=", ")))
+    txt = append(txt, sprintf("\t\t__VarAug0 = VarMat(%s)*__dt;",paste(VarMat.vars2,collapse=", ")))
+    txt = append(txt, sprintf("\t\t__MeanAug = expm(__MeanAug0);"))
+    txt = append(txt, sprintf("\t\t__VarAug = expm(__VarAug0);"))
+    txt = append(txt, sprintf("\t\t__Ahat = __MeanAug.block(0,0,%i,%i);",n,n))
+    txt = append(txt, sprintf("\t\t__Bhat = __MeanAug.col(%i).head(%i);",n,n))
+    txt = append(txt, sprintf("\t\t__Qhat = __VarAug.block(%i,%i,%i,%i).transpose() * __VarAug.block(0,%i,%i,%i);",n,n,n,n,n,n,n) )
   }
-  txt = append(txt, sprintf("\t\tXi << %s;",paste(state,"(i)",collapse=", ",sep="")))
-  txt = append(txt, sprintf("\t\tXip1 << %s;",paste(state,"(i+1)",collapse=", ",sep="")))
-  txt = append(txt, sprintf("\t\tZ = Xip1 - (Ahat * Xi + Bhat);"))
-  txt = append(txt, "\t\tnll += MVNORM(Qhat)(Z);\n\t}")
+  txt = append(txt, sprintf("\t\t__Xi << %s;",paste(state,"(i)",collapse=", ",sep="")))
+  txt = append(txt, sprintf("\t\t__Xip1 << %s;",paste(state,"(i+1)",collapse=", ",sep="")))
+  txt = append(txt, sprintf("\t\t__Z = __Xip1 - (__Ahat * __Xi + __Bhat);"))
+  txt = append(txt, "\t\t__nll += MVNORM(__Qhat)(__Z);\n\t}")
   writeLines(txt,full_modelname)
   
   obsvars0 = unlist(lapply(obsEq,function(x) deparse(x[[1]][[2]])))
@@ -236,10 +239,10 @@ write_linearExact_cpp = function(model,data){
   # Write observation contribution to likelihood
   for(i in 1:m){
     txt = append(txt, sprintf("\tfor(int i=0;i<%s.size(); ++i){\n\t\tint j=CppAD::Integer(%s(i));",obs[i],sprintf(rep("iobs%s",m),obs)[i]))
-    txt = append(txt, sprintf("\t\tnll -= dnorm(%s,%s,%s,1);\n\t}",obsvars2[i],hvars2[i],deparse(model$obsVar[[i]][[1]])))
+    txt = append(txt, sprintf("\t\t__nll -= dnorm(%s,%s,%s,1);\n\t}",obsvars2[i],hvars2[i],deparse(model$obsVar[[i]][[1]])))
   }
   
-  txt = append(txt, "return(nll);\n}")
+  txt = append(txt, "return(__nll);\n}")
   writeLines(txt,full_modelname)
   
   # Close file connection

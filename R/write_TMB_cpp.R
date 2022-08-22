@@ -125,30 +125,31 @@ bool isNA(Type x){
   writeLines(txt,full_modelname)
   
   # Likelihood
-  txt = append(txt,"\tType nll = 0;")
+  txt = append(txt,"\tType __nll = 0;")
   writeLines(txt,full_modelname)
   
   # Create variables
-  temptxt = sprintf("\tvector<Type> f(%i);",n)
-  temptxt = append(temptxt, sprintf("\tvector<Type> Xi(%i);",n))
-  temptxt = append(temptxt, sprintf("\tvector<Type> Xip1(%i);",n))
-  temptxt = append(temptxt, sprintf("\tvector<Type> Z(%i);",n))
-  temptxt = append(temptxt, sprintf("\tmatrix<Type> G(%i,%i);",n,n))
-  temptxt = append(temptxt, sprintf("\tmatrix<Type> V(%i,%i);",n,n))
+  temptxt = sprintf("\tvector<Type> __f(%i);",n)
+  temptxt = append(temptxt, sprintf("\tvector<Type> __Xi(%i);",n))
+  temptxt = append(temptxt, sprintf("\tvector<Type> __Xip1(%i);",n))
+  temptxt = append(temptxt, sprintf("\tvector<Type> __Z(%i);",n))
+  temptxt = append(temptxt, sprintf("\tmatrix<Type> __G(%i,%i);",n,n))
+  temptxt = append(temptxt, sprintf("\tmatrix<Type> __V(%i,%i);",n,n))
   txt = append(txt, temptxt)
   writeLines(txt,full_modelname)
   
   # dt for loop
-  txt = append(txt,"\tType dt;\n\tfor(int i=0;i<t.size()-1;i++){\n\t\tdt = t(i+1) - t(i);" )
+  txt = append(txt,"\tType __dt;\n\tfor(int i=0;i<t.size()-1;i++){\n\t\t__dt = t(i+1) - t(i);" )
   writeLines(txt,full_modelname)
   
-  txt = append(txt, sprintf("\t\tf = fvec(%s);",paste(fvars2,collapse=", ")))
-  txt = append(txt, sprintf("\t\tG = Gmat(%s);",paste(gvars2,collapse=", ")))
-  txt = append(txt, sprintf("\t\tXi << %s;",paste(state,"(i)",collapse=", ",sep="")))
-  txt = append(txt, sprintf("\t\tXip1 << %s;",paste(state,"(i+1)",collapse=", ",sep="")))
-  txt = append(txt, sprintf("\t\tZ = Xip1 - Xi - f * dt;"))
-  txt = append(txt, sprintf("\t\tV = G*G.transpose()*dt;"))
-  txt = append(txt, "\t\tnll += MVNORM(V)(Z);\n\t}")
+  txt = append(txt, sprintf("\t\t__f = fvec(%s);",paste(fvars2,collapse=", ")))
+  txt = append(txt, sprintf("\t\t__G = Gmat(%s);",paste(gvars2,collapse=", ")))
+  txt = append(txt, sprintf("\t\t__Xi << %s;",paste(state,"(i)",collapse=", ",sep="")))
+  txt = append(txt, sprintf("\t\t__Xip1 << %s;",paste(state,"(i+1)",collapse=", ",sep="")))
+  txt = append(txt, sprintf("\t\t__Z = __Xip1 - __Xi - __f * __dt;"))
+  txt = append(txt, sprintf("\t\t__V = __G*__G.transpose()*__dt;"))
+  # EVALUATE LIKELIHOOD UNDER NORMAL ASSUMPTION
+  txt = append(txt, "\t\t__nll += MVNORM(__V)(__Z);\n\t}")
   writeLines(txt,full_modelname)
   
   #In the non-linear TMB case we need to alter the likelihood contribution from the variance because they can be coupled
@@ -170,14 +171,15 @@ bool isNA(Type x){
   # Write observation contribution to likelihood
   for(i in 1:m){
     txt = append(txt, sprintf("\tfor(int i=0;i<%s.size(); ++i){",obs[i]))
-    txt = append(txt, "\t\tif(!isNA(Y(i))){")
-    txt = append(txt, sprintf("\t\t\tint j=CppAD::Integer(%s(i));",sprintf(rep("iobs%s",m),obs)[i]))
-    txt = append(txt, sprintf("\t\t\tnll -= dnorm(%s,%s,%s,1);",obsvars2[i],hvars2[i],deparse(model$obsVar[[i]][[1]])))
+    txt = append(txt, sprintf("\t\tif(!isNA(%s(i))){",obs[i]))
+    # txt = append(txt, sprintf("\t\t\tint j=CppAD::Integer(%s(i));",sprintf(rep("iobs%s",m),obs)[i]))
+    txt = append(txt, sprintf("\t\t\tint j=CppAD::Integer(%s(i));",sprintf("iobs%s",obs[i])))
+    txt = append(txt, sprintf("\t\t\t__nll -= dnorm(%s,%s,%s,1);",obsvars2[i],hvars2[i],paste("sqrt(",deparse(model$obsVar[[i]][[1]]),")",sep="")))
     txt = append(txt, "\t\t}")
     txt = append(txt, "\t}")
   }
   
-  txt = append(txt, "return(nll);\n}")
+  txt = append(txt, "return(__nll);\n}")
   writeLines(txt,full_modelname)
   
   # Close file connection
