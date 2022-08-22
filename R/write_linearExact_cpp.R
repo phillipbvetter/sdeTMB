@@ -42,6 +42,12 @@ write_linearExact_cpp = function(model,data){
   txt = append(txt, "using namespace density;")
   writeLines(txt,full_modelname)
   
+  txt = append(txt, "template<class Type>
+bool isNA(Type x){
+\treturn R_IsNA(asDouble(x));
+}")
+  writeLines(txt,full_modelname)
+  
   # Find time-dep inputs
   timedepInput = sort(unique(unlist(lapply(sdeEq,all.vars))))
   timedepInput = timedepInput[!timedepInput %in% diff.processes]
@@ -232,14 +238,20 @@ write_linearExact_cpp = function(model,data){
   hvars2 = hvars0
   if(length(timedepInput)>0){
     for(i in 1:length(timedepInput)){
-      hvars2 = sub(pattern=sprintf("^%s$",timedepInput[i]), replacement=sprintf("%s(j)",timedepInput[i]), x=hvars2)
+      hvars2 = sub(pattern=sprintf("^%s$",timedepInput[i]), replacement=sprintf("%s(i)",timedepInput[i]), x=hvars2)
     }
   }
   
   # Write observation contribution to likelihood
+  # for(i in 1:m){
+  #   txt = append(txt, sprintf("\tfor(int i=0;i<%s.size(); ++i){\n\t\tint j=CppAD::Integer(%s(i));",obs[i],sprintf(rep("iobs%s",m),obs)[i]))
+  #   txt = append(txt, sprintf("\t\t__nll -= dnorm(%s,%s,%s,1);\n\t}",obsvars2[i],hvars2[i],deparse(model$obsVar[[i]][[1]])))
+  # }
+  
   for(i in 1:m){
-    txt = append(txt, sprintf("\tfor(int i=0;i<%s.size(); ++i){\n\t\tint j=CppAD::Integer(%s(i));",obs[i],sprintf(rep("iobs%s",m),obs)[i]))
-    txt = append(txt, sprintf("\t\t__nll -= dnorm(%s,%s,%s,1);\n\t}",obsvars2[i],hvars2[i],deparse(model$obsVar[[i]][[1]])))
+    txt = append(txt, sprintf("\tfor(int i=0;i<%s.size(); ++i){",obs[i]))
+    txt = append(txt, sprintf("\t\tif(!isNA(%s(i))){",obs[i]))
+    txt = append(txt, sprintf("\t\t\t__nll -= dnorm(%s,%s,sqrt(%s),true);\n\t\t}\n\t}",obsvars2[i],hvars2[i],deparse(model$obsVar[[i]][[1]])))
   }
   
   txt = append(txt, "return(__nll);\n}")

@@ -164,17 +164,26 @@ bool isNA(Type x){
   hvars2 = hvars0
   if(length(timedepInput)>0){
     for(i in 1:length(timedepInput)){
-      hvars2 = sub(pattern=sprintf("^%s$",timedepInput[i]), replacement=sprintf("%s(j)",timedepInput[i]), x=hvars2)
+      hvars2 = sub(pattern=sprintf("^%s$",timedepInput[i]), replacement=sprintf("%s(i)",timedepInput[i]), x=hvars2)
     }
   }
   
   # Write observation contribution to likelihood
+  # for(i in 1:m){
+  #   txt = append(txt, sprintf("\tfor(int i=0;i<%s.size(); ++i){",obs[i]))
+  #   txt = append(txt, sprintf("\t\tif(!isNA(%s(i))){",obs[i]))
+  #   # txt = append(txt, sprintf("\t\t\tint j=CppAD::Integer(%s(i));",sprintf(rep("iobs%s",m),obs)[i]))
+  #   txt = append(txt, sprintf("\t\t\tint j=CppAD::Integer(%s(i));",sprintf("iobs%s",obs[i])))
+  #   txt = append(txt, sprintf("\t\t\t__nll -= dnorm(%s,%s,%s,1);",obsvars2[i],hvars2[i],paste("sqrt(",deparse(model$obsVar[[i]][[1]]),")",sep="")))
+  #   txt = append(txt, "\t\t}")
+  #   txt = append(txt, "\t}")
+  # }
+  
+  # Write observation contribution to likelihood - not using iobs
   for(i in 1:m){
     txt = append(txt, sprintf("\tfor(int i=0;i<%s.size(); ++i){",obs[i]))
     txt = append(txt, sprintf("\t\tif(!isNA(%s(i))){",obs[i]))
-    # txt = append(txt, sprintf("\t\t\tint j=CppAD::Integer(%s(i));",sprintf(rep("iobs%s",m),obs)[i]))
-    txt = append(txt, sprintf("\t\t\tint j=CppAD::Integer(%s(i));",sprintf("iobs%s",obs[i])))
-    txt = append(txt, sprintf("\t\t\t__nll -= dnorm(%s,%s,%s,1);",obsvars2[i],hvars2[i],paste("sqrt(",deparse(model$obsVar[[i]][[1]]),")",sep="")))
+    txt = append(txt, sprintf("\t\t\t__nll -= dnorm(%s,%s,%s,true);",obsvars2[i],hvars2[i],paste("sqrt(",deparse(model$obsVar[[i]][[1]]),")",sep="")))
     txt = append(txt, "\t\t}")
     txt = append(txt, "\t}")
   }
