@@ -1,0 +1,234 @@
+write_TMBexact = function(model,data){
+  
+  #Get info
+  model_info = getModelInfo(model,data)
+  names_model_info = names(model_info)
+  for(i in 1:length(model_info)){
+    assign(names_model_info[i],model_info[[i]])
+  }
+  
+  #Initialize C++ file
+  full_modelname = paste(model$modelname2,".cpp",sep="")
+  fileconn = file(full_modelname)
+  
+  txt = "#include <TMB.hpp>"
+  txt = append(txt, "using namespace density;")
+  writeLines(txt,full_modelname)
+  
+  txt = append(txt, "template<class Type>
+bool isNA(Type x){
+\treturn R_IsNA(asDouble(x));
+}")
+  writeLines(txt,full_modelname)
+  
+  # Find time-dep inputs
+  timedepInput = sort(unique(unlist(lapply(sdeEq,all.vars))))
+  timedepInput = timedepInput[!timedepInput %in% diff.processes]
+  timedepInput = timedepInput[!timedepInput %in% paste("d",state,sep="")]
+  timedepInput = timedepInput[!timedepInput %in% names(c(data$pars, data$constants))]
+  
+  # Constructing augmented matrices for 1-step solution
+  A    = matrix(0,nrow=n,ncol=n)
+  negA = matrix(0,nrow=n,ncol=n)
+  G    = matrix(0,nrow=n,ncol=ng)
+  GGT  = matrix(0,nrow=n,ncol=n)
+  B    = rep(0,n)
+  VarMat.vars = c()
+  MeanMat.vars = c()
+  for(i in 1:n){
+    # Elements in B vector can be found by setting all states equal to zero in the drift term
+    mylist = setNames(as.vector(rep(0,n),mode="list"),state)
+    cur.expr = Simplify(do.call(substitute,list(diff.terms[[i]]$dt,mylist)))
+    MeanMat.vars = c(MeanMat.vars, all.vars(cur.expr))
+    B[i] = paste(deparse(hat2pow(cur.expr)),collapse="")
+    for(j in 1:n){
+      # Elements in A matrix can be found by taking remaining terms after individual state derivatives
+      cur.expr = sapply(state, function(x) D(diff.terms[[i]]$dt,x))[[j]]
+      VarMat.vars = c(VarMat.vars , all.vars(cur.expr))
+      MeanMat.vars = c(MeanMat.vars, all.vars(cur.expr))
+      A[i,j] = paste(deparse(Simplify(hat2pow(cur.expr))),collapse="")
+      negA[i,j] = paste(deparse(Simplify(hat2pow(substitute( -a, list(a=cur.expr))))),collapse="")
+    }
+  }
+  for(i in 1:n){
+    for(j in 1:ng){
+      cur.expr = diff.terms[[i]][[j+1]]
+      VarMat.vars = c(VarMat.vars , all.vars(cur.expr))
+      G[i,j] = paste(deparse(hat2pow(cur.expr)),collapse="")
+    }
+  }
+  # Matrix multiply G %*% t(G) as strings
+  for(i in 1:n){
+    for(j in 1:n){
+      for(k in 1:ng){
+        GGT[i,j] = paste(GGT[i,j],"+",G[i,k],"*",t(G)[k,j])
+      }
+    }
+  }
+  
+  
+  #Mean
+  MeanAug = matrix(0,nrow=n+1,ncol=n+1)
+  MeanAug[1:n,1:n] = A
+  MeanAug[1:n,n+1] = B
+  #Var
+  VarAug = matrix(0,nrow=2*n,ncol=2*n)
+  VarAug[1:n,1:n] = negA
+  VarAug[1:n,(n+1):(2*n)] = GGT
+  VarAug[(n+1):(2*n),(n+1):(2*n)] = t(A)
+  
+  VarMat.vars0 = sort(unique(VarMat.vars))
+  VarMat.vars1 = paste("Type", VarMat.vars0, collapse=", ")
+  VarMat.vars2 = VarMat.vars0
+  if(length(timedepInput)>0){
+    for(i in 1:length(timedepInput)){
+      VarMat.vars2 = sub(pattern=sprintf("^%s$",timedepInput[i]), replacement=sprintf("%s(i)",timedepInput[i]), x=VarMat.vars2)
+    }
+  }
+  
+  MeanMat.vars0 = sort(unique(MeanMat.vars))
+  MeanMat.vars1= paste("Type", MeanMat.vars0, collapse=", ")
+  MeanMat.vars2 = MeanMat.vars0
+  if(length(timedepInput)>0){
+    for(i in 1:length(timedepInput)){
+      MeanMat.vars2 = sub(pattern=sprintf("^%s$",timedepInput[i]), replacement=sprintf("%s(i)",timedepInput[i]), x=MeanMat.vars2)
+    }
+  }
+  
+  temptxt = sprintf("template<class Type>\nmatrix<Type> VarMat(%s){",VarMat.vars1)
+  temptxt = append(temptxt, sprintf("\tmatrix<Type> G(%i,%i);",2*n,2*n))
+  for(i in 1:(2*n)){
+    for(j in 1:(2*n)){
+      temptxt = append( temptxt , sprintf("\tG(%i,%i) = %s;",i-1,j-1,VarAug[i,j]))
+    }
+  }
+  temptxt = append(temptxt, "\treturn G;\n}")
+  txt = append(txt, temptxt)
+  writeLines(txt,full_modelname)
+  
+  temptxt = sprintf("template<class Type>\nmatrix<Type> MeanMat(%s){",MeanMat.vars1)
+  temptxt = append(temptxt, sprintf("\tmatrix<Type> A(%i,%i);",n+1,n+1))
+  for(i in 1:(n+1)){
+    for(j in 1:(n+1)){
+      temptxt = append( temptxt , sprintf("\tA(%i,%i) = %s;",i-1,j-1,MeanAug[i,j]))
+    }
+  }
+  temptxt = append(temptxt, "\treturn A;\n}")
+  txt = append(txt, temptxt)
+  writeLines(txt,full_modelname)
+  
+  txt = append(txt,"template<class Type>\nType objective_function<Type>::operator() ()
+{")
+  writeLines(txt,full_modelname)
+  
+  NOTdataNames = c("constants","pars",paste("obsvar",obs,sep=""),state)
+  dataNames = names(data)[!(names(data) %in% NOTdataNames)]
+  # Data and Parameters
+  for(i in 1:length(dataNames)){
+    nam = dataNames[i]
+    txt = append(txt, sprintf("\tDATA_VECTOR(%s);",nam),length(txt))
+  }
+  writeLines(txt,full_modelname)
+  # Hidden states
+  for(i in 1:length(state)){
+    txt = append(txt,sprintf("\tPARAMETER_VECTOR(%s);",state[i]),length(txt))
+  }
+  writeLines(txt,full_modelname)
+  # Parameters
+  for(i in 1:length(data$pars)){
+    nam = names(data$pars)[i]
+    txt = append(txt, sprintf("\tPARAMETER(%s);",nam))
+    
+  }
+  writeLines(txt,full_modelname)
+  
+  # Constants
+  for(i in 1:length(data$constants)){
+    nam = names(data$constants)[i]
+    if(length(data$constants[[i]])>1){
+      txt = append( txt , sprintf("\tDATA_VECTOR(%s);",nam))
+    } else {
+      txt = append( txt , sprintf("\tDATA_SCALAR(%s);",nam))
+    }
+  }
+  writeLines(txt,full_modelname)
+  
+  # Likelihood
+  txt = append(txt,"\tType __nll = 0;")
+  writeLines(txt,full_modelname)
+  
+  # Create variables
+  temptxt = sprintf("\tvector<Type> __Xi(%i);",n)
+  temptxt = append(temptxt, sprintf("\tvector<Type> __Xip1(%i);",n))
+  temptxt = append(temptxt, sprintf("\tvector<Type> __Z(%i);",n))
+  temptxt = append(temptxt, sprintf("\tmatrix<Type> __MeanAug0(%i,%i);",n+1,n+1))
+  temptxt = append(temptxt, sprintf("\tmatrix<Type> __VarAug0(%i,%i);",2*n,2*n))
+  temptxt = append(temptxt, sprintf("\tmatrix<Type> __MeanAug(%i,%i);",n+1,n+1))
+  temptxt = append(temptxt, sprintf("\tmatrix<Type> __VarAug(%i,%i);",2*n,2*n))
+  temptxt = append(temptxt, sprintf("\tmatrix<Type> __Ahat(%i,%i);",n,n))
+  temptxt = append(temptxt, sprintf("\tvector<Type> __Bhat(%i);",n))
+  temptxt = append(temptxt, sprintf("\tmatrix<Type> __Qhat(%i,%i);",n,n))
+  temptxt = append(temptxt, sprintf("\tType __dt;"))
+  
+  txt = append(txt, temptxt)
+  writeLines(txt,full_modelname)
+  
+  flag0 = length(timedepInput[!timedepInput %in% state]) < 1 #there must be no time-dependent inputs
+  flag1 = any(abs(diff(data$t) - diff(data$t)[1]) < .Machine$double.eps^0.5) #the time-steps should be constant
+  flag = flag0 & flag1
+     
+  if(flag){
+    txt = append(txt, sprintf("\t__dt = t(1)-t(0);"))
+    txt = append(txt, sprintf("\t__MeanAug0 = MeanMat(%s)*__dt;",paste(MeanMat.vars2,collapse=", ")))
+    txt = append(txt, sprintf("\t__VarAug0 = VarMat(%s)*__dt;",paste(VarMat.vars2,collapse=", ")))
+    txt = append(txt, sprintf("\t__MeanAug = expm(__MeanAug0);"))
+    txt = append(txt, sprintf("\t__VarAug = expm(__VarAug0);"))
+    txt = append(txt, sprintf("\t__Ahat = __MeanAug.block(0,0,%i,%i);",n,n))
+    txt = append(txt, sprintf("\t__Bhat = __MeanAug.col(%i).head(%i);",n,n))
+    txt = append(txt, sprintf("\t__Qhat = __VarAug.block(%i,%i,%i,%i).transpose() * __VarAug.block(0,%i,%i,%i);",n,n,n,n,n,n,n) )
+  }
+  
+  # dt for loop
+  txt = append(txt,"\n\tfor(int i=0;i<t.size()-1;i++){" )
+  writeLines(txt,full_modelname)
+  if(!flag){
+    txt = append(txt, sprintf("\t\t__dt = t(i+1) - t(i);"))
+    txt = append(txt, sprintf("\t\t__MeanAug0 = MeanMat(%s)*__dt;",paste(MeanMat.vars2,collapse=", ")))
+    txt = append(txt, sprintf("\t\t__VarAug0 = VarMat(%s)*__dt;",paste(VarMat.vars2,collapse=", ")))
+    txt = append(txt, sprintf("\t\t__MeanAug = expm(__MeanAug0);"))
+    txt = append(txt, sprintf("\t\t__VarAug = expm(__VarAug0);"))
+    txt = append(txt, sprintf("\t\t__Ahat = __MeanAug.block(0,0,%i,%i);",n,n))
+    txt = append(txt, sprintf("\t\t__Bhat = __MeanAug.col(%i).head(%i);",n,n))
+    txt = append(txt, sprintf("\t\t__Qhat = __VarAug.block(%i,%i,%i,%i).transpose() * __VarAug.block(0,%i,%i,%i);",n,n,n,n,n,n,n) )
+  }
+  txt = append(txt, sprintf("\t\t__Xi << %s;",paste(state,"(i)",collapse=", ",sep="")))
+  txt = append(txt, sprintf("\t\t__Xip1 << %s;",paste(state,"(i+1)",collapse=", ",sep="")))
+  txt = append(txt, sprintf("\t\t__Z = __Xip1 - (__Ahat * __Xi + __Bhat);"))
+  txt = append(txt, "\t\t__nll += MVNORM(__Qhat)(__Z);\n\t}")
+  writeLines(txt,full_modelname)
+  
+  obsvars0 = unlist(lapply(obsEq,function(x) deparse(x[[1]][[2]])))
+  obsvars2 = paste(obsvars0,"(i)",sep="")
+  
+  hvars0 = unlist(lapply(lapply(obsEq,function(x) x[[1]][[3]]), all.vars))
+  hvars0 = sort(unique(hvars0))
+  hvars1 = paste("Type", hvars0, collapse=", ")
+  hvars2 = hvars0
+  if(length(timedepInput)>0){
+    for(i in 1:length(timedepInput)){
+      hvars2 = sub(pattern=sprintf("^%s$",timedepInput[i]), replacement=sprintf("%s(i)",timedepInput[i]), x=hvars2)
+    }
+  }
+  
+  for(i in 1:m){
+    txt = append(txt, sprintf("\tfor(int i=0;i<%s.size(); ++i){",obs[i]))
+    txt = append(txt, sprintf("\t\tif(!isNA(%s(i))){",obs[i]))
+    txt = append(txt, sprintf("\t\t\t__nll -= dnorm(%s,%s,sqrt(%s),true);\n\t\t}\n\t}",obsvars2[i],hvars2[i],deparse(model$obsVar[[i]][[1]])))
+  }
+  
+  txt = append(txt, "return(__nll);\n}")
+  writeLines(txt,full_modelname)
+  
+  # Close file connection
+  close(fileconn)
+}

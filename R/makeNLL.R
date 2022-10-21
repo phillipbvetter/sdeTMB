@@ -1,5 +1,8 @@
-makeNLL = function(model,data,map=list(),method="TMB",compile=TRUE,silent=TRUE,pathdir=""){
-  # method are "TMB", "kalman" and "exactTMB"
+makeNLL = function(model,data,method="ekf",control=list(loss_function="identity",c=3),compile=TRUE,silent=TRUE,pathdir="",
+                   map=list(),state.dependent.diffusion=FALSE){
+  
+  library(Deriv) #for Simplify command to remove e.g x/x^2 = 1/x
+  library(stringr) #for easy string-matching
   
   # Substitute algebraic expressions
   for(i in 1:length(model$algeqs)){
@@ -10,92 +13,127 @@ makeNLL = function(model,data,map=list(),method="TMB",compile=TRUE,silent=TRUE,p
     model$obsVar = lapply(model$obsVar, function(x) as.expression(do.call("substitute",list(x[[1]],curlist))))
   }
   
-  # Initialize
-  sdeEq = model$sdeEq
-  obsEq = model$obsEq
+  #Get model information (state,rhs, diff.processes, etc...)
+  model_info = getModelInfo(model,data)
+  names_model_info = names(model_info)
+  for(i in 1:length(model_info)){
+    assign(names_model_info[i],model_info[[i]])
+  }
+  
+  # Check if model and data entries are OK
+  data = checkModelAndData(model,data,control,method,state.dependent.diffusion)
+  
+  # MAXIMUM A POSTERIOR
+  # Change provided MAPs to account for frozen parameters via tmb map-function
+  if(is.null(data$MAPbool)){
+    data$MAPbool = 0
+  }
+  if(data$MAPbool==1){
+    ids = which(names(data$pars) %in% names(map))
+    if(length(map)>0){
+      data$MAPmean[ids] = as.vector(unlist(data$pars[ids]))
+    }
+  }
+  
+  # Loss Function
+  data= applyLossFunction(data,model,control)
   
   # Overwrite modelname with path extension
   model$modelname2 = paste(pathdir,model$modelname,sep="")
-
-  state = c()
-  n = length(sdeEq)
-  for(i in 1:n){
-    state[i] = deparse(as.name(sub("^d?([[:alnum:]]+)", "\\1", sdeEq[[i]][[1]][[2]])))
-  }
   
-  # Check if the system is linear in the states and observations or not
-  Shhh = FALSE
-  if(!compile){
-    Shhh = TRUE
-  }
-  IsLinear = IsSystemLinear(model,Shhh)
-  
-  # Function for recompilation
-  recompFun = function(compile,method,model,data,pathdir){
-    modelname_with_extension = paste(model$modelname2,".cpp",sep="")
-    if(compile){
-      switch(method,
-             TMB = write_TMB_cpp(model,data),
-             kalman = write_ExtendedKalman_cpp(model,data),
-             TMBexact = write_linearExact_cpp(model,data)
-      )
-      compile(modelname_with_extension)
-      #reload the library
-      try(dyn.unload(dynlib(model$modelname2)),silent=T)
-      try(dyn.load(dynlib(model$modelname2)),silent=T)
-    }
-    if(!file.exists(modelname_with_extension)){
-      print("You asked me not to compile, but the model C++ file doesn't exist so I will compile anyway")
-      recompFun(TRUE,method,model,data)
-    }
-    #load the library
-    try(dyn.load(dynlib(model$modelname2)),silent=T)
-  }
+  # Check if the system is linear in the states and observations
+  IsLinear = IsSystemLinear(model,compile)
   
   ############################################################################################################
-  # CASE 1 : The system is linear and the exact matrix exponential solution is desired
+  # CASE 1 : LINEAR SYSTEM
   ############################################################################################################
-if(IsLinear){
-  switch(method,
-         #METHOD 1
-         TMB =, #TMB is identical to TMBexact
-         #METHOD 2
-         TMBexact = {
-           recompFun(compile,method,model,data)
-           tmbpars = list()
-           for(i in 1:n){
-             tmbpars[[state[i]]] = data[[state[i]]]
+  if(IsLinear){
+    switch(method,
+           #METHOD 1
+           tmb =, #proceed to tmb_exact (same commands to be run but they are different methods!
+           #METHOD 2
+           tmb_exact = {
+             recompFun(compile,method,model,data,control)
+             tmbpars = list()
+             for(i in 1:n){
+               tmbpars[[state[i]]] = data[[state[i]]]
+             }
+             tmbpars = c(tmbpars, data$pars)
+             tmbdata = c(data,data$constants)
+             # Return neg. log likelihood
+             nll = MakeADFun(tmbdata, tmbpars, random=state, DLL=model$modelname, map=map, silent=silent)
+             return(nll)
+             # timing = system.time(opt <- nlminb(nll$par,nll$fn,nll$gr))
+             # return(list(nll=nll,opt=opt,timing=timing))
+           },
+           #METHOD 3
+           ukf = {
+             recompFun(compile,method,model,data,control)
+             # Prepare data
+             tmbpars = data$pars
+             tmbdata = c(data,data$constants)
+             # Return neg. log likelihood
+             nll = MakeADFun(tmbdata, tmbpars, DLL=model$modelname, map=map, silent=silent)
+             return(nll)
+             # timing = system.time(opt <- nlminb(nll$par,nll$fn,nll$gr,nll$he))
+             # return(list(nll=nll,opt=opt,timing=timing))
+           },
+           ekf = {
+             recompFun(compile,method,model,data,control)
+             # Prepare data
+             tmbpars = data$pars
+             tmbdata = c(data,data$constants)
+             # Return neg. log likelihood
+             nll = MakeADFun(tmbdata, tmbpars, DLL=model$modelname, map=map, silent=silent)
+             return(nll)
+             # timing = system.time(opt <- nlminb(nll$par,nll$fn,nll$gr,nll$he))
+             # return(list(nll=nll,opt=opt,timing=timing))
+           },
+           kalman_adaptive = {
+             if(compile){
+               write_adaptiveKalman_julia(model, data, silent=silent)
+             }
+             if(!compile & !julia_exists(model$modelname)){
+               print("You asked me not to compile, but the julia function doesn't exist so I will compile anyway")
+               write_adaptiveKalman_julia(model, data, silent=silent)
+             }
+             pars = unlist(data$pars)
+             hyperpars = c()
+             hyperpars[[1]] = c(data$X0,data$P0)
+             hyperpars[[2]] = data$t
+             datamat = matrix(nrow=length(data$t),ncol=m)
+             for(i in 1:m){
+               datamat[,i] = data[[obs[i]]]
+               datamat[is.na(datamat[,1]),i] = NaN
+             }
+             hyperpars[[3]] = datamat
+             
+             timing = system.time(opt.temp <- julia_call(model$modelname,pars,hyperpars))
+             opt.julia = list()
+             opt.julia$par = opt.temp[[1]]
+             names(opt.julia$par) = names(data$pars)
+             opt.julia$objective = opt.temp[[2]]
+             opt.julia$convergence = opt.temp[[3]]
+             opt.julia$iterations = opt.temp[[4]]
+             opt.julia$evaluations = c("function"=opt.temp[[5]],"gradient"=opt.temp[[6]],"hessian"=opt.temp[[7]])
+             return(list(opt=opt.julia,timing=timing))
            }
-           tmbpars = c(tmbpars, data$pars)
-           tmbdata = c(data,data$constants)
-           # Return neg. log likelihood
-           nll = MakeADFun(tmbdata, tmbpars, random=state, DLL=model$modelname, map=map, silent=silent)
-         },
-         #METHOD 3
-         kalman = {
-           recompFun(compile,method,model,data)
-           # Prepare data
-           tmbpars = data$pars
-           tmbdata = c(data,data$constants)
-           # Return neg. log likelihood
-           nll = MakeADFun(tmbdata, tmbpars, DLL=model$modelname, map=map, silent=silent)
-         }
-  )
-}
+    )
+  }
   
   ############################################################################################################
-  # CASE 2 :The system is non-linear and a solution is sought via TMB or Kalman filtering (We need other methods here)
+  # CASE 2 : NON-LINEAR SYSTEM
   ############################################################################################################
   
   if(!IsLinear){
-    if(method=="TMBexact"){
+    if(method=="tmb_exact"){
       print("The system is non-linear so the exact method is not available. I will proceed with the approximate TMB method")
-      method = "TMB"
+      method = "tmb"
     }
     switch(method,
            #METHOD 1
-           TMB = {
-             recompFun(compile,method,model,data)
+           tmb = {
+             recompFun(compile,method,model,data,control)
              # Prepare data for TMB
              tmbpars = list()
              for(i in 1:n){
@@ -105,17 +143,44 @@ if(IsLinear){
              tmbdata = c(data,data$constants)
              # Return neg. log likelihood
              nll = MakeADFun(tmbdata, tmbpars, random=state, DLL=model$modelname, map=map, silent=silent)
+             return(nll)
            },
            #METHOD 2
-           kalman = {
-             recompFun(compile,method,model,data)
+           ukf=,
+           ekf = {
+             recompFun(compile,method,model,data,control)
              # Prepare data for TMB
              tmbpars = data$pars
              tmbdata = c(data,data$constants)
              # Return neg. log likelihood
              nll = MakeADFun(tmbdata, tmbpars, DLL=model$modelname, map=map, silent=silent)
+             return(nll)
+           },
+           kalman_adaptive = {
+             if(compile){
+               write_adaptiveKalman_julia(model, data, silent=silent)
+             }
+             pars = unlist(data$pars)
+             hyperpars = c()
+             hyperpars[[1]] = c(data$X0,data$P0)
+             hyperpars[[2]] = data$t
+             datamat = matrix(nrow=length(data$t),ncol=m)
+             for(i in 1:m){
+               datamat[,i] = data[[obs[i]]]
+               datamat[is.na(datamat[,1]),i] = NaN
+             }
+             hyperpars[[3]] = datamat
+             
+             opt.temp = julia_call(model$modelname,pars,hyperpars)
+             opt.julia = list()
+             opt.julia$par = opt.temp[[1]]
+             names(opt.julia$par) = names(data$pars)
+             opt.julia$objective = opt.temp[[2]]
+             opt.julia$convergence = opt.temp[[3]]
+             opt.julia$iterations = opt.temp[[4]]
+             opt.julia$evaluations = c("function"=opt.temp[[5]],"gradient"=opt.temp[[6]],"hessian"=opt.temp[[7]])
+             return(opt.julia)
            }
     )
   }
-  return(nll)
 }
