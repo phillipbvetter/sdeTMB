@@ -3,10 +3,10 @@
 #######################################################
 
 
-#' Basic print of objects of class 'sdem'
+#' Basic print of objects of class 'sdemTMB'
 #' @returns A huge amount of information
 #' @export
-print.sdem = function(object,...) {
+print.sdemTMB = function(object,...) {
 
   obj = object$print()
   #
@@ -14,10 +14,10 @@ print.sdem = function(object,...) {
 
 }
 
-#' Basic print of objects of class 'sdem'
+#' Basic print of objects of class 'sdemTMB'
 #' @returns A huge amount of information
 #' @export
-print.sdem.fit = function(fit) {
+print.sdemTMB.fit = function(fit) {
 
   mat = cbind(fit$par.fixed,fit$sd.fixed,fit$tvalue,fit$Pr.tvalue)
   colnames(mat) = c("Estimate","Std. Error","t value","Pr(>|t|)")
@@ -33,10 +33,10 @@ print.sdem.fit = function(fit) {
 # Summary - S3 Method
 #######################################################
 
-#' Basic summary of objects of class 'sdem'
+#' Basic summary of objects of class 'sdemTMB'
 #' @returns A huge amount of information
 #' @export
-summary.sdem = function(object,correlation=FALSE) {
+summary.sdemTMB = function(object,correlation=FALSE) {
 
   obj = object$summary(correlation)
   #
@@ -46,7 +46,7 @@ summary.sdem = function(object,correlation=FALSE) {
 
 #' @returns summary of fit object from \code{obj$estimate()}
 #' @export
-summary.sdem.fit = function(fit,correlation=FALSE) {
+summary.sdemTMB.fit = function(fit,correlation=FALSE) {
 
   if (!is.logical(correlation)) {
     stop("correlation must be logical")
@@ -103,11 +103,11 @@ getggplot2colors = function(n) {
 # Plot - S3 Method
 #######################################################
 
-#' Basic summary of objects of class 'sdem'
+#' Basic summary of objects of class 'sdemTMB'
 #' @param extended logical. if TRUE additional information is printed
 #' @returns A huge amount of information
 #' @export
-plot.sdem = function(object,
+plot.sdemTMB = function(object,
                      plot.obs=1,
                      extended=FALSE,
                      use.ggplot=FALSE,
@@ -118,12 +118,12 @@ plot.sdem = function(object,
   return(invisible(NULL))
 }
 
-#' Basic summary of objects of class 'sdem'
+#' Basic summary of objects of class 'sdemTMB'
 #' @param extended logical. if TRUE additional information is printed
 #' @returns A huge amount of information
 #' @export
 #' @importFrom stats frequency fft spec.taper
-plot.sdem.fit = function(fit,
+plot.sdemTMB.fit = function(fit,
                          plot.obs=1,
                          use.ggplot=FALSE,
                          extended=FALSE,
@@ -288,8 +288,8 @@ plot.sdem.fit = function(fit,
 # Predict - S3 Method
 #######################################################
 
-#' @title Predict state estimates on \code{sdem.fit} object.
-#' @param fit An \code{sdem.fit} object from calling \code{estimate} method on \code{sdem} object.
+#' @title Predict state estimates on \code{sdemTMB.fit} object.
+#' @param fit An \code{sdemTMB.fit} object from calling \code{estimate} method on \code{sdemTMB} object.
 #' @param data data.frame used to predict and update the model on which \code{fit} is based.
 #' @param n.step Integer. Number of prediction steps before updating. Default: 1
 #' @param use.simulation Boolean. If TRUE simulates the stochastic model and returns quantiles. if FALSE uses
@@ -298,7 +298,7 @@ plot.sdem.fit = function(fit,
 #' @param quantiles The returned state distribution quantiles if \code{use.simulation} is TRUE.
 #' @returns Prediction from model
 #' @export
-predict.sdem.fit = function(fit,
+predict.sdemTMB.fit = function(fit,
                             data=NULL,
                             x0=NULL,
                             p0=NULL,

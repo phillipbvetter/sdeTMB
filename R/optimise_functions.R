@@ -469,7 +469,7 @@ create_return_fit = function(self, private) {
 
 
 
-  class(private$fit) = "sdem.fit"
+  class(private$fit) = "sdemTMB.fit"
 
   return(invisible(self))
 }

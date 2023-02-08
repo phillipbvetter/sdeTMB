@@ -1,6 +1,6 @@
 Package: sdemTMB
 Title: Estimation, State Filtering and Forecasting in Stochastic State Space Models
-Version: 0.0.0.9000
+Version: 0.5
 Authors@R: 
     person("Phillip", "Vetter", , "phillipvetter@outlook.com", role = c("aut", "cre"),
            comment = c(ORCID = "YOUR-ORCID-ID"))
@@ -13,6 +13,7 @@ RoxygenNote: 7.2.1
 Imports: 
     Deriv,
     patchwork,
+    R6,
     stats,
     TMB
 Suggests: 
