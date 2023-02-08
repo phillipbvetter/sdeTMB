@@ -1,13 +1,2 @@
 ^.*\.Rproj$
 ^\.Rproj\.user$
-^make.R
-^data/all
-^tmp
-^vignettes/make.R
-^vignettes/shared-init.Rmd
-^tests
-^miscR$
-^.*\.Rhistory$
-^cran-comments.md
-^.gitlab
-^README.md

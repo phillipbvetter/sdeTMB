@@ -1,12 +1,19 @@
-Package: sdem
-Title: What the Package Does (One Line, Title Case)
+Package: sdemTMB
+Title: Estimation, State Filtering and Forecasting in Stochastic State Space Models
 Version: 0.0.0.9000
 Authors@R: 
-    person("First", "Last", , "first.last@example.com", role = c("aut", "cre"),
+    person("Phillip", "Vetter", , "phillipvetter@outlook.com", role = c("aut", "cre"),
            comment = c(ORCID = "YOUR-ORCID-ID"))
-Description: What the package does (one paragraph).
+Description: 'sdemTMB' (Stochastic Differential Equation Modelling) is a package built around the TMB package for user-friendly construction, parameter estimation and prediction based on continuous-discrete stochastic state space models.
 License: `use_mit_license()`, `use_gpl3_license()` or friends to pick a
     license
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
-RoxygenNote: 7.1.2
+RoxygenNote: 7.2.1
+Imports: 
+    Deriv,
+    patchwork,
+    stats,
+    TMB
+Suggests: 
+    ggplot2
