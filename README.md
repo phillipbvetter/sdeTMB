@@ -34,22 +34,25 @@ obj$set_method("ekf")
 # Set location path for C++ file generation
 # obj$set_path("~/")
 
-# System
+# Add system equations
 obj$add_systems(
   dx ~ theta * (mu-x) * dt + sigma_x*dw + sigma_x*dw2,
   du ~ sigma_u * dw
 )
-# Obs 
+
+# Add observation equations
 obj$add_observations(
   y ~ x,
   w ~ u
 )
-# Obs Variance
+
+# Set observation equation variances
 obj$add_observation_variances(
   y ~ sigma_y^2,
   w ~ sigma_w^2
 )
-# Algebra
+
+# Specify possible algebraic relations
 obj$add_algebraics(
   theta ~ exp(logtheta),
   mu ~ mu0 + a*Qf + b*Sf + c*Qr,
@@ -58,10 +61,11 @@ obj$add_algebraics(
   sigma_y ~ exp(logsigma_y),
   sigma_w ~ exp(logsigma_w)
 )
-# Inputs
+
+# Specify inputs
 obj$add_inputs(Qf,Sf,Qr)
 
-# Parameters
+# Specify parameter initial values and lower/upper bounds in estimation
 obj$add_parameters(
   logtheta ~ log(c(1,1e-5,2)),
   logsigma_x ~ log(c(1e-1,1e-20,2)),
@@ -74,60 +78,33 @@ obj$add_parameters(
   c ~ c(0,-100,100)
 )
 
-# obj$add_constants(R~1,V~2.5)
-
-# Initial State
-# obj$set_initial_state(1,diag(1))
+# Set initial state mean and covariance
 obj$set_initial_state(c(1,1),1e-2*diag(2))
 
-# obj$set_lamperti("log",c("z","u"))
-# obj$set_lamperti("log")
-# obj$set_lamperti("log",c("z"))
-
+#Generate data
+n = 101
 set.seed(10)
 t = seq(0,10,length.out=n)
-data = data.frame(
-  t = t ,
-  Qf = rep(1,n),
-  Sf = rep(1,n),
-  Qr = rep(1,n),
-  y = rnorm(n,mean=1,sd=0.2),
-  w = rnorm(n,mean=1,sd=0.05)
+data = data.frame(t = t ,
+                  Qf = rep(1,n),
+                  Sf = rep(1,n),
+                  Qr = rep(1,n),
+                  y = rnorm(n,mean=1,sd=0.2),
+                  w = rnorm(n,mean=1,sd=0.05)
 )
-# id1 = sample(2:(n-1),size=round(n*5/10),replace=FALSE)
-# id2 = sample(2:(n-1),size=round(n*5/10),replace=FALSE)
-# data$y[id1] = NA
-# data$w[id2] = NA
-# n1 = round(n/4)
-# n2 = round(n*3/4)
-# data$y[n1:n2] = NA
-# data$w[n1:n2] = NA
 
-# obj$set_timestep(0.25)
-# obj$set_silence(FALSE)
-# obj$use_hessian(T)
-
-# self = obj
-
-# return.fit = TRUE
-# return.nll = FALSE
-# use.hessian=FALSE
-# ode.timestep = 0.25
-# compile = FALSE
-# silent = TRUE
-
-fit <- obj$estimate(data, silence=T,
+# Carry out estimation
+fit <- obj$estimate(data, 
+                    silence=TRUE, 
                     compile=FALSE)
 
-# plot(fit, use.ggplot=F, plot.obs=2)
 
+# Use predictio function
 pred = predict(fit,
                n.step.ahead=10,
-               use.simulation=TRUE,
+               use.simulation=FALSE,
                return.state.dispersion=TRUE,
-               covariance=TRUE,
-               sim.timestep=0.05,
-               n.sim = 1e3,
+               covariance=FALSE,
                give.only.n.step.ahead=F)
 ```
 
