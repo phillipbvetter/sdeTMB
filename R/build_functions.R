@@ -93,7 +93,8 @@ apply_algebraics = function(self, private) {
   for(i in 1:length(sys.eqs)) {
     sys[[i]]$form[[3]] = sys.eqs[[i]]
     new_eq = sys[[i]]$form
-    self$add_trans_systems(new_eq)
+    # self$add_trans_systems(new_eq)
+    private$add_trans_systems(new_eq)
   }
 
   # observations
@@ -101,7 +102,8 @@ apply_algebraics = function(self, private) {
   for(i in 1:length(obs.eqs)) {
     obs[[i]]$form[[3]] = obs.eqs[[i]]
     new_eq = obs[[i]]$form
-    self$add_trans_observations(new_eq)
+    # self$add_trans_observations(new_eq)
+    private$add_trans_observations(new_eq)
   }
 
   # observation variances
@@ -109,7 +111,8 @@ apply_algebraics = function(self, private) {
   for(i in 1:length(obs.var)) {
     var[[i]]$form[[3]] = obs.var[[i]]
     new_eq = var[[i]]$form
-    self$add_trans_observation_variances(new_eq)
+    # self$add_trans_observation_variances(new_eq)
+    private$add_trans_observation_variances(new_eq)
   }
 
   return(invisible(self))
@@ -194,7 +197,8 @@ apply_lamperti = function(self, private) {
         paste(deparse(final_eq),collapse=""),
         sep ="~"
       ))
-      self$add_trans_systems(form)
+      # self$add_trans_systems(form)
+      private$add_trans_systems(form)
     }
   }
 

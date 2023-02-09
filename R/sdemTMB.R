@@ -7,7 +7,6 @@ sdemTMB = R6::R6Class(
   classname = "sdemTMB",
   # public fields
   public = list(
-
     #' @description Construct new sdemTMB model object
     initialize = function() {
       message("Created New SDEM Object")
@@ -70,14 +69,19 @@ sdemTMB = R6::R6Class(
       private$opt = NULL
       private$fit = NULL
     },
-
+    
     #' @description Add system equations to model object.
     #'
     #' Example:
-    #'
-    #' \code{form = dx ~ theta * (mu - x) * dt + sigma * dw}.
-    #' @param form formula class specifying the stochastic differential equation(s) to be added to the system.
-    #' @param ... additional formulas identical to \code{form} to specify multiple SDEs at the same time.
+    #' 
+    #' We add a stochastic differential equation describing the latent random state 
+    #' variable \code{x} by calling  \code{add_systems(dx ~ theta * (mu - x) * dt 
+    #' + sigma * dw)}. Here \code{theta}, \code{mu} and \code{sigma} are fixed effect 
+    #' parameters, that must be specified later using the \code{add_parameters}
+    #' function.
+    #' 
+    #' @param form formula specifying the stochastic differential equation(s) to be added to the system.
+    #' @param ... additional formulas similar to \code{form} for specifying multiple equations at once.
     add_systems = function(form,...) {
       # lapply for multi-arguments
       lapply(c(form,...), function(form) {
@@ -94,13 +98,15 @@ sdemTMB = R6::R6Class(
       #
       return(invisible(self))
     },
-
+    # 
     #' @description Add observation equations to model object.
     #'
     #' Example:
     #'
-    #' Assuming that \code{x} is a state defined through \code{add_systems} with \code{form = dx ~ ...} then define an observation related to
-    #' \code{x} as \code{y ~ x}.
+    #' Assuming that \code{x} is a state defined through \code{add_systems} with 
+    #' \code{form = dx ~ ...} then define the relationship between an observation
+    #' variable \code{y} and the state \code{x} by calling \code{add_observations(y ~ x)}.
+    #' 
     #' @param form formula class specifying the obsevation equation to be added to the system.
     #' @param ... additional formulas identical to \code{form} to specify multiple observation equations at a time.
     add_observations = function(form,...) {
@@ -117,8 +123,123 @@ sdemTMB = R6::R6Class(
       was_model_already_built(self, private)
       #
       return(invisible(self))
+    },
+    # 
+    #' @description Specify observation variance.
+    #'
+    #' Example:
+    #'
+    #' When \code{y} is an observation variable added through \code{add_observation} 
+    #' then y follows a normal distribution with mean \code{...} and variance which is
+    #' specified by calling \code{add_observation_variances(y ~ sigma_y^2)}.
+    #' @param form formula class specifying the obsevation equation to be added to the system.
+    #' @param ... additional formulas identical to \code{form} to specify multiple observation equations at a time.
+    add_observation_variances = function(form,...) {
+      # lapply for multi-arguments
+      lapply(c(form,...), function(form) {
+        # Function Body
+        res = check_observation_variance_eqs(form, self, private)
+        check_name(names(res), "obsvar", self, private)
+        private$obs.var[[names(res)]] = res[[1]]
+        private$obsvar.names = names(private$obs.var)
+        # Function Body
+      })
+      # if model was already built, set compile flag to true
+      was_model_already_built(self, private)
+      #
+      return(invisible(self))
+    },
+    # 
+    #' @description Specify system variables that are data inputs.
+    #'
+    #' Example:
+    #'
+    #' If the system equations provided through \code{add_systems(...)} contains
+    #' variables say 'Input1', 'Input2' then these must be specified by calling
+    #' \code{add_inputs(Input1, Input2)}.
+    #' 
+    #' @param ... additional formulas identical to \code{form} to specify multiple observation equations at a time.
+    add_inputs =  function(...) {
+      args = as.list(match.call()[-1])
+      # lapply for multi-arguments
+      lapply(args, function(args) {
+        # Function Body
+        res = check_inputs(args, self, private)
+        check_name(names(res), "input", self, private)
+        private$trigger = is_this_a_new_name(names(res),private$input.names)
+        private$inputs[[names(res)]] = res[[1]]
+        private$input.names = names(private$inputs)
+        # Function Body
+      })
+      # if model was already built, set compile flag to true
+      if (private$trigger) {
+        was_model_already_built(self, private)
+      }
+      #
+      return(invisible(self))
+    },
+    # 
+    #' @description Specify system variables that are fixed effects parameter and 
+    #' set their (initial) values and lower/upper bounds for the optimization.
+    #'
+    #' Example:
+    #' You can provide parameters in two ways:
+    #' 1. 
+    #' \code{add_parameters} accepts both a vector of formulas on the form 
+    #' \code{add_parameters(par1 = c(0,-10,10), par2 = c(5,0,10))} or a matrix of
+    #'
+    #' @param ... formula class specifying the obsevation equation to be added to the system.
+    #' @param parameter.matrix 
+    add_parameters = function(...,parameter.matrix=NULL) {
+      
+      # single parameters
+      parameter.forms = list(...)
+      if(length(parameter.forms)>0){
+        lapply(parameter.forms, function(parameter.form) {
+          check_parameter(parameter.form)
+          parname = deparse1(parameter.form[[2]])
+          par.val.lb.ub = eval(parameter.form[[3]])
+          check_name(parname, "pars", self, private)
+          private$trigger = is_this_a_new_name(parname, private$parameter.names)
+          private$parameters[[parname]] = list(init=par.val.lb.ub[1],
+                                               lb=par.val.lb.ub[2],
+                                               ub=par.val.lb.ub[3])
+          # fixed parameters
+          if(is.na(par.val.lb.ub[2]) & is.na(par.val.lb.ub[3])){
+            private$fixed.pars[[parname]] = factor(NA)
+          }
+        })
+        private$parameter.names = names(private$parameters)
+      }
+      
+      # parameter matrix
+      if(!is.null(parameter.matrix)){
+        check_parameter_matrix(parameter.matrix, self, private)
+        parnames = rownames(parameter.matrix)
+        lapply( 1:nrow(parameter.matrix), function(i) {
+          parname = parnames[i]
+          par.val.lb.ub = parameter.matrix[i,]
+          check_name(parname, "pars", self, private)
+          private$trigger = is_this_a_new_name(parname, private$parameter.names)
+          private$parameters[[parname]] = list(init=par.val.lb.ub[1],
+                                               lb=par.val.lb.ub[2],
+                                               ub=par.val.lb.ub[3])
+          # fixed parameters
+          if(is.na(par.val.lb.ub[2]) & is.na(par.val.lb.ub[3])){
+            private$fixed.pars[[parname]] = factor(NA)
+          }
+        })
+        private$parameter.names = names(private$parameters)
+      }
+      
+      # if model was already built set compile flag
+      if (private$trigger) {
+        was_model_already_built(self, private)
+      }
+      
+      # return
+      return(invisible(self))
     }
-
   ),
   # private fields
   private = list(
@@ -181,130 +302,147 @@ sdemTMB = R6::R6Class(
     nll = NULL,
     opt = NULL,
     sdr = NULL,
-    fit = NULL
+    fit = NULL,
+    # lamperti transform functions
+    add_trans_systems = function(form) {
+      res = check_system_eqs(form, self, private, silent=T)
+      private$sys.eqs.trans[[names(res)]] = res[[1]]
+      return(invisible(self))
+    },
+    add_trans_observations = function(form) {
+      res = check_observation_eqs(form, self, private, silent=T)
+      private$obs.eqs.trans[[names(res)]] = res[[1]]
+      return(invisible(self))
+    },
+    add_trans_observation_variances = function(form) {
+      res = check_observation_variance_eqs(form, self, private, silent=T)
+      private$obs.var.trans[[names(res)]] = res[[1]]
+      return(invisible(self))
+    }
   )
 )
 
-sdemTMB$set("public","add_trans_systems",
-            function(form) {
-              res = check_system_eqs(form, self, private, silent=T)
-              private$sys.eqs.trans[[names(res)]] = res[[1]]
-              return(invisible(self))
-            }
-)
+# sdemTMB$set("public","add_trans_systems",
+#             function(form) {
+#               res = check_system_eqs(form, self, private, silent=T)
+#               private$sys.eqs.trans[[names(res)]] = res[[1]]
+#               return(invisible(self))
+#             }
+# )
 
-sdemTMB$set("public","add_trans_observations",
-            function(form) {
-              res = check_obsservation_eqs(form, self, private, silent=T)
-              private$obs.eqs.trans[[names(res)]] = res[[1]]
-              return(invisible(self))
-            }
-)
+# sdemTMB$set("public","add_trans_observations",
+#             function(form) {
+#               res = check_obsservation_eqs(form, self, private, silent=T)
+#               private$obs.eqs.trans[[names(res)]] = res[[1]]
+#               return(invisible(self))
+#             }
+# )
 
-sdemTMB$set("public","add_observation_variances",
-            function(form,...) {
-              # lapply for multi-arguments
-              lapply(c(form,...), function(form) {
-                # Function Body
-                res = check_observation_variance_eqs(form, self, private)
-                check_name(names(res), "obsvar", self, private)
-                private$obs.var[[names(res)]] = res[[1]]
-                private$obsvar.names = names(private$obs.var)
-                # Function Body
-              })
-              # if model was already built, set compile flag to true
-              was_model_already_built(self, private)
-              #
-              return(invisible(self))
-            }
-)
+# sdemTMB$set("public","add_trans_observation_variances",
+#             function(form) {
+#               res = check_observation_variance_eqs(form, self, private, silent=T)
+#               private$obs.var.trans[[names(res)]] = res[[1]]
+#               return(invisible(self))
+#             }
+# )
 
-sdemTMB$set("public","add_trans_observation_variances",
-            function(form) {
-              res = check_observation_variance_eqs(form, self, private, silent=T)
-              private$obs.var.trans[[names(res)]] = res[[1]]
-              return(invisible(self))
-            }
-)
+# sdemTMB$set("public","add_observation_variances",
+#             function(form,...) {
+#               # lapply for multi-arguments
+#               lapply(c(form,...), function(form) {
+#                 # Function Body
+#                 res = check_observation_variance_eqs(form, self, private)
+#                 check_name(names(res), "obsvar", self, private)
+#                 private$obs.var[[names(res)]] = res[[1]]
+#                 private$obsvar.names = names(private$obs.var)
+#                 # Function Body
+#               })
+#               # if model was already built, set compile flag to true
+#               was_model_already_built(self, private)
+#               #
+#               return(invisible(self))
+#             }
+# )
 
-sdemTMB$set("public","add_inputs",
-            function(...) {
-              args = as.list(match.call()[-1])
-              # lapply for multi-arguments
-              lapply(args, function(args) {
-                # Function Body
-                res = check_inputs(args, self, private)
-                check_name(names(res), "input", self, private)
-                private$trigger = is_this_a_new_name(names(res),private$input.names)
-                private$inputs[[names(res)]] = res[[1]]
-                private$input.names = names(private$inputs)
-                # Function Body
-              })
-              # if model was already built, set compile flag to true
-              if (private$trigger) {
-                was_model_already_built(self, private)
-              }
-              #
-              return(invisible(self))
-            }
-)
 
-sdemTMB$set("public","add_parameters",
-            function(...,parameter.matrix=NULL) {
+# sdemTMB$set("public","add_inputs",
+#             function(...) {
+#               args = as.list(match.call()[-1])
+#               # lapply for multi-arguments
+#               lapply(args, function(args) {
+#                 # Function Body
+#                 res = check_inputs(args, self, private)
+#                 check_name(names(res), "input", self, private)
+#                 private$trigger = is_this_a_new_name(names(res),private$input.names)
+#                 private$inputs[[names(res)]] = res[[1]]
+#                 private$input.names = names(private$inputs)
+#                 # Function Body
+#               })
+#               # if model was already built, set compile flag to true
+#               if (private$trigger) {
+#                 was_model_already_built(self, private)
+#               }
+#               #
+#               return(invisible(self))
+#             }
+# )
 
-              # single parameters
-              parameter.forms = list(...)
-              if(length(parameter.forms)>0){
-                lapply(parameter.forms, function(parameter.form) {
-                  check_parameter(parameter.form)
-                  parname = deparse1(parameter.form[[2]])
-                  par.val.lb.ub = eval(parameter.form[[3]])
-                  check_name(parname, "pars", self, private)
-                  private$trigger = is_this_a_new_name(parname, private$parameter.names)
-                  private$parameters[[parname]] = list(init=par.val.lb.ub[1],
-                                                       lb=par.val.lb.ub[2],
-                                                       ub=par.val.lb.ub[3])
-                  # fixed parameters
-                  if(is.na(par.val.lb.ub[2]) & is.na(par.val.lb.ub[3])){
-                    private$fixed.pars[[parname]] = factor(NA)
-                  }
-                })
-                private$parameter.names = names(private$parameters)
-              }
-
-              # parameter matrix
-              if(!is.null(parameter.matrix)){
-                check_parameter_matrix(parameter.matrix, self, private)
-                parnames = rownames(parameter.matrix)
-                lapply( 1:nrow(parameter.matrix), function(i) {
-                  parname = parnames[i]
-                  par.val.lb.ub = parameter.matrix[i,]
-                  check_name(parname, "pars", self, private)
-                  private$trigger = is_this_a_new_name(parname, private$parameter.names)
-                  private$parameters[[parname]] = list(init=par.val.lb.ub[1],
-                                                       lb=par.val.lb.ub[2],
-                                                       ub=par.val.lb.ub[3])
-                  # fixed parameters
-                  if(is.na(par.val.lb.ub[2]) & is.na(par.val.lb.ub[3])){
-                    private$fixed.pars[[parname]] = factor(NA)
-                  }
-                })
-                private$parameter.names = names(private$parameters)
-              }
-
-              # if model was already built set compile flag
-              if (private$trigger) {
-                was_model_already_built(self, private)
-              }
-
-              # return
-              return(invisible(self))
-            }
-)
+# sdemTMB$set("public","add_parameters",
+#             function(...,parameter.matrix=NULL) {
+#               
+#               # single parameters
+#               parameter.forms = list(...)
+#               if(length(parameter.forms)>0){
+#                 lapply(parameter.forms, function(parameter.form) {
+#                   check_parameter(parameter.form)
+#                   parname = deparse1(parameter.form[[2]])
+#                   par.val.lb.ub = eval(parameter.form[[3]])
+#                   check_name(parname, "pars", self, private)
+#                   private$trigger = is_this_a_new_name(parname, private$parameter.names)
+#                   private$parameters[[parname]] = list(init=par.val.lb.ub[1],
+#                                                        lb=par.val.lb.ub[2],
+#                                                        ub=par.val.lb.ub[3])
+#                   # fixed parameters
+#                   if(is.na(par.val.lb.ub[2]) & is.na(par.val.lb.ub[3])){
+#                     private$fixed.pars[[parname]] = factor(NA)
+#                   }
+#                 })
+#                 private$parameter.names = names(private$parameters)
+#               }
+#               
+#               # parameter matrix
+#               if(!is.null(parameter.matrix)){
+#                 check_parameter_matrix(parameter.matrix, self, private)
+#                 parnames = rownames(parameter.matrix)
+#                 lapply( 1:nrow(parameter.matrix), function(i) {
+#                   parname = parnames[i]
+#                   par.val.lb.ub = parameter.matrix[i,]
+#                   check_name(parname, "pars", self, private)
+#                   private$trigger = is_this_a_new_name(parname, private$parameter.names)
+#                   private$parameters[[parname]] = list(init=par.val.lb.ub[1],
+#                                                        lb=par.val.lb.ub[2],
+#                                                        ub=par.val.lb.ub[3])
+#                   # fixed parameters
+#                   if(is.na(par.val.lb.ub[2]) & is.na(par.val.lb.ub[3])){
+#                     private$fixed.pars[[parname]] = factor(NA)
+#                   }
+#                 })
+#                 private$parameter.names = names(private$parameters)
+#               }
+#               
+#               # if model was already built set compile flag
+#               if (private$trigger) {
+#                 was_model_already_built(self, private)
+#               }
+#               
+#               # return
+#               return(invisible(self))
+#             }
+# )
 
 sdemTMB$set("public","add_parameters2",
             function(parameters) {
-
+              
               parnames = check_parameter_matrix(parameters, self, private)[[1]]
               lapply(parnames, function(parname) check_name(parname, "pars", self, private))
               private$trigger = any(sapply(parnames, function(parname) is_this_a_new_name(parname,private$parameter.names)))
@@ -320,12 +458,12 @@ sdemTMB$set("public","add_parameters2",
               for(name in fixed.pars.names) {
                 private$fixed.pars[[name]] = factor(NA)
               }
-
+              
               # if model was already built set compile flag to true
               if (private$trigger) {
                 was_model_already_built(self, private)
               }
-
+              
               # return
               return(invisible(self))
             }
@@ -393,7 +531,7 @@ sdemTMB$set("public","set_initial_state",
               if (any(is.na(cov))) {
                 stop("The covariance matrix contains NAs")
               }
-
+              
               private$initial.state = list(mean=mean,cov=as.matrix(cov))
               return(invisible(self))
             }
@@ -508,7 +646,7 @@ sdemTMB$set("public","set_cppfile_directory",
                 stop("The specified directory does not exist")
               }
               private$cppfile.directory = directory
-
+              
               # update private$cppfile.path by calling set_modelname
               self$set_modelname(private$modelname)
               return(invisible(self))
@@ -608,28 +746,28 @@ sdemTMB$set("public","use_hessian",
 
 sdemTMB$set("public","build_model",
             function() {
-
+              
               # basic checks for model, add class n, ng, m, diff procs
               init_build(self, private)
-
+              
               # apply algebraics
               check_algebraics_before_applying(self, private)
               apply_algebraics(self, private)
-
+              
               # update diff.terms and apply lamperti
               update_diffterms(self, private)
               apply_lamperti(self, private)
               update_diffterms(self, private)
-
+              
               # check if model is ok
               lastcheck_before_compile(self, private)
-
+              
               # compile cpp file
               compile_cppfile(self, private)
-
+              
               # set build
               private$build = TRUE
-
+              
               return(invisible(self))
             }
 )
@@ -637,37 +775,37 @@ sdemTMB$set("public","build_model",
 sdemTMB$set("public","estimate",
             function(data, return.fit=TRUE, return.nll=FALSE, use.hessian=FALSE,
                      ode.timestep=NULL, silence=FALSE, compile=FALSE) {
-
+              
               # set flags
               self$use_hessian(use.hessian)
               self$set_timestep(ode.timestep)
               self$set_silence(silence)
               self$set_compile(compile)
-
+              
               # if the model isnt built we must build
               if (!private$build | private$compile) {
                 message("Building model...")
                 self$build_model()
               }
-
+              
               # check and set data
               check_and_set_data(data, self, private)
-
+              
               # construct neg. log-likelihood function
               optlist = construct_and_optimise(self, private, return.fit, return.nll)
-
+              
               # if return.nll just return the function objective and exit
               if(return.nll){
                 message("Returning AD objective function, and exiting...")
                 return(private$nll)
               }
-
+              
               # create and return fit object
               if(return.fit){
                 create_return_fit(self, private)
                 return(private$fit)
               }
-
+              
               # return optimization and cpu-time instead of fit
               if(!return.fit){
                 return(optlist)
@@ -755,13 +893,13 @@ sdemTMB$set("public","print",
 
 sdemTMB$set("public","summary",
             function(correlation=FALSE) {
-
+              
               # check if model was estimated
               if (is.null(private$fit)) {
                 message("Please estimate your model to get a fit summary.")
                 return(invisible(NULL))
               }
-
+              
               sumfit = summary(private$fit,correlation=correlation)
               return(invisible(sumfit$parameters))
             }
@@ -770,13 +908,13 @@ sdemTMB$set("public","summary",
 
 sdemTMB$set("public","plot",
             function(plot.obs=1, use.ggplot=FALSE, extended=FALSE, ggtheme=getggplot2theme()){
-
+              
               # check if model was estimated
               if (is.null(private$fit)) {
                 message("Please estimate your model in order to plot residuals.")
                 return(invisible(NULL))
               }
-
+              
               # if we have estimated
               plotlist = plot(private$fit, plot.obs=plot.obs, use.ggplot=use.ggplot,
                               extended=extended, ggtheme=ggtheme)

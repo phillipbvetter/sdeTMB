@@ -132,7 +132,7 @@ check_system_eqs = function(form, self, private, silent=FALSE) {
 # CHECK OBSERVATION EQUATION FUNCTION
 #######################################################
 
-check_obsservation_eqs <- function(form, self, private, silent=FALSE) {
+check_observation_eqs <- function(form, self, private, silent=FALSE) {
 
   if(!inherits(form,"formula")){
     stop("The observation equation should be a formula e.g. 'y ~ ...")

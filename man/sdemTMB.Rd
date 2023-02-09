@@ -16,10 +16,7 @@ for specifying a new stochastic state space model.
 \item \href{#method-sdemTMB-new}{\code{sdemTMB$new()}}
 \item \href{#method-sdemTMB-add_systems}{\code{sdemTMB$add_systems()}}
 \item \href{#method-sdemTMB-add_observations}{\code{sdemTMB$add_observations()}}
-\item \href{#method-sdemTMB-add_trans_systems}{\code{sdemTMB$add_trans_systems()}}
-\item \href{#method-sdemTMB-add_trans_observations}{\code{sdemTMB$add_trans_observations()}}
 \item \href{#method-sdemTMB-add_observation_variances}{\code{sdemTMB$add_observation_variances()}}
-\item \href{#method-sdemTMB-add_trans_observation_variances}{\code{sdemTMB$add_trans_observation_variances()}}
 \item \href{#method-sdemTMB-add_inputs}{\code{sdemTMB$add_inputs()}}
 \item \href{#method-sdemTMB-add_parameters}{\code{sdemTMB$add_parameters()}}
 \item \href{#method-sdemTMB-add_parameters2}{\code{sdemTMB$add_parameters2()}}
@@ -62,7 +59,11 @@ Add system equations to model object.
 
 Example:
 
-\code{form = dx ~ theta * (mu - x) * dt + sigma * dw}.
+We add a stochastic differential equation describing the latent random state
+variable \code{x} by calling  \code{add_systems(dx ~ theta * (mu - x) * dt 
++ sigma * dw)}. Here \code{theta}, \code{mu} and \code{sigma} are fixed effect
+parameters, that must be specified later using the \code{add_parameters}
+function.
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{sdemTMB$add_systems(form, ...)}\if{html}{\out{</div>}}
 }
@@ -70,9 +71,9 @@ Example:
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{form}}{formula class specifying the stochastic differential equation(s) to be added to the system.}
+\item{\code{form}}{formula specifying the stochastic differential equation(s) to be added to the system.}
 
-\item{\code{...}}{additional formulas identical to \code{form} to specify multiple SDEs at the same time.}
+\item{\code{...}}{additional formulas similar to \code{form} for specifying multiple equations at once.}
 }
 \if{html}{\out{</div>}}
 }
@@ -85,8 +86,9 @@ Add observation equations to model object.
 
 Example:
 
-Assuming that \code{x} is a state defined through \code{add_systems} with \code{form = dx ~ ...} then define an observation related to
-\code{x} as \code{y ~ x}.
+Assuming that \code{x} is a state defined through \code{add_systems} with
+\code{form = dx ~ ...} then define the relationship between an observation
+variable \code{y} and the state \code{x} by calling \code{add_observations(y ~ x)}.
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{sdemTMB$add_observations(form, ...)}\if{html}{\out{</div>}}
 }
@@ -102,58 +104,78 @@ Assuming that \code{x} is a state defined through \code{add_systems} with \code{
 }
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-sdemTMB-add_trans_systems"></a>}}
-\if{latex}{\out{\hypertarget{method-sdemTMB-add_trans_systems}{}}}
-\subsection{Method \code{add_trans_systems()}}{
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{sdemTMB$add_trans_systems(form)}\if{html}{\out{</div>}}
-}
-
-}
-\if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-sdemTMB-add_trans_observations"></a>}}
-\if{latex}{\out{\hypertarget{method-sdemTMB-add_trans_observations}{}}}
-\subsection{Method \code{add_trans_observations()}}{
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{sdemTMB$add_trans_observations(form)}\if{html}{\out{</div>}}
-}
-
-}
-\if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-sdemTMB-add_observation_variances"></a>}}
 \if{latex}{\out{\hypertarget{method-sdemTMB-add_observation_variances}{}}}
 \subsection{Method \code{add_observation_variances()}}{
+Specify observation variance.
+
+Example:
+
+When \code{y} is an observation variable added through \code{add_observation}
+then y follows a normal distribution with mean \code{...} and variance which is
+specified by calling \code{add_observation_variances(y ~ sigma_y^2)}.
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{sdemTMB$add_observation_variances(form, ...)}\if{html}{\out{</div>}}
 }
 
-}
-\if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-sdemTMB-add_trans_observation_variances"></a>}}
-\if{latex}{\out{\hypertarget{method-sdemTMB-add_trans_observation_variances}{}}}
-\subsection{Method \code{add_trans_observation_variances()}}{
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{sdemTMB$add_trans_observation_variances(form)}\if{html}{\out{</div>}}
-}
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{form}}{formula class specifying the obsevation equation to be added to the system.}
 
+\item{\code{...}}{additional formulas identical to \code{form} to specify multiple observation equations at a time.}
+}
+\if{html}{\out{</div>}}
+}
 }
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-sdemTMB-add_inputs"></a>}}
 \if{latex}{\out{\hypertarget{method-sdemTMB-add_inputs}{}}}
 \subsection{Method \code{add_inputs()}}{
+Specify system variables that are data inputs.
+
+Example:
+
+If the system equations provided through \code{add_systems(...)} contains
+variables say 'Input1', 'Input2' then these must be specified by calling
+\code{add_inputs(Input1, Input2)}.
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{sdemTMB$add_inputs(...)}\if{html}{\out{</div>}}
 }
 
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{...}}{additional formulas identical to \code{form} to specify multiple observation equations at a time.}
+}
+\if{html}{\out{</div>}}
+}
 }
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-sdemTMB-add_parameters"></a>}}
 \if{latex}{\out{\hypertarget{method-sdemTMB-add_parameters}{}}}
 \subsection{Method \code{add_parameters()}}{
+Specify system variables that are fixed effects parameter and
+set their (initial) values and lower/upper bounds for the optimization.
+
+Example:
+You can provide parameters in two ways:
+1.
+\code{add_parameters} accepts both a vector of formulas on the form
+\code{add_parameters(par1 = c(0,-10,10), par2 = c(5,0,10))} or a matrix of
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{sdemTMB$add_parameters(..., parameter.matrix = NULL)}\if{html}{\out{</div>}}
 }
 
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{...}}{formula class specifying the obsevation equation to be added to the system.}
+
+\item{\code{parameter.matrix}}{}
+}
+\if{html}{\out{</div>}}
+}
 }
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-sdemTMB-add_parameters2"></a>}}

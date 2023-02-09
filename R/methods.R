@@ -654,8 +654,6 @@ predict.sdemTMB.fit = function(fit,
       return(list(pred=df.out,simulations=df.sim))
     }
     
-    # this is just a test to see if things work! :D
-
     ##########################################
     ### Branch 2: kalman filter predictions ##
     ##########################################
