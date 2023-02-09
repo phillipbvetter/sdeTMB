@@ -262,7 +262,7 @@ compile_cppfile = function(self, private) {
            ukf = write_ukf_cppfile(self, private),
            tmb_exact = write_tmbexact_cppfile(self, private)
     )
-    compile(paste(private$cppfile.path,".cpp",sep=""))
+    TMB::compile(paste(private$cppfile.path,".cpp",sep=""))
 
     #reload the shared dll libraries (fix for arm mac problems)
     try(dyn.unload(TMB::dynlib(private$cppfile.path)),silent=T)
