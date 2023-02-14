@@ -11,7 +11,7 @@ The package implements the following methods
 2. The (Continous-Discrete) Extended Kalman Filter 
 3. The (Continous-Discrete) Unscented Kalman Filter
 
-The main advantage of the kalman filter implementations is a large increase in computational speed (x20), and access to the fixed effects hessian. A distinct advantage of the `TMB`-style implementation is that it allows for non-Gaussian observation noise, but this functionality is not yet implemented in the package.
+The main advantage of the kalman filter implementations is a large increase in computational speed (x20), and access to the fixed effects hessian. In these cases TMB just acts as a convenient automatic-differentiator. A distinct advantage of the `TMB`-style implementation is that it allows for non-Gaussian observation noise, but this functionality is not yet implemented in the package.
 
 ## Installation
 
@@ -27,9 +27,6 @@ obj = sdemTMB$new()
 
 # Modelname
 obj$set_modelname("ekf_model")
-
-# Method (choose "ekf", "ukf" or "tmb")
-obj$set_method("ekf")
 
 # Set location path for C++ file generation
 # obj$set_path("~/")
@@ -52,7 +49,7 @@ obj$add_observation_variances(
   w ~ sigma_w^2
 )
 
-# Specify possible algebraic relations
+# Specify algebraic relations
 obj$add_algebraics(
   theta ~ exp(logtheta),
   mu ~ mu0 + a*Qf + b*Sf + c*Qr,
@@ -61,6 +58,9 @@ obj$add_algebraics(
   sigma_y ~ exp(logsigma_y),
   sigma_w ~ exp(logsigma_w)
 )
+
+# Perform a lamperti transformation (for state dependent diffusion)
+# obj$set_lamperti("log")
 
 # Specify inputs
 obj$add_inputs(Qf,Sf,Qr)
@@ -93,19 +93,20 @@ data = data.frame(t = t ,
                   w = rnorm(n,mean=1,sd=0.05)
 )
 
-# Carry out estimation
+# Carry out estimation, choose between methods ("ekf", "ukf", "tmb")
 fit <- obj$estimate(data, 
                     silence=TRUE, 
-                    compile=FALSE)
+                    compile=FALSE,
+                    method="ekf")
 
 
-# Use predictio function
+# Use prediction function
 pred = predict(fit,
                n.step.ahead=10,
                use.simulation=FALSE,
                return.state.dispersion=TRUE,
                covariance=FALSE,
-               give.only.n.step.ahead=F)
+               give.only.n.step.ahead=FALSE)
 ```
 
 
