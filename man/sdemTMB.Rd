@@ -2,13 +2,43 @@
 % Please edit documentation in R/sdemTMB.R
 \name{sdemTMB}
 \alias{sdemTMB}
-\title{R6 Class constructor for sdemTMB}
+\title{Constructor for R6 sdemTMB class}
 \value{
 A model object of class 'sdemTMB'
 }
 \description{
 Call sdemTMB$new() to construct a new instance of the class object
 for specifying a new stochastic state space model.
+}
+\examples{
+
+## ------------------------------------------------
+## Method `sdemTMB$add_systems`
+## ------------------------------------------------
+
+# Specify Ornstein-Uhlenbeck Process
+add_systems(dX ~ theta * (mu - X + u) * dt + sigma * dw)
+
+# Specify Lokta-Volterra System of Equations
+add_systems( dN ~ ( r * N * (1-N/K) - c*N*P/(N+Nbar) ) * dt + sigmaN * N * dw1,
+             dP ~ ( eps*c*N*P/(N+Nbar) - mu * P ) * dt + sigmaP * P * dw2 )
+
+## ------------------------------------------------
+## Method `sdemTMB$add_observations`
+## ------------------------------------------------
+
+#Specify observation directly as a latent state
+add_observations(y ~ x)
+
+Specify observation as the sum of exponentials of two latent states
+add_observations(y ~ exp(x1) + exp(x2))
+
+## ------------------------------------------------
+## Method `sdemTMB$print`
+## ------------------------------------------------
+
+set_timestep(1e-3)
+set_hessian(TRUE)
 }
 \section{Methods}{
 \subsection{Public methods}{
@@ -19,21 +49,13 @@ for specifying a new stochastic state space model.
 \item \href{#method-sdemTMB-add_observation_variances}{\code{sdemTMB$add_observation_variances()}}
 \item \href{#method-sdemTMB-add_inputs}{\code{sdemTMB$add_inputs()}}
 \item \href{#method-sdemTMB-add_parameters}{\code{sdemTMB$add_parameters()}}
-\item \href{#method-sdemTMB-add_parameters2}{\code{sdemTMB$add_parameters2()}}
 \item \href{#method-sdemTMB-add_algebraics}{\code{sdemTMB$add_algebraics()}}
 \item \href{#method-sdemTMB-add_constants}{\code{sdemTMB$add_constants()}}
 \item \href{#method-sdemTMB-set_initial_state}{\code{sdemTMB$set_initial_state()}}
-\item \href{#method-sdemTMB-set_method}{\code{sdemTMB$set_method()}}
 \item \href{#method-sdemTMB-set_lamperti}{\code{sdemTMB$set_lamperti()}}
-\item \href{#method-sdemTMB-set_loss}{\code{sdemTMB$set_loss()}}
 \item \href{#method-sdemTMB-set_modelname}{\code{sdemTMB$set_modelname()}}
 \item \href{#method-sdemTMB-set_cppfile_directory}{\code{sdemTMB$set_cppfile_directory()}}
-\item \href{#method-sdemTMB-set_compile}{\code{sdemTMB$set_compile()}}
-\item \href{#method-sdemTMB-set_silence}{\code{sdemTMB$set_silence()}}
 \item \href{#method-sdemTMB-set_map}{\code{sdemTMB$set_map()}}
-\item \href{#method-sdemTMB-set_timestep}{\code{sdemTMB$set_timestep()}}
-\item \href{#method-sdemTMB-use_hessian}{\code{sdemTMB$use_hessian()}}
-\item \href{#method-sdemTMB-build_model}{\code{sdemTMB$build_model()}}
 \item \href{#method-sdemTMB-estimate}{\code{sdemTMB$estimate()}}
 \item \href{#method-sdemTMB-print}{\code{sdemTMB$print()}}
 \item \href{#method-sdemTMB-summary}{\code{sdemTMB$summary()}}
@@ -55,15 +77,14 @@ Construct new sdemTMB model object
 \if{html}{\out{<a id="method-sdemTMB-add_systems"></a>}}
 \if{latex}{\out{\hypertarget{method-sdemTMB-add_systems}{}}}
 \subsection{Method \code{add_systems()}}{
-Add system equations to model object.
+Define and add multiple stochastic differential equation governing the process of individual state variables
+on the form
 
-Example:
+\code{d<state> ~ f(t,<states>,<inputs>) * dt + g1(t,<states>,<inputs>) * dw1 
+                                         + g2(t,<states>,<inputs>) * dw2 
+                                           + ...}
 
-We add a stochastic differential equation describing the latent random state
-variable \code{x} by calling  \code{add_systems(dx ~ theta * (mu - x) * dt 
-+ sigma * dw)}. Here \code{theta}, \code{mu} and \code{sigma} are fixed effect
-parameters, that must be specified later using the \code{add_parameters}
-function.
+where \code{f} is the drift, and \code{g1, g2, ...} are diffusions, with differential brownian motions dw1, dw2, ...
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{sdemTMB$add_systems(form, ...)}\if{html}{\out{</div>}}
 }
@@ -71,24 +92,38 @@ function.
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{form}}{formula specifying the stochastic differential equation(s) to be added to the system.}
+\item{\code{form}}{formula specifying the stochastic differential equation to be added to the system.}
 
 \item{\code{...}}{additional formulas similar to \code{form} for specifying multiple equations at once.}
 }
 \if{html}{\out{</div>}}
 }
+\subsection{Examples}{
+\if{html}{\out{<div class="r example copy">}}
+\preformatted{# Specify Ornstein-Uhlenbeck Process
+add_systems(dX ~ theta * (mu - X + u) * dt + sigma * dw)
+
+# Specify Lokta-Volterra System of Equations
+add_systems( dN ~ ( r * N * (1-N/K) - c*N*P/(N+Nbar) ) * dt + sigmaN * N * dw1,
+             dP ~ ( eps*c*N*P/(N+Nbar) - mu * P ) * dt + sigmaP * P * dw2 )
+}
+\if{html}{\out{</div>}}
+
+}
+
 }
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-sdemTMB-add_observations"></a>}}
 \if{latex}{\out{\hypertarget{method-sdemTMB-add_observations}{}}}
 \subsection{Method \code{add_observations()}}{
-Add observation equations to model object.
+Define and add a relationship between an observed variable and system states. The observation equation
+takes the form
 
-Example:
+\code{<observation> ~ h(t,<states>,<inputs>) + e)}
 
-Assuming that \code{x} is a state defined through \code{add_systems} with
-\code{form = dx ~ ...} then define the relationship between an observation
-variable \code{y} and the state \code{x} by calling \code{add_observations(y ~ x)}.
+where \code{h} is the observation function, and \code{e} is normally distributed noise with zero mean and variance
+to be specified. The observation variable should be present in the data provided when calling
+\code{estimate(.data)} for parameter estimation.
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{sdemTMB$add_observations(form, ...)}\if{html}{\out{</div>}}
 }
@@ -102,18 +137,30 @@ variable \code{y} and the state \code{x} by calling \code{add_observations(y ~ x
 }
 \if{html}{\out{</div>}}
 }
+\subsection{Examples}{
+\if{html}{\out{<div class="r example copy">}}
+\preformatted{#Specify observation directly as a latent state
+add_observations(y ~ x)
+
+Specify observation as the sum of exponentials of two latent states
+add_observations(y ~ exp(x1) + exp(x2))
+}
+\if{html}{\out{</div>}}
+
+}
+
 }
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-sdemTMB-add_observation_variances"></a>}}
 \if{latex}{\out{\hypertarget{method-sdemTMB-add_observation_variances}{}}}
 \subsection{Method \code{add_observation_variances()}}{
-Specify observation variance.
+Specify the variance of an observation equation.
 
-Example:
-
-When \code{y} is an observation variable added through \code{add_observation}
-then y follows a normal distribution with mean \code{...} and variance which is
-specified by calling \code{add_observation_variances(y ~ sigma_y^2)}.
+A defined observation variable \code{y} in e.g. \code{add_observations(y ~ 
+h(t,<states>,<inputs>)} is pertubed by Gaussian noise with zero mean and variance
+to-be specified using \code{add_observation_variances(y ~ p(t,<states>,<inputs>)}. We can
+for instance declare \code{add_observation_variances(y ~ sigma_x^2} where \code{sigma_x}
+is a fixed effect parameter to be declared through \code{add_parameters}.
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{sdemTMB$add_observation_variances(form, ...)}\if{html}{\out{</div>}}
 }
@@ -132,13 +179,12 @@ specified by calling \code{add_observation_variances(y ~ sigma_y^2)}.
 \if{html}{\out{<a id="method-sdemTMB-add_inputs"></a>}}
 \if{latex}{\out{\hypertarget{method-sdemTMB-add_inputs}{}}}
 \subsection{Method \code{add_inputs()}}{
-Specify system variables that are data inputs.
+Declare variables as data inputs
 
-Example:
-
-If the system equations provided through \code{add_systems(...)} contains
-variables say 'Input1', 'Input2' then these must be specified by calling
-\code{add_inputs(Input1, Input2)}.
+Declare whether a variable contained in system, observation or observation variance equations
+is an input variable. If e.g. the system equation contains an input variable \code{u} then it
+is declared using \code{add_inputs(u)}. The input data \code{u} must be contained in the
+data.frame \code{data} when calling \code{estimate(data)} for parameter estimation.
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{sdemTMB$add_inputs(...)}\if{html}{\out{</div>}}
 }
@@ -155,14 +201,14 @@ variables say 'Input1', 'Input2' then these must be specified by calling
 \if{html}{\out{<a id="method-sdemTMB-add_parameters"></a>}}
 \if{latex}{\out{\hypertarget{method-sdemTMB-add_parameters}{}}}
 \subsection{Method \code{add_parameters()}}{
-Specify system variables that are fixed effects parameter and
-set their (initial) values and lower/upper bounds for the optimization.
+Declare variables as fixed effects and specify their initial value, lower and
+upper bound used when calling the maximum likelihood optimization.
 
-Example:
-You can provide parameters in two ways:
-1.
-\code{add_parameters} accepts both a vector of formulas on the form
-\code{add_parameters(par1 = c(0,-10,10), par2 = c(5,0,10))} or a matrix of
+There are two ways to declare parameters. You can declare parameters using formulas i.e.
+\code{add_parameters( theta ~ c(1,0,10), mu ~ c(0,-10,10) )}, where the values are initial,
+lower and upper bound respectively. Alternatively you can provide a 3-column matrix where
+rows corresponds to different parameters, and the parameter names are provided as rownames
+of the matrix.
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{sdemTMB$add_parameters(..., parameter.matrix = NULL)}\if{html}{\out{</div>}}
 }
@@ -170,152 +216,183 @@ You can provide parameters in two ways:
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{...}}{formula class specifying the obsevation equation to be added to the system.}
+\item{\code{...}}{formula whose left-hand side is the parameter name, and right hand side is a vector
+of length 3 with inital value, lower and upper bound respectively. You can provide multiple
+parameters at once by seperating formulas with comma.}
 
-\item{\code{parameter.matrix}}{}
+\item{\code{parameter.matrix}}{matrix of 3 columns where rows correspond to variables. The variable
+names must be provided as rownames to the matrix. The columns are initial value, lower and
+upper bound respectively.}
 }
 \if{html}{\out{</div>}}
 }
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-sdemTMB-add_parameters2"></a>}}
-\if{latex}{\out{\hypertarget{method-sdemTMB-add_parameters2}{}}}
-\subsection{Method \code{add_parameters2()}}{
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{sdemTMB$add_parameters2(parameters)}\if{html}{\out{</div>}}
-}
-
-}
-\if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-sdemTMB-add_algebraics"></a>}}
 \if{latex}{\out{\hypertarget{method-sdemTMB-add_algebraics}{}}}
 \subsection{Method \code{add_algebraics()}}{
+Add algebraic relations.
+
+Algebraic relations is a convenient way to transform parameters in your equations.
+In the Ornstein-Uhlenbeck process the rate parameter \code{theta} is always positive, so
+estimation in the log-domain is a good idea. Instead of writing \code{exp(theta)} directly
+in the system equation one can transform into the log domain using the algebraic relation
+\code{add_algebraics(theta ~ exp(logtheta))}. All instances of \code{theta} is replaced
+by \code{exp(logtheta)} when compiling the C++ function. Note that you must provide values
+for \code{logtheta} now instead of \code{theta} when declaring parameters through
+\code{add_parameters}
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{sdemTMB$add_algebraics(form, ...)}\if{html}{\out{</div>}}
 }
 
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{form}}{formula specifying the stochastic differential equation(s) to be added to the system.}
+
+\item{\code{...}}{additional formulas similar to \code{form} for specifying multiple equations at once.}
+}
+\if{html}{\out{</div>}}
+}
 }
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-sdemTMB-add_constants"></a>}}
 \if{latex}{\out{\hypertarget{method-sdemTMB-add_constants}{}}}
 \subsection{Method \code{add_constants()}}{
+Declare variables as scalar constants.
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{sdemTMB$add_constants(form, ...)}\if{html}{\out{</div>}}
 }
 
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{form}}{formula whose left-hand side is the constant variable name, and the right-hand side
+is its numeric value.}
+
+\item{\code{...}}{additional formulas similar to \code{form} for specifying multiple constants at once.}
+}
+\if{html}{\out{</div>}}
+}
 }
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-sdemTMB-set_initial_state"></a>}}
 \if{latex}{\out{\hypertarget{method-sdemTMB-set_initial_state}{}}}
 \subsection{Method \code{set_initial_state()}}{
+Declare the initial state values i.e. mean and covariance for the system states.
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{sdemTMB$set_initial_state(mean, cov)}\if{html}{\out{</div>}}
 }
 
-}
-\if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-sdemTMB-set_method"></a>}}
-\if{latex}{\out{\hypertarget{method-sdemTMB-set_method}{}}}
-\subsection{Method \code{set_method()}}{
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{sdemTMB$set_method(method)}\if{html}{\out{</div>}}
-}
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{mean}}{numeric vector of size equal to \code{n} (number of system states)}
 
+\item{\code{cov}}{matrix (symmetric positive semi-definite) of dimensions \code{n^2}.}
+}
+\if{html}{\out{</div>}}
+}
 }
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-sdemTMB-set_lamperti"></a>}}
 \if{latex}{\out{\hypertarget{method-sdemTMB-set_lamperti}{}}}
 \subsection{Method \code{set_lamperti()}}{
+Set a Lamperti Transformation
+
+If the provided system equations have state dependent diffusion in of a few available ways
+then it is advantageous to perform a transformation to remove the state dependence. This
+comes at the cost of a more complicated drift function. The following types of state-dependence
+is currently supported
+\enumerate{
+\item If no transformation is desired choose 'identity' (default).
+\item If the diffusion term is proportional to x * dw, then a log-transform is available
+\item If the diffusion term is proportional to x * (1-x) * dw, then a logit-transform is available
+\item If the diffusion term is proportional to sqrt(x * (1-x)) * dw, then a sqrt-logit-transform
+is available
+\item If the diffusion term is proportional to x * (1-x^a) * dw, for a>0 then a power-logit
+transform is available
+}
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{sdemTMB$set_lamperti(transform, states = NULL)}\if{html}{\out{</div>}}
 }
 
-}
-\if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-sdemTMB-set_loss"></a>}}
-\if{latex}{\out{\hypertarget{method-sdemTMB-set_loss}{}}}
-\subsection{Method \code{set_loss()}}{
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{sdemTMB$set_loss(loss, c = 3)}\if{html}{\out{</div>}}
-}
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{transform}}{character vector - one of either "identity, "log", "logit", "sqrt-logit", or "power-logit"}
 
+\item{\code{states}}{a vector of the state names for which the chosen transformation is desired. The
+default (NULL) is to apply the transformation to all state equations.}
+}
+\if{html}{\out{</div>}}
+}
 }
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-sdemTMB-set_modelname"></a>}}
 \if{latex}{\out{\hypertarget{method-sdemTMB-set_modelname}{}}}
 \subsection{Method \code{set_modelname()}}{
+Set modelname used to create the C++ file for TMB
+
+When calling \code{TMB::MakeADFun} the (negative log) likelihood function is created in the
+directory specified by the \code{set_cppfile_directory} method with name \code{<modelname>.cpp}
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{sdemTMB$set_modelname(name)}\if{html}{\out{</div>}}
 }
 
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{name}}{string defining the model name.}
+}
+\if{html}{\out{</div>}}
+}
 }
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-sdemTMB-set_cppfile_directory"></a>}}
 \if{latex}{\out{\hypertarget{method-sdemTMB-set_cppfile_directory}{}}}
 \subsection{Method \code{set_cppfile_directory()}}{
+Set the path directory where the constructed C++ file is created.
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{sdemTMB$set_cppfile_directory(directory)}\if{html}{\out{</div>}}
 }
 
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{directory}}{string specifying the local path / directory}
 }
-\if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-sdemTMB-set_compile"></a>}}
-\if{latex}{\out{\hypertarget{method-sdemTMB-set_compile}{}}}
-\subsection{Method \code{set_compile()}}{
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{sdemTMB$set_compile(bool)}\if{html}{\out{</div>}}
+\if{html}{\out{</div>}}
 }
-
-}
-\if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-sdemTMB-set_silence"></a>}}
-\if{latex}{\out{\hypertarget{method-sdemTMB-set_silence}{}}}
-\subsection{Method \code{set_silence()}}{
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{sdemTMB$set_silence(bool)}\if{html}{\out{</div>}}
-}
-
 }
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-sdemTMB-set_map"></a>}}
 \if{latex}{\out{\hypertarget{method-sdemTMB-set_map}{}}}
 \subsection{Method \code{set_map()}}{
+Enable maximum a posterior (MAP) estimation.
+
+Adds a maximum a posterior contribution to the (negative log) likelihood
+function by evaluating the fixed effects parameters in a multivariate Gaussian
+with \code{mean} and \code{covariance} as provided.
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{sdemTMB$set_map(mean, cov)}\if{html}{\out{</div>}}
 }
 
-}
-\if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-sdemTMB-set_timestep"></a>}}
-\if{latex}{\out{\hypertarget{method-sdemTMB-set_timestep}{}}}
-\subsection{Method \code{set_timestep()}}{
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{sdemTMB$set_timestep(dt)}\if{html}{\out{</div>}}
-}
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{mean}}{mean vector of the Gaussian prior parameter distribution}
 
+\item{\code{cov}}{covariance matrix of the Gaussian prior parameter distribution}
 }
-\if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-sdemTMB-use_hessian"></a>}}
-\if{latex}{\out{\hypertarget{method-sdemTMB-use_hessian}{}}}
-\subsection{Method \code{use_hessian()}}{
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{sdemTMB$use_hessian(bool)}\if{html}{\out{</div>}}
+\if{html}{\out{</div>}}
 }
-
-}
-\if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-sdemTMB-build_model"></a>}}
-\if{latex}{\out{\hypertarget{method-sdemTMB-build_model}{}}}
-\subsection{Method \code{build_model()}}{
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{sdemTMB$build_model()}\if{html}{\out{</div>}}
-}
-
 }
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-sdemTMB-estimate"></a>}}
 \if{latex}{\out{\hypertarget{method-sdemTMB-estimate}{}}}
 \subsection{Method \code{estimate()}}{
+Estimate the fixed effects parameters in the specified model.
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{sdemTMB$estimate(
   data,
@@ -324,17 +401,158 @@ You can provide parameters in two ways:
   use.hessian = FALSE,
   ode.timestep = NULL,
   silence = FALSE,
-  compile = FALSE
+  compile = FALSE,
+  method = "ekf",
+  loss = "standard"
 )}\if{html}{\out{</div>}}
 }
 
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{data}}{data.frame containing time-vector 't', observations and inputs. The observations
+can take \code{NA}-values.}
+
+\item{\code{return.fit}}{boolean value. The default (\code{TRUE}) is to return a list of parameter
+estimates, state estimates, and more. If \code{FALSE} then only the optimization object from
+\code{stats::nlminb} and a \code{system.time} object is returned.}
+
+\item{\code{return.nll}}{boolean value. If \code{TRUE} then a call to \code{estimate} will only return
+the output from \code{TMB:MakeADFun} which is a list containing function handles to the (negative log)
+likelihood and its gradient (and the hessian if available). The filter itself can therefore be run by
+calling the objective function 'f' in the output list.}
+
+\item{\code{use.hessian}}{boolean value. The default (\code{TRUE}) causes the optimization algorithm
+\code{stats::nlminb} to use the fixed effects hessian of the (negative log) likelihood when
+performing the optimization. This feature is only available for the kalman filter methods
+without any random effects.}
+
+\item{\code{silence}}{boolean value. Sets the tracing information for \code{TMB::MakeADFun} in the
+argument \code{silent} which disables outputs from the optimization algoritm during runtime.}
+
+\item{\code{compile}}{boolean value. The default (\code{FALSE}) is to not compile the C++ objective
+function but assume it is already compiled and corresponds to the specified model object. It is
+the user's responsibility to ensure correspondence between the specified model and the precompiled
+C++ object. If a precompiled C++ object is not found in the specified directory i.e.
+in \code{<cppfile_directory>/<modelname>/(dll/so)} then the compile flag is set to \code{TRUE}.
+If the user makes changes to system equations, observation equations, observation variances,
+algebraic relations or lamperi transformations then the C++ object should be recompiled.}
+}
+\if{html}{\out{</div>}}
+}
 }
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-sdemTMB-print"></a>}}
 \if{latex}{\out{\hypertarget{method-sdemTMB-print}{}}}
 \subsection{Method \code{print()}}{
+Set compile flag
+
+The compile flag defualt is \code{FALSE}. If the C++ binary file generated from compiling
+the model function is not found in the specified directory i.e. \code{<cppfile_directory>/<modelname>./(dll/so)}
+then the compile flag is automatically set to \code{TRUE}. When the model specifications
+is changed but the model name is not, then its necessary to manually set the compile flag
+to \code{TRUE}.
+
+
+set tracing information for TMB
+
+Passes to the \code{silent} argument of \code{TMB::MakeADFun} which disables outputs from the
+optimization algoritm during runtime.
+
+
+Set estimation method
+
+The package has three available methods implemented currently:
+\enumerate{
+\item The natural TMB-style formulation where latent states are considered random effects
+and are integrated out using the Laplace approximation. This method only yields the gradient
+of the (negative log) likelihood function with respect to the fixed effects for optimization.
+The method is slower although probably has some precision advantages, and allows for non-Gaussian
+observation noise (not yet implemented). One-step / K-step residuals are not yet available in
+the package.
+\item (Continous-Discrete) Extended Kalman Filter. This is computationally the fastest method
+and all the package features are available, in particular it is straight-forward to obtain
+K-step-ahead residuals. The \code{predict} S3 method for \code{sdemTMB.fit} also has stochastic
+simulation available to obtain the K-step-ahead residuals.
+\item (Continous-Discrete) Unscented Kalman Filter. This is a higher order Kalman Filter which
+improves the mean and covariance estimates when the system display high nonlinearity, and
+circumvents the necessity to compute the jacobian of the drift and observation functions.
+}
+
+
+Set the time step-size in numerical schemes. The defined
+step-size is used to calculate
+the number of steps between observation time-points as defined by the
+provided \code{.data} when calling \code{estimate(.data)} to estimate
+parameters. If the calculated number of steps is larger than N.01 where N
+is an integer, then the time-step is decreased to match with N+1 steps
+instead. The step-size is used in the two following ways depending on the
+chosen method:
+\itemize{
+\item Kalman filters: The time-step is used as the step-size in the
+numerical Forward-Euler scheme to compute the prior state mean and
+covariance estimate as the final time solution to the first and second
+order moment differential equations.
+\item TMB method: The time-step is used as the step-size in the Euler-Maruyama
+scheme for simulating a sample path of the stochastic differential equation,
+which serves to link together the latent (random effects) states.
+}
+
+
+Set a flag to indicate whether or not the optimization algorithm
+should use the fixed effects (negative log) likelihood hessian. This is only
+available for the kalman filter methods without any random effects.
+
+
+Set loss function type (kalman filters only)
+
+The loss function is per default quadratic in the one-step residauls as is natural
+when the Gaussian (negative log) likelihood is evaluated, but if the tails of the
+distribution is considered too small i.e. outliers are weighted too much, then one
+can choose loss functions thataccounts for this. The three available types available:
+\enumerate{
+\item Quadratic loss
+\item Quadratic-Linear (\code{huber} loss)
+\item Quadratic-Constant (\code{tukey} loss)
+}
+
+The cutoff for the Huber and Tukey loss functions are determined from a provided cutoff
+parameter. The implementations of these losses are approximations (pseudo-huber and sigmoid
+approxmation respectively) for smooth derivatives.
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{sdemTMB$print()}\if{html}{\out{</div>}}
+}
+
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{name}}{logical value}
+
+\item{\code{bool}}{logical value}
+
+\item{\code{method}}{character vector - one of either "ekf", "ukf" or "tmb".}
+
+\item{\code{dt}}{numerical value}
+
+\item{\code{bool}}{}
+
+\item{\code{loss}}{string of either "standard", "huber" or "tukey"}
+
+\item{\code{c}}{cutoff value for huber and tukey loss functions. Default is \code{c=3}}
+}
+\if{html}{\out{</div>}}
+}
+\subsection{Examples}{
+\if{html}{\out{<div class="r example copy">}}
+\preformatted{set_timestep(1e-3)
+}
+\if{html}{\out{</div>}}
+
+\if{html}{\out{<div class="r example copy">}}
+\preformatted{set_hessian(TRUE)
+}
+\if{html}{\out{</div>}}
+
 }
 
 }

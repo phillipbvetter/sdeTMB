@@ -123,7 +123,7 @@ check_system_eqs = function(form, self, private, silent=FALSE) {
 
 
   # result = list(list(form=form,rhs=rhs,diff=diff.terms,allvars=variables))
-  result = list(list(form=form,rhs=rhs,allvars=variables,diff=diff.processes))
+  result = list(list(form=form, rhs=rhs, allvars=variables, diff=diff.processes))
   names(result) = state
   return(result)
 }

@@ -1,4 +1,4 @@
-#' @title R6 Class constructor for sdemTMB
+#' @title Constructor for R6 sdemTMB class
 #' @description Call sdemTMB$new() to construct a new instance of the class object
 #' for specifying a new stochastic state space model.
 #' @returns A model object of class 'sdemTMB'
@@ -69,18 +69,26 @@ sdemTMB = R6::R6Class(
       private$opt = NULL
       private$fit = NULL
     },
-    
-    #' @description Add system equations to model object.
-    #'
-    #' Example:
+    ########################################################################
+    ########################################################################
+    #' @description 
+    #' Define and add multiple stochastic differential equation governing the process of individual state variables 
+    #' on the form 
     #' 
-    #' We add a stochastic differential equation describing the latent random state 
-    #' variable \code{x} by calling  \code{add_systems(dx ~ theta * (mu - x) * dt 
-    #' + sigma * dw)}. Here \code{theta}, \code{mu} and \code{sigma} are fixed effect 
-    #' parameters, that must be specified later using the \code{add_parameters}
-    #' function.
+    #' \code{d<state> ~ f(t,<states>,<inputs>) * dt + g1(t,<states>,<inputs>) * dw1 
+    #'                                          + g2(t,<states>,<inputs>) * dw2 
+    #'                                            + ...}
+    #'                                            
+    #' where \code{f} is the drift, and \code{g1, g2, ...} are diffusions, with differential brownian motions dw1, dw2, ...
     #' 
-    #' @param form formula specifying the stochastic differential equation(s) to be added to the system.
+    #' @examples 
+    #' # Specify Ornstein-Uhlenbeck Process
+    #' add_systems(dX ~ theta * (mu - X + u) * dt + sigma * dw)
+    #' 
+    #' # Specify Lokta-Volterra System of Equations
+    #' add_systems( dN ~ ( r * N * (1-N/K) - c*N*P/(N+Nbar) ) * dt + sigmaN * N * dw1,
+    #'              dP ~ ( eps*c*N*P/(N+Nbar) - mu * P ) * dt + sigmaP * P * dw2 )
+    #' @param form formula specifying the stochastic differential equation to be added to the system.
     #' @param ... additional formulas similar to \code{form} for specifying multiple equations at once.
     add_systems = function(form,...) {
       # lapply for multi-arguments
@@ -92,28 +100,36 @@ sdemTMB = R6::R6Class(
         private$state.names = names(private$sys.eqs)
         # Function Body
       })
-      # private$n = length(private$sys.eqs)
       # if model was already built, set compile flag to true
       was_model_already_built(self, private)
       #
       return(invisible(self))
     },
-    # 
-    #' @description Add observation equations to model object.
-    #'
-    #' Example:
-    #'
-    #' Assuming that \code{x} is a state defined through \code{add_systems} with 
-    #' \code{form = dx ~ ...} then define the relationship between an observation
-    #' variable \code{y} and the state \code{x} by calling \code{add_observations(y ~ x)}.
+    ########################################################################
+    ########################################################################
+    #' @description
+    #' Define and add a relationship between an observed variable and system states. The observation equation
+    #' takes the form
     #' 
+    #' \code{<observation> ~ h(t,<states>,<inputs>) + e)}
+    #' 
+    #' where \code{h} is the observation function, and \code{e} is normally distributed noise with zero mean and variance
+    #' to be specified. The observation variable should be present in the data provided when calling
+    #' \code{estimate(.data)} for parameter estimation.
+    #'  
+    #' @examples
+    #' #Specify observation directly as a latent state
+    #' add_observations(y ~ x)
+    #' 
+    #' Specify observation as the sum of exponentials of two latent states
+    #' add_observations(y ~ exp(x1) + exp(x2))
     #' @param form formula class specifying the obsevation equation to be added to the system.
     #' @param ... additional formulas identical to \code{form} to specify multiple observation equations at a time.
     add_observations = function(form,...) {
       # lapply for multi-arguments
       lapply(c(form,...), function(form) {
         # Function Body
-        res = check_obsservation_eqs(form, self, private)
+        res = check_observation_eqs(form, self, private)
         check_name(names(res), "obs", self, private)
         private$obs.eqs[[names(res)]] = res[[1]]
         private$obs.names = names(private$obs.eqs)
@@ -124,14 +140,16 @@ sdemTMB = R6::R6Class(
       #
       return(invisible(self))
     },
-    # 
-    #' @description Specify observation variance.
-    #'
-    #' Example:
-    #'
-    #' When \code{y} is an observation variable added through \code{add_observation} 
-    #' then y follows a normal distribution with mean \code{...} and variance which is
-    #' specified by calling \code{add_observation_variances(y ~ sigma_y^2)}.
+    ########################################################################
+    ########################################################################
+    #' @description Specify the variance of an observation equation.
+    #' 
+    #' A defined observation variable \code{y} in e.g. \code{add_observations(y ~ 
+    #' h(t,<states>,<inputs>)} is pertubed by Gaussian noise with zero mean and variance 
+    #' to-be specified using \code{add_observation_variances(y ~ p(t,<states>,<inputs>)}. We can
+    #' for instance declare \code{add_observation_variances(y ~ sigma_x^2} where \code{sigma_x} 
+    #' is a fixed effect parameter to be declared through \code{add_parameters}.
+    #' 
     #' @param form formula class specifying the obsevation equation to be added to the system.
     #' @param ... additional formulas identical to \code{form} to specify multiple observation equations at a time.
     add_observation_variances = function(form,...) {
@@ -149,14 +167,14 @@ sdemTMB = R6::R6Class(
       #
       return(invisible(self))
     },
-    # 
-    #' @description Specify system variables that are data inputs.
+    ########################################################################
+    ########################################################################
+    #' @description Declare variables as data inputs
     #'
-    #' Example:
-    #'
-    #' If the system equations provided through \code{add_systems(...)} contains
-    #' variables say 'Input1', 'Input2' then these must be specified by calling
-    #' \code{add_inputs(Input1, Input2)}.
+    #' Declare whether a variable contained in system, observation or observation variance equations 
+    #' is an input variable. If e.g. the system equation contains an input variable \code{u} then it
+    #' is declared using \code{add_inputs(u)}. The input data \code{u} must be contained in the 
+    #' data.frame \code{data} when calling \code{estimate(data)} for parameter estimation.
     #' 
     #' @param ... additional formulas identical to \code{form} to specify multiple observation equations at a time.
     add_inputs =  function(...) {
@@ -178,20 +196,24 @@ sdemTMB = R6::R6Class(
       #
       return(invisible(self))
     },
-    # 
-    #' @description Specify system variables that are fixed effects parameter and 
-    #' set their (initial) values and lower/upper bounds for the optimization.
+    ########################################################################
+    ########################################################################
+    #' @description Declare variables as fixed effects and specify their initial value, lower and
+    #' upper bound used when calling the maximum likelihood optimization.
+    #' 
+    #' There are two ways to declare parameters. You can declare parameters using formulas i.e.
+    #' \code{add_parameters( theta ~ c(1,0,10), mu ~ c(0,-10,10) )}, where the values are initial,
+    #' lower and upper bound respectively. Alternatively you can provide a 3-column matrix where
+    #' rows corresponds to different parameters, and the parameter names are provided as rownames
+    #' of the matrix.
     #'
-    #' Example:
-    #' You can provide parameters in two ways:
-    #' 1. 
-    #' \code{add_parameters} accepts both a vector of formulas on the form 
-    #' \code{add_parameters(par1 = c(0,-10,10), par2 = c(5,0,10))} or a matrix of
-    #'
-    #' @param ... formula class specifying the obsevation equation to be added to the system.
-    #' @param parameter.matrix 
+    #' @param ... formula whose left-hand side is the parameter name, and right hand side is a vector
+    #' of length 3 with inital value, lower and upper bound respectively. You can provide multiple
+    #' parameters at once by seperating formulas with comma.
+    #' @param parameter.matrix matrix of 3 columns where rows correspond to variables. The variable
+    #' names must be provided as rownames to the matrix. The columns are initial value, lower and 
+    #' upper bound respectively.
     add_parameters = function(...,parameter.matrix=NULL) {
-      
       # single parameters
       parameter.forms = list(...)
       if(length(parameter.forms)>0){
@@ -211,7 +233,6 @@ sdemTMB = R6::R6Class(
         })
         private$parameter.names = names(private$parameters)
       }
-      
       # parameter matrix
       if(!is.null(parameter.matrix)){
         check_parameter_matrix(parameter.matrix, self, private)
@@ -231,14 +252,282 @@ sdemTMB = R6::R6Class(
         })
         private$parameter.names = names(private$parameters)
       }
-      
       # if model was already built set compile flag
       if (private$trigger) {
         was_model_already_built(self, private)
       }
-      
       # return
       return(invisible(self))
+    },
+    ########################################################################
+    ########################################################################
+    #' @description Add algebraic relations.
+    #' 
+    #' Algebraic relations is a convenient way to transform parameters in your equations.
+    #' In the Ornstein-Uhlenbeck process the rate parameter \code{theta} is always positive, so
+    #' estimation in the log-domain is a good idea. Instead of writing \code{exp(theta)} directly
+    #' in the system equation one can transform into the log domain using the algebraic relation
+    #' \code{add_algebraics(theta ~ exp(logtheta))}. All instances of \code{theta} is replaced
+    #' by \code{exp(logtheta)} when compiling the C++ function. Note that you must provide values
+    #' for \code{logtheta} now instead of \code{theta} when declaring parameters through 
+    #' \code{add_parameters}
+    #' 
+    #' @param form formula specifying the stochastic differential equation(s) to be added to the system.
+    #' @param ... additional formulas similar to \code{form} for specifying multiple equations at once.
+    add_algebraics = function(form,...) {
+      lapply(c(form,...), function(form) {
+        # Function Body
+        res = check_algebraics(form, self, private)
+        private$alg.eqs[[names(res)]] = res[[1]]
+        # Function Body
+      })
+      # if model was already built, set compile flag to true
+      was_model_already_built(self, private)
+      #
+      return(invisible(self))
+    },
+    ########################################################################
+    ########################################################################
+    #' @description Declare variables as scalar constants.
+    #'
+    #' @param form formula whose left-hand side is the constant variable name, and the right-hand side
+    #' is its numeric value.
+    #' @param ... additional formulas similar to \code{form} for specifying multiple constants at once.
+    add_constants = function(form,...) {
+      lapply(c(form,...), function(form) {
+        # Function Body
+        res = check_constants(form, self, private)
+        check_name(names(res), "constants", self, private)
+        private$trigger = is_this_a_new_name(names(res),private$constant.names)
+        private$constants[[names(res)]] = res[[1]]
+        private$constant.names = names(private$constants)
+        # Function Body
+      })
+      # if model was already built, set compile flag to true
+      if (private$trigger) {
+        was_model_already_built(self, private)
+      }
+      #
+      return(invisible(self))
+    },
+    ########################################################################
+    ########################################################################
+    #' @description Declare the initial state values i.e. mean and covariance for the system states.
+    #' 
+    #' @param mean numeric vector of size equal to \code{n} (number of system states)
+    #' @param cov matrix (symmetric positive semi-definite) of dimensions \code{n^2}. 
+    set_initial_state = function(mean,cov) {
+      if (is.null(private$sys.eqs)) {
+        stop("Please specify system equations first")
+      }
+      if (!is.numeric(mean)) {
+        stop("The mean vector is not a numeric")
+      }
+      if (any(is.na(mean))) {
+        stop("The mean vector contains NAs.")
+      }
+      if (length(mean)!=length(private$sys.eqs)) {
+        stop("The initial state vector should have length ",length(private$sys.eqs))
+      }
+      if (!all(dim(cov)==c(length(private$sys.eqs),length(private$sys.eqs)))) {
+        stop("The covariance matrix should be square with dimension ", length(private$sys.eqs))
+      }
+      if (!is.numeric(cov)) {
+        stop("The covariance matrix is not a numeric")
+      }
+      if (any(is.na(cov))) {
+        stop("The covariance matrix contains NAs")
+      }
+      if (any(eigen(cov)$values < 0)){
+        stop("The covariance matrix is not positive semi-definite")
+      }
+      if (!isSymmetric.matrix(cov)){
+        stop("The covariance matrix is symmetric")
+      }
+      private$initial.state = list(mean=mean,cov=as.matrix(cov))
+      return(invisible(self))
+    },
+    ########################################################################
+    ########################################################################
+    #' @description Set a Lamperti Transformation
+    #'
+    #' If the provided system equations have state dependent diffusion in of a few available ways
+    #' then it is advantageous to perform a transformation to remove the state dependence. This 
+    #' comes at the cost of a more complicated drift function. The following types of state-dependence
+    #' is currently supported
+    #'
+    #' 0. If no transformation is desired choose 'identity' (default).
+    #'
+    #' 1. If the diffusion term is proportional to x * dw, then a log-transform is available
+    #' 
+    #' 2. If the diffusion term is proportional to x * (1-x) * dw, then a logit-transform is available
+    #' 
+    #' 3. If the diffusion term is proportional to sqrt(x * (1-x)) * dw, then a sqrt-logit-transform 
+    #' is available
+    #' 
+    #' 4. If the diffusion term is proportional to x * (1-x^a) * dw, for a>0 then a power-logit
+    #' transform is available
+    #' 
+    #' @param transform character vector - one of either "identity, "log", "logit", "sqrt-logit", or "power-logit"
+    #' @param states a vector of the state names for which the chosen transformation is desired. The
+    #' default (NULL) is to apply the transformation to all state equations.
+    set_lamperti = function(transform,states=NULL) {
+      # must be a string
+      if (!(is.character(transform))) {
+        stop("You must pass a string")
+      }
+      if (!is.null(states)){
+        if (!(is.character(states))) {
+          stop("You must pass a vector of state names")
+        }
+        bool = states %in% names(private$sys.eqs)
+        if (!all(bool)) {
+          stop("The following state names don't exist: \n\t ",states[!bool])
+        }
+      }
+      # available transforms
+      available_transforms = c("identity","log","logit","sqrt-logit","power-logit")
+      if (!(transform %in% available_transforms)) {
+        stop("That method is not available. Please choose one of the following instead: \n
+                  1. For 'dw' use no transform = 'identity' (default)
+                  2. For 'x * dw' use transform = 'log'
+                  3. For 'x * (1 - x) * dw' use transform = 'logit'
+                  4. For 'sqrt( x * (1 - x) ) * dw' use transform = 'sqrt-logit'
+                  5. For 'x * (1 - x^a) * dw' for a>0 use transform 'power-logit'")
+      }
+      private$lamperti = list(transform=transform,states=states)
+      return(invisible(self))
+    },
+    ########################################################################
+    ########################################################################
+    #' @description Set modelname used to create the C++ file for TMB
+    #'
+    #' When calling \code{TMB::MakeADFun} the (negative log) likelihood function is created in the
+    #' directory specified by the \code{set_cppfile_directory} method with name \code{<modelname>.cpp}
+    #' 
+    #' @param name string defining the model name.
+    set_modelname = function(name) {
+      # was a string passed?
+      if (!is.character(name)) {
+        stop("The modelname must be a string")
+      }
+      private$modelname = name
+      private$cppfile.path = paste(private$cppfile.directory,"/",name,sep="")
+    },
+    ########################################################################
+    ########################################################################
+    #' @description Set the path directory where the constructed C++ file is created.
+    #'
+    #' @param directory string specifying the local path / directory
+    set_cppfile_directory = function(directory) {
+      # was a string passed?
+      if (!is.character(directory)) {
+        stop("You must pass a string")
+      }
+      # does the exist?
+      if (!dir.exists(directory)) {
+        stop("The specified directory does not exist")
+      }
+      private$cppfile.directory = directory
+      
+      # update private$cppfile.path by calling set_modelname
+      self$set_modelname(private$modelname)
+      return(invisible(self))
+    },
+    ########################################################################
+    ########################################################################
+    #' @description Enable maximum a posterior (MAP) estimation.
+    #'
+    #' Adds a maximum a posterior contribution to the (negative log) likelihood 
+    #' function by evaluating the fixed effects parameters in a multivariate Gaussian 
+    #' with \code{mean} and \code{covariance} as provided.
+    #' 
+    #' @param mean mean vector of the Gaussian prior parameter distribution
+    #' @param cov covariance matrix of the Gaussian prior parameter distribution
+    set_map = function(mean,cov) {
+      if (!is.numeric(mean)) {
+        stop("The MAP mean vector is not numeric")
+      }
+      if (length(mean)!=length(private$parameters)) {
+        stop("The MAP parameter vector should have length ",length(private$parameters))
+      }
+      if (!is.matrix(cov)) {
+        stop("The MAP covariance matrix is not of class matrix")
+      }
+      if (!all(dim(cov)==rep(length(private$parameters),2))) {
+        stop("The MAP covariance matrix should be square with dimension ", length(private$parameters))
+      }
+      private$map = list(mean=mean,cov=cov)
+    },
+    ########################################################################
+    ########################################################################
+    #' @description Estimate the fixed effects parameters in the specified model.
+    #' 
+    #' @param data data.frame containing time-vector 't', observations and inputs. The observations
+    #' can take \code{NA}-values.  
+    #' @param return.fit boolean value. The default (\code{TRUE}) is to return a list of parameter 
+    #' estimates, state estimates, and more. If \code{FALSE} then only the optimization object from
+    #' \code{stats::nlminb} and a \code{system.time} object is returned.
+    #' @param return.nll boolean value. If \code{TRUE} then a call to \code{estimate} will only return
+    #' the output from \code{TMB:MakeADFun} which is a list containing function handles to the (negative log)
+    #' likelihood and its gradient (and the hessian if available). The filter itself can therefore be run by
+    #' calling the objective function 'f' in the output list.
+    #' @param use.hessian boolean value. The default (\code{TRUE}) causes the optimization algorithm
+    #' \code{stats::nlminb} to use the fixed effects hessian of the (negative log) likelihood when
+    #' performing the optimization. This feature is only available for the kalman filter methods 
+    #' without any random effects.
+    #' @param ode.timestep
+    #' @param silence boolean value. Sets the tracing information for \code{TMB::MakeADFun} in the
+    #' argument \code{silent} which disables outputs from the optimization algoritm during runtime.
+    #' @param compile boolean value. The default (\code{FALSE}) is to not compile the C++ objective
+    #' function but assume it is already compiled and corresponds to the specified model object. It is
+    #' the user's responsibility to ensure correspondence between the specified model and the precompiled
+    #' C++ object. If a precompiled C++ object is not found in the specified directory i.e. 
+    #' in \code{<cppfile_directory>/<modelname>/(dll/so)} then the compile flag is set to \code{TRUE}.
+    #' If the user makes changes to system equations, observation equations, observation variances, 
+    #' algebraic relations or lamperi transformations then the C++ object should be recompiled.
+    #' @param method
+    #' @param loss
+    estimate = function(data, 
+                        return.fit=TRUE, 
+                        return.nll=FALSE, 
+                        use.hessian=FALSE,
+                        ode.timestep=NULL, 
+                        silence=FALSE, 
+                        compile=FALSE,
+                        method="ekf",
+                        loss="standard") {
+      
+      # set flags
+      private$use_hessian(use.hessian)
+      private$set_timestep(ode.timestep)
+      private$set_silence(silence)
+      private$set_compile(compile)
+      private$set_method(method)
+      private$set_loss(loss)
+      # if the model isnt built we must build
+      if (!private$build | private$compile) {
+        message("Building model...")
+        private$build_model()
+      }
+      # check and set data
+      check_and_set_data(data, self, private)
+      # construct neg. log-likelihood function
+      optlist = construct_and_optimise(self, private, return.fit, return.nll)
+      # if return.nll just return the function objective and exit
+      if(return.nll){
+        message("Returning AD objective function, and exiting...")
+        return(private$nll)
+      }
+      # create and return fit object
+      if(return.fit){
+        create_return_fit(self, private)
+        return(private$fit)
+      }
+      # return optimization and cpu-time instead of fit
+      if(!return.fit){
+        return(optlist)
+      }
     }
   ),
   # private fields
@@ -303,423 +592,262 @@ sdemTMB = R6::R6Class(
     opt = NULL,
     sdr = NULL,
     fit = NULL,
+    ########################################################################
+    ########################################################################
     # lamperti transform functions
     add_trans_systems = function(form) {
       res = check_system_eqs(form, self, private, silent=T)
       private$sys.eqs.trans[[names(res)]] = res[[1]]
       return(invisible(self))
     },
+    ########################################################################
+    ########################################################################
+    # lamperti transform functions
     add_trans_observations = function(form) {
       res = check_observation_eqs(form, self, private, silent=T)
       private$obs.eqs.trans[[names(res)]] = res[[1]]
       return(invisible(self))
     },
+    ########################################################################
+    ########################################################################
+    # lamperti transform functions
     add_trans_observation_variances = function(form) {
       res = check_observation_variance_eqs(form, self, private, silent=T)
       private$obs.var.trans[[names(res)]] = res[[1]]
+      return(invisible(self))
+    },
+    ########################################################################
+    ########################################################################
+    # build function
+    build_model = function() {
+      # basic checks for model, add class n, ng, m, diff procs
+      init_build(self, private)
+      
+      # apply algebraics
+      check_algebraics_before_applying(self, private)
+      apply_algebraics(self, private)
+      
+      # update diff.terms and apply lamperti
+      update_diffterms(self, private)
+      apply_lamperti(self, private)
+      update_diffterms(self, private)
+      
+      # check if model is ok
+      lastcheck_before_compile(self, private)
+      
+      # compile cpp file
+      compile_cppfile(self, private)
+      
+      # set build
+      private$build = TRUE
+      
+      return(invisible(self))
+    },
+    ########################################################################
+    ########################################################################
+    # compile function
+    #' @description Set compile flag
+    #'
+    #' The compile flag defualt is \code{FALSE}. If the C++ binary file generated from compiling
+    #' the model function is not found in the specified directory i.e. \code{<cppfile_directory>/<modelname>./(dll/so)}
+    #' then the compile flag is automatically set to \code{TRUE}. When the model specifications
+    #' is changed but the model name is not, then its necessary to manually set the compile flag
+    #' to \code{TRUE}.
+    #'
+    #' @param name logical value
+    set_compile = function(bool) {
+      # is bool logical
+      if (!is.logical(bool)) {
+        stop("You must pass a logical value")
+      }
+      private$compile = bool
+      return(invisible(self))
+    },
+    ########################################################################
+    ########################################################################
+    # silent function
+    #' @description set tracing information for TMB
+    #'
+    #' Passes to the \code{silent} argument of \code{TMB::MakeADFun} which disables outputs from the
+    #' optimization algoritm during runtime.
+    #'
+    #' @param bool logical value
+    set_silence = function(bool) {
+      # is bool logical
+      if (!is.logical(bool)) {
+        stop("You must pass a logical value")
+      }
+      private$silent = bool
+      return(invisible(self))
+    },
+    ########################################################################
+    ########################################################################
+    # set method
+    #' @description Set estimation method
+    #'
+    #' The package has three available methods implemented currently:
+    #'
+    #' 1. The natural TMB-style formulation where latent states are considered random effects
+    #' and are integrated out using the Laplace approximation. This method only yields the gradient
+    #' of the (negative log) likelihood function with respect to the fixed effects for optimization.
+    #' The method is slower although probably has some precision advantages, and allows for non-Gaussian
+    #' observation noise (not yet implemented). One-step / K-step residuals are not yet available in
+    #' the package.
+    #'
+    #' 2. (Continous-Discrete) Extended Kalman Filter. This is computationally the fastest method
+    #' and all the package features are available, in particular it is straight-forward to obtain
+    #' K-step-ahead residuals. The \code{predict} S3 method for \code{sdemTMB.fit} also has stochastic
+    #' simulation available to obtain the K-step-ahead residuals.
+    #'
+    #' 3. (Continous-Discrete) Unscented Kalman Filter. This is a higher order Kalman Filter which
+    #' improves the mean and covariance estimates when the system display high nonlinearity, and
+    #' circumvents the necessity to compute the jacobian of the drift and observation functions.
+    #'
+    #' @param method character vector - one of either "ekf", "ukf" or "tmb".
+    set_method = function(method) {
+      # is the method a string?
+      if (!(is.character(method))) {
+        stop("You must pass a string")
+      }
+      # choose one of the available methods
+      available_methods = c("ekf","ukf","tmb")
+      if (!(method %in% available_methods)) {
+        stop("That method is not available. Please choose one of the following instead: \n
+                  1. Extended Kalman Filter - method = 'ekf'
+                  2. Unscented Kalman Filter - method = 'ukf'
+                  3. Laplace Approx using Random Effects - method = 'tmb'")
+      }
+      private$method = method
+      return(invisible(self))
+    },
+    ########################################################################
+    ########################################################################
+    # set time-step
+    #' @description Set the time step-size in numerical schemes. The defined
+    #' step-size is used to calculate
+    #' the number of steps between observation time-points as defined by the
+    #' provided \code{.data} when calling \code{estimate(.data)} to estimate
+    #' parameters. If the calculated number of steps is larger than N.01 where N
+    #' is an integer, then the time-step is decreased to match with N+1 steps
+    #' instead. The step-size is used in the two following ways depending on the
+    #' chosen method:
+    #'
+    #' * Kalman filters: The time-step is used as the step-size in the
+    #' numerical Forward-Euler scheme to compute the prior state mean and
+    #' covariance estimate as the final time solution to the first and second
+    #' order moment differential equations.
+    #'
+    #' * TMB method: The time-step is used as the step-size in the Euler-Maruyama
+    #' scheme for simulating a sample path of the stochastic differential equation,
+    #' which serves to link together the latent (random effects) states.
+    #'
+    #' @examples set_timestep(1e-3)
+    #' @param dt numerical value
+    set_timestep = function(dt) {
+      # OK if NULL
+      if(is.null(dt)){
+        private$ode.timestep = dt
+        return(invisible(NULL))
+      }
+      # must be numeric
+      if (!is.numeric(dt)) {
+        stop("The timestep should be a numeric value.")
+      }
+      # must have length 1
+      if (length(dt)!=1) {
+        stop("Timestep must have length 1.")
+      }
+      private$ode.timestep = dt
+    },
+    ########################################################################
+    ########################################################################
+    # USE HESSIAN FUNCTION
+    #' @description Set a flag to indicate whether or not the optimization algorithm
+    #' should use the fixed effects (negative log) likelihood hessian. This is only
+    #' available for the kalman filter methods without any random effects.
+    #' 
+    #' @examples set_hessian(TRUE)
+    #' @param bool 
+    use_hessian = function(bool) {
+      if (!is.logical(bool)) {
+        stop("This must be a logical")
+      }
+      private$use.hessian = bool
+    },
+    ########################################################################
+    ########################################################################
+    # SET LOSS FUNCTION
+    #' @description Set loss function type (kalman filters only)
+    #'
+    #' The loss function is per default quadratic in the one-step residauls as is natural 
+    #' when the Gaussian (negative log) likelihood is evaluated, but if the tails of the 
+    #' distribution is considered too small i.e. outliers are weighted too much, then one 
+    #' can choose loss functions thataccounts for this. The three available types available:
+    #'
+    #' 1. Quadratic loss
+    #' 
+    #' 2. Quadratic-Linear (\code{huber} loss)
+    #'
+    #' 3. Quadratic-Constant (\code{tukey} loss)
+    #' 
+    #' The cutoff for the Huber and Tukey loss functions are determined from a provided cutoff 
+    #' parameter. The implementations of these losses are approximations (pseudo-huber and sigmoid 
+    #' approxmation respectively) for smooth derivatives.
+    #' 
+    #' @param loss string of either "standard", "huber" or "tukey"
+    #' @param c cutoff value for huber and tukey loss functions. Default is \code{c=3}
+    set_loss = function(loss,c=3) {
+      # is the method a string?
+      if (!(is.character(loss))) {
+        stop("You must pass a string")
+      }
+      # choose one of the available methods
+      available_losses = c("standard","huber","tukey")
+      if (!(loss %in% available_losses)) {
+        stop("That method is not available. Please choose one of the following instead: \n
+                  1. Quadratic loss = 'standard'
+                  2. Quadratic-Linear loss = 'huber'
+                  3. Quadratic-Constant loss = 'tukey'")
+      }
+      if (loss=="tukey") {
+        l = 1L
+        # compute tukey approx coefficients
+        rtukey = seq(0,100,by=1e-2)
+        ctukey = c
+        funtukey = function(r){
+          ifelse(r^2 <= ctukey^2,
+                 ctukey^2/6 * (1-(1-(r/ctukey)^2)^3),
+                 ctukey^2/6
+          )
+        }
+        tukeyloss = function(.pars){
+          res = sum((funtukey(rtukey) - .pars[4]*(sigmoid(rtukey,a=.pars[1],b=.pars[2])+.pars[3]))^2)
+        }
+        tukeyopt = nlminb(start=rep(1,4),objective=tukeyloss)
+        private$tukey.pars = tukeyopt$par
+      } else if (loss=="huber") {
+        l = 2L
+      } else {
+        l = 0L
+      }
+      private$loss = list(loss=l,c=c)
       return(invisible(self))
     }
   )
 )
 
-# sdemTMB$set("public","add_trans_systems",
-#             function(form) {
-#               res = check_system_eqs(form, self, private, silent=T)
-#               private$sys.eqs.trans[[names(res)]] = res[[1]]
-#               return(invisible(self))
-#             }
-# )
-
-# sdemTMB$set("public","add_trans_observations",
-#             function(form) {
-#               res = check_obsservation_eqs(form, self, private, silent=T)
-#               private$obs.eqs.trans[[names(res)]] = res[[1]]
-#               return(invisible(self))
-#             }
-# )
-
-# sdemTMB$set("public","add_trans_observation_variances",
-#             function(form) {
-#               res = check_observation_variance_eqs(form, self, private, silent=T)
-#               private$obs.var.trans[[names(res)]] = res[[1]]
-#               return(invisible(self))
-#             }
-# )
-
-# sdemTMB$set("public","add_observation_variances",
-#             function(form,...) {
-#               # lapply for multi-arguments
-#               lapply(c(form,...), function(form) {
-#                 # Function Body
-#                 res = check_observation_variance_eqs(form, self, private)
-#                 check_name(names(res), "obsvar", self, private)
-#                 private$obs.var[[names(res)]] = res[[1]]
-#                 private$obsvar.names = names(private$obs.var)
-#                 # Function Body
-#               })
-#               # if model was already built, set compile flag to true
-#               was_model_already_built(self, private)
-#               #
-#               return(invisible(self))
-#             }
-# )
-
-
-# sdemTMB$set("public","add_inputs",
-#             function(...) {
-#               args = as.list(match.call()[-1])
-#               # lapply for multi-arguments
-#               lapply(args, function(args) {
-#                 # Function Body
-#                 res = check_inputs(args, self, private)
-#                 check_name(names(res), "input", self, private)
-#                 private$trigger = is_this_a_new_name(names(res),private$input.names)
-#                 private$inputs[[names(res)]] = res[[1]]
-#                 private$input.names = names(private$inputs)
-#                 # Function Body
-#               })
-#               # if model was already built, set compile flag to true
-#               if (private$trigger) {
-#                 was_model_already_built(self, private)
-#               }
-#               #
-#               return(invisible(self))
-#             }
-# )
-
-# sdemTMB$set("public","add_parameters",
-#             function(...,parameter.matrix=NULL) {
-#               
-#               # single parameters
-#               parameter.forms = list(...)
-#               if(length(parameter.forms)>0){
-#                 lapply(parameter.forms, function(parameter.form) {
-#                   check_parameter(parameter.form)
-#                   parname = deparse1(parameter.form[[2]])
-#                   par.val.lb.ub = eval(parameter.form[[3]])
-#                   check_name(parname, "pars", self, private)
-#                   private$trigger = is_this_a_new_name(parname, private$parameter.names)
-#                   private$parameters[[parname]] = list(init=par.val.lb.ub[1],
-#                                                        lb=par.val.lb.ub[2],
-#                                                        ub=par.val.lb.ub[3])
-#                   # fixed parameters
-#                   if(is.na(par.val.lb.ub[2]) & is.na(par.val.lb.ub[3])){
-#                     private$fixed.pars[[parname]] = factor(NA)
-#                   }
-#                 })
-#                 private$parameter.names = names(private$parameters)
-#               }
-#               
-#               # parameter matrix
-#               if(!is.null(parameter.matrix)){
-#                 check_parameter_matrix(parameter.matrix, self, private)
-#                 parnames = rownames(parameter.matrix)
-#                 lapply( 1:nrow(parameter.matrix), function(i) {
-#                   parname = parnames[i]
-#                   par.val.lb.ub = parameter.matrix[i,]
-#                   check_name(parname, "pars", self, private)
-#                   private$trigger = is_this_a_new_name(parname, private$parameter.names)
-#                   private$parameters[[parname]] = list(init=par.val.lb.ub[1],
-#                                                        lb=par.val.lb.ub[2],
-#                                                        ub=par.val.lb.ub[3])
-#                   # fixed parameters
-#                   if(is.na(par.val.lb.ub[2]) & is.na(par.val.lb.ub[3])){
-#                     private$fixed.pars[[parname]] = factor(NA)
-#                   }
-#                 })
-#                 private$parameter.names = names(private$parameters)
-#               }
-#               
-#               # if model was already built set compile flag
-#               if (private$trigger) {
-#                 was_model_already_built(self, private)
-#               }
-#               
-#               # return
-#               return(invisible(self))
-#             }
-# )
-
-sdemTMB$set("public","add_parameters2",
-            function(parameters) {
-              
-              parnames = check_parameter_matrix(parameters, self, private)[[1]]
-              lapply(parnames, function(parname) check_name(parname, "pars", self, private))
-              private$trigger = any(sapply(parnames, function(parname) is_this_a_new_name(parname,private$parameter.names)))
-              for (i in 1:nrow(parameters)) {
-                private$parameters[[parnames[i]]] = list(init=parameters[i,1],
-                                                         lb=parameters[i,2],
-                                                         ub=parameters[i,3])
-              }
-              private$parameter.names = names(private$parameters)
-              # store fixed parameters (those with NA bounds)
-              bool = unlist(lapply(private$parameters, function(x) all(is.na(c(x[["lb"]],x[["ub"]])))))
-              fixed.pars.names = private$parameter.names[bool]
-              for(name in fixed.pars.names) {
-                private$fixed.pars[[name]] = factor(NA)
-              }
-              
-              # if model was already built set compile flag to true
-              if (private$trigger) {
-                was_model_already_built(self, private)
-              }
-              
-              # return
-              return(invisible(self))
-            }
-)
-
-sdemTMB$set("public","add_algebraics",
-            function(form,...) {
-              lapply(c(form,...), function(form) {
-                # Function Body
-                res = check_algebraics(form, self, private)
-                private$alg.eqs[[names(res)]] = res[[1]]
-                # Function Body
-              })
-              # if model was already built, set compile flag to true
-              was_model_already_built(self, private)
-              #
-              return(invisible(self))
-            }
-)
-
-sdemTMB$set("public","add_constants",
-            function(form,...) {
-              lapply(c(form,...), function(form) {
-                # Function Body
-                res = check_constants(form, self, private)
-                check_name(names(res), "constants", self, private)
-                private$trigger = is_this_a_new_name(names(res),private$constant.names)
-                private$constants[[names(res)]] = res[[1]]
-                private$constant.names = names(private$constants)
-                # Function Body
-              })
-              # if model was already built, set compile flag to true
-              if (private$trigger) {
-                was_model_already_built(self, private)
-              }
-              #
-              return(invisible(self))
-            }
-)
-
 #### ################ ################ ############
 #### ################ ################ ############
 #### ################ ################ ############
 
-sdemTMB$set("public","set_initial_state",
-            function(mean,cov) {
-              if (is.null(private$sys.eqs)) {
-                stop("Please specify system equations first")
-              }
-              if (!is.numeric(mean)) {
-                stop("The mean vector is not a numeric")
-              }
-              if (any(is.na(mean))) {
-                stop("The mean vector contains NAs.")
-              }
-              if (length(mean)!=length(private$sys.eqs)) {
-                stop("The initial state vector should have length ",length(private$sys.eqs))
-              }
-              if (!all(dim(cov)==c(length(private$sys.eqs),length(private$sys.eqs)))) {
-                stop("The covariance matrix should be square with dimension ", length(private$sys.eqs))
-              }
-              if (!is.numeric(cov)) {
-                stop("The covariance matrix is not a numeric")
-              }
-              if (any(is.na(cov))) {
-                stop("The covariance matrix contains NAs")
-              }
-              
-              private$initial.state = list(mean=mean,cov=as.matrix(cov))
-              return(invisible(self))
-            }
-)
-
-sdemTMB$set("public","set_method",
-            function(method) {
-              # is the method a string?
-              if (!(is.character(method))) {
-                stop("You must pass a string")
-              }
-              # choose one of the available methods
-              available_methods = c("ekf","ekf2","ukf","tmb","tmb_exact")
-              if (!(method %in% available_methods)) {
-                stop("That method is not available. Please choose one of the following instead: \n
-                  1. Extended Kalman Filter - method = 'ekf'
-                  2. Unscented Kalman Filter - method = 'ukf'
-                  3. Laplace Approx using Random Effects - method = 'tmb',
-                  4. Exact using Random Effects (Linear SDEs) - method = 'tmb_exact'")
-              }
-              private$method = method
-              return(invisible(self))
-            })
-
-sdemTMB$set("public","set_lamperti",
-            function(transform,states=NULL) {
-              # must be a string
-              if (!(is.character(transform))) {
-                stop("You must pass a string")
-              }
-              if (!is.null(states)){
-                if (!(is.character(states))) {
-                  stop("You must pass a vector of state names")
-                }
-                bool = states %in% names(private$sys.eqs)
-                if (!all(bool)) {
-                  stop("The following state names don't exist: \n\t ",states[!bool])
-                }
-              }
-              # available transforms
-              available_transforms = c("identity","log","logit","sqrt-logit","power-logit")
-              if (!(transform %in% available_transforms)) {
-                stop("That method is not available. Please choose one of the following instead: \n
-                  1. For 'dw' use no transform = 'identity' (default)
-                  2. For 'x * dw' use transform = 'log'
-                  3. For 'x * (1 - x) * dw' use transform = 'logit'
-                  4. For 'sqrt( x * (1 - x) ) * dw' use transform = 'sqrt-logit'
-                  5. For 'x * (1 - x^a) * dw' for a>0 use transform 'power-logit'")
-              }
-              private$lamperti = list(transform=transform,states=states)
-              return(invisible(self))
-            })
-
-sdemTMB$set("public","set_loss",
-            function(loss,c=3) {
-              # is the method a string?
-              if (!(is.character(loss))) {
-                stop("You must pass a string")
-              }
-              # choose one of the available methods
-              available_losses = c("standard","huber","tukey")
-              if (!(loss %in% available_losses)) {
-                stop("That method is not available. Please choose one of the following instead: \n
-                  1. Quadratic loss = 'standard'
-                  2. Quadratic-Linear loss = 'huber'
-                  3. Quadratic-Constant loss = 'tukey'")
-              }
-              if (loss=="tukey") {
-                l = 1L
-                # compute tukey approx coefficients
-                rtukey = seq(0,100,by=1e-2)
-                ctukey = c
-                funtukey = function(r){
-                  ifelse(r^2 <= ctukey^2,
-                         ctukey^2/6 * (1-(1-(r/ctukey)^2)^3),
-                         ctukey^2/6
-                  )
-                }
-                tukeyloss = function(.pars){
-                  res = sum((funtukey(rtukey) - .pars[4]*(sigmoid(rtukey,a=.pars[1],b=.pars[2])+.pars[3]))^2)
-                }
-                tukeyopt = nlminb(start=rep(1,4),objective=tukeyloss)
-                private$tukey.pars = tukeyopt$par
-              } else if (loss=="huber") {
-                l = 2L
-              } else {
-                l = 0L
-              }
-              private$loss = list(loss=l,c=c)
-              return(invisible(self))
-            })
-
-sdemTMB$set("public","set_modelname",
-            function(name) {
-              # was a string passed?
-              if (!is.character(name)) {
-                stop("The modelname must be a string")
-              }
-              private$modelname = name
-              private$cppfile.path = paste(private$cppfile.directory,"/",name,sep="")
-            }
-)
-
-sdemTMB$set("public","set_cppfile_directory",
-            function(directory) {
-              # was a string passed?
-              if (!is.character(directory)) {
-                stop("You must pass a string")
-              }
-              # does the exist?
-              if (!dir.exists(directory)) {
-                stop("The specified directory does not exist")
-              }
-              private$cppfile.directory = directory
-              
-              # update private$cppfile.path by calling set_modelname
-              self$set_modelname(private$modelname)
-              return(invisible(self))
-            })
-
-sdemTMB$set("public","set_compile",
-            function(bool) {
-              # is bool logical
-              if (!is.logical(bool)) {
-                stop("You must pass TRUE or FALSE")
-              }
-              private$compile = bool
-              return(invisible(self))
-            }
-)
-
-sdemTMB$set("public","set_silence",
-            function(bool) {
-              # is bool logical
-              if (!is.logical(bool)) {
-                stop("You must pass TRUE or FALSE")
-              }
-              private$silent = bool
-              return(invisible(self))
-            }
-)
-
-sdemTMB$set("public","set_map",
-            function(mean,cov) {
-              if (!is.numeric(mean)) {
-                stop("The MAP mean vector is not numeric")
-              }
-              if (length(mean)!=length(private$parameters)) {
-                stop("The MAP parameter vector should have length ",length(private$parameters))
-              }
-              if (!is.matrix(cov)) {
-                stop("The MAP covariance matrix is not of class matrix")
-              }
-              if (!all(dim(cov)==rep(length(private$parameters),2))) {
-                stop("The MAP covariance matrix should be square with dimension ", length(private$parameters))
-              }
-              private$map = list(mean=mean,cov=cov)
-            }
-)
-
-sdemTMB$set("public","set_timestep",
-            function(dt) {
-              # OK if NULL
-              if(is.null(dt)){
-                private$ode.timestep = dt
-                return(invisible(NULL))
-              }
-              # must be numeric
-              if (!is.numeric(dt)) {
-                stop("The timestep should be a numeric value.")
-              }
-              # must have length 1
-              if (length(dt)!=1) {
-                stop("Timestep must have length 1.")
-              }
-              private$ode.timestep = dt
-            }
-)
-
-
-sdemTMB$set("public","use_hessian",
-            function(bool) {
-              if (!is.logical(bool)) {
-                stop("This must be a logical")
-              }
-              private$use.hessian = bool
-            }
-)
+# sdemTMB$set("public","use_hessian",
+# function(bool) {
+#   if (!is.logical(bool)) {
+#     stop("This must be a logical")
+#   }
+#   private$use.hessian = bool
+# }
+# )
 
 # sdemTMB$set("public","set_tmb_init_state",
 #          function(state_vec) {
@@ -744,74 +872,74 @@ sdemTMB$set("public","use_hessian",
 #### ################ ################ ############
 #### ################ ################ ############
 
-sdemTMB$set("public","build_model",
-            function() {
-              
-              # basic checks for model, add class n, ng, m, diff procs
-              init_build(self, private)
-              
-              # apply algebraics
-              check_algebraics_before_applying(self, private)
-              apply_algebraics(self, private)
-              
-              # update diff.terms and apply lamperti
-              update_diffterms(self, private)
-              apply_lamperti(self, private)
-              update_diffterms(self, private)
-              
-              # check if model is ok
-              lastcheck_before_compile(self, private)
-              
-              # compile cpp file
-              compile_cppfile(self, private)
-              
-              # set build
-              private$build = TRUE
-              
-              return(invisible(self))
-            }
-)
+# sdemTMB$set("public","build_model",
+#             function() {
+#               
+#               # basic checks for model, add class n, ng, m, diff procs
+#               init_build(self, private)
+#               
+#               # apply algebraics
+#               check_algebraics_before_applying(self, private)
+#               apply_algebraics(self, private)
+#               
+#               # update diff.terms and apply lamperti
+#               update_diffterms(self, private)
+#               apply_lamperti(self, private)
+#               update_diffterms(self, private)
+#               
+#               # check if model is ok
+#               lastcheck_before_compile(self, private)
+#               
+#               # compile cpp file
+#               compile_cppfile(self, private)
+#               
+#               # set build
+#               private$build = TRUE
+#               
+#               return(invisible(self))
+#             }
+# )
 
-sdemTMB$set("public","estimate",
-            function(data, return.fit=TRUE, return.nll=FALSE, use.hessian=FALSE,
-                     ode.timestep=NULL, silence=FALSE, compile=FALSE) {
-              
-              # set flags
-              self$use_hessian(use.hessian)
-              self$set_timestep(ode.timestep)
-              self$set_silence(silence)
-              self$set_compile(compile)
-              
-              # if the model isnt built we must build
-              if (!private$build | private$compile) {
-                message("Building model...")
-                self$build_model()
-              }
-              
-              # check and set data
-              check_and_set_data(data, self, private)
-              
-              # construct neg. log-likelihood function
-              optlist = construct_and_optimise(self, private, return.fit, return.nll)
-              
-              # if return.nll just return the function objective and exit
-              if(return.nll){
-                message("Returning AD objective function, and exiting...")
-                return(private$nll)
-              }
-              
-              # create and return fit object
-              if(return.fit){
-                create_return_fit(self, private)
-                return(private$fit)
-              }
-              
-              # return optimization and cpu-time instead of fit
-              if(!return.fit){
-                return(optlist)
-              }
-            }
-)
+# sdemTMB$set("public","estimate",
+#             function(data, return.fit=TRUE, return.nll=FALSE, use.hessian=FALSE,
+#                      ode.timestep=NULL, silence=FALSE, compile=FALSE) {
+#               
+#               # set flags
+#               self$use_hessian(use.hessian)
+#               self$set_timestep(ode.timestep)
+#               self$set_silence(silence)
+#               self$set_compile(compile)
+#               
+#               # if the model isnt built we must build
+#               if (!private$build | private$compile) {
+#                 message("Building model...")
+#                 private$build_model()
+#               }
+#               
+#               # check and set data
+#               check_and_set_data(data, self, private)
+#               
+#               # construct neg. log-likelihood function
+#               optlist = construct_and_optimise(self, private, return.fit, return.nll)
+#               
+#               # if return.nll just return the function objective and exit
+#               if(return.nll){
+#                 message("Returning AD objective function, and exiting...")
+#                 return(private$nll)
+#               }
+#               
+#               # create and return fit object
+#               if(return.fit){
+#                 create_return_fit(self, private)
+#                 return(private$fit)
+#               }
+#               
+#               # return optimization and cpu-time instead of fit
+#               if(!return.fit){
+#                 return(optlist)
+#               }
+#             }
+# )
 
 
 #### ################ ################ ############
@@ -921,3 +1049,4 @@ sdemTMB$set("public","plot",
               return(invisible(plotlist))
             }
 )
+
