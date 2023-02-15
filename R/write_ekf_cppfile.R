@@ -1,7 +1,7 @@
 write_ekf_cppfile = function(self, private) {
 
   #Initialize C++ file
-  fileconn = file(paste(private$cppfile.path,".cpp",sep=""))
+  fileconn = file(paste(private$cppfile.path.with.method,".cpp",sep=""))
 
   txt = "#include <TMB.hpp>"
   txt = c(txt, "using namespace density;")
