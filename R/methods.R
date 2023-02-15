@@ -3,10 +3,10 @@
 #######################################################
 
 
-#' Basic print of objects of class 'sdemTMB'
+#' Basic print of objects of class 'ctsmrTMB'
 #' @returns A huge amount of information
 #' @export
-print.sdemTMB = function(object,...) {
+print.ctsmrTMB = function(object,...) {
   
   obj = object$print()
   #
@@ -14,10 +14,10 @@ print.sdemTMB = function(object,...) {
   
 }
 
-#' Basic print of objects of class 'sdemTMB'
+#' Basic print of objects of class 'ctsmrTMB'
 #' @returns A huge amount of information
 #' @export
-print.sdemTMB.fit = function(fit) {
+print.ctsmrTMB.fit = function(fit) {
   
   mat = cbind(fit$par.fixed,fit$sd.fixed,fit$tvalue,fit$Pr.tvalue)
   colnames(mat) = c("Estimate","Std. Error","t value","Pr(>|t|)")
@@ -33,10 +33,10 @@ print.sdemTMB.fit = function(fit) {
 # Summary - S3 Method
 #######################################################
 
-#' Basic summary of objects of class 'sdemTMB'
+#' Basic summary of objects of class 'ctsmrTMB'
 #' @returns A huge amount of information
 #' @export
-summary.sdemTMB = function(object,correlation=FALSE) {
+summary.ctsmrTMB = function(object,correlation=FALSE) {
   
   obj = object$summary(correlation)
   #
@@ -46,7 +46,7 @@ summary.sdemTMB = function(object,correlation=FALSE) {
 
 #' @returns summary of fit object from \code{obj$estimate()}
 #' @export
-summary.sdemTMB.fit = function(fit,correlation=FALSE) {
+summary.ctsmrTMB.fit = function(fit,correlation=FALSE) {
   
   if (!is.logical(correlation)) {
     stop("correlation must be logical")
@@ -103,11 +103,11 @@ getggplot2colors = function(n) {
 # Plot - S3 Method
 #######################################################
 
-#' Basic summary of objects of class 'sdemTMB'
+#' Basic summary of objects of class 'ctsmrTMB'
 #' @param extended logical. if TRUE additional information is printed
 #' @returns A huge amount of information
 #' @export
-plot.sdemTMB = function(object,
+plot.ctsmrTMB = function(object,
                         plot.obs=1,
                         extended=FALSE,
                         use.ggplot=FALSE,
@@ -116,12 +116,12 @@ plot.sdemTMB = function(object,
   return(invisible(NULL))
 }
 
-#' Basic summary of objects of class 'sdemTMB'
+#' Basic summary of objects of class 'ctsmrTMB'
 #' @param extended logical. if TRUE additional information is printed
 #' @returns A huge amount of information
 #' @export
 #' @importFrom stats frequency fft spec.taper
-plot.sdemTMB.fit = function(fit,
+plot.ctsmrTMB.fit = function(fit,
                             plot.obs=1,
                             use.ggplot=FALSE,
                             extended=FALSE,
@@ -143,7 +143,7 @@ plot.sdemTMB.fit = function(fit,
     stop("plot.obs must be a numeric (or integer) value")
   }
   if(plot.obs > private$n){
-    message("Can't plot state ", plot.obs, " because there are only ", private$n, " state(s). Setting plot.obs = ",private$n)
+    message("Can't plot state ", plot.obs, " because there's only ", private$n, " state(s). Setting plot.obs = ",private$n)
     plot.obs = private$n
   }
   
@@ -294,8 +294,8 @@ plot.sdemTMB.fit = function(fit,
 # Predict - S3 Method
 #######################################################
 
-#' @title Predict state estimates on \code{sdemTMB.fit} object.
-#' @param fit An \code{sdemTMB.fit} object from calling \code{estimate} method on \code{sdemTMB} object.
+#' @title Predict state estimates on \code{ctsmrTMB.fit} object.
+#' @param fit An \code{ctsmrTMB.fit} object from calling \code{estimate} method on \code{ctsmrTMB} object.
 #' @param data data.frame used to predict and update the model on which \code{fit} is based.
 #' @param n.step Integer. Number of prediction steps before updating. Default: 1
 #' @param use.simulation Boolean. If TRUE simulates the stochastic model and returns quantiles. if FALSE uses
@@ -304,7 +304,7 @@ plot.sdemTMB.fit = function(fit,
 #' @param quantiles The returned state distribution quantiles if \code{use.simulation} is TRUE.
 #' @returns Prediction from model
 #' @export
-predict.sdemTMB.fit = function(fit,
+predict.ctsmrTMB.fit = function(fit,
                                data=NULL,
                                x0=NULL,
                                p0=NULL,

@@ -1,15 +1,15 @@
-#' @title Constructor for R6 sdemTMB class
-#' @description Call sdemTMB$new() to construct a new instance of the class object
+#' @title Constructor for R6 ctsmrTMB class
+#' @description Call ctsmrTMB$new() to construct a new instance of the class object
 #' for specifying a new stochastic state space model.
-#' @returns A model object of class 'sdemTMB'
+#' @returns A model object of class 'ctsmrTMB'
 #' @export
-sdemTMB = R6::R6Class(
-  classname = "sdemTMB",
+ctsmrTMB = R6::R6Class(
+  classname = "ctsmrTMB",
   # public fields
   public = list(
-    #' @description Construct new sdemTMB model object
+    #' @description Construct new ctsmrTMB model object
     initialize = function() {
-      message("Created New SDEM Object")
+      message("Created New ctsmrTMB Object")
       # public fields
       #
       # modelname
@@ -910,108 +910,3 @@ sdemTMB = R6::R6Class(
     }
   )
 )
-
-# sdemTMB$set("public","print",
-#             function() {
-#               n = length(private$sys.eqs)
-#               m = length(private$obs.eqs)
-#               p = length(private$inputs)-1
-#               ng = max(length(unique(unlist(lapply(private$sys.eqs, function(x) x$diff))))-1,0)
-#               q = length(private$alg.eqs)
-#               par = length(private$parameters)
-#               fixedpars = length(private$fixed.pars)
-#               # If the model is empty
-#               cat("Stochastic State Space Model:")
-#               basic.data = c(private$modelname,n,ng,m,p,par)
-#               row.names = c("Name", "States","Diffusions",
-#                             "Observations","Inputs",
-#                             "Parameters")
-#               mat=data.frame(basic.data,row.names=row.names,fix.empty.names=F)
-#               print(mat,quote=FALSE)
-#               #
-#               # if there are any state equations
-#               if (n>0) {
-#                 cat("\nSystem Equations:\n\n")
-#                 lapply(private$sys.eqs,function(x) cat("\t",deparse1(x$form),"\n"))
-#               }
-#               if (m>0) {
-#                 cat("\nObservation Equations:\n\n")
-#                 for (i in 1:length(private$obs.eqs)) {
-#                   bool = private$obs.names[i] %in% private$obsvar.names
-#                   if (bool) {
-#                     cat("\t",deparse1(private$obs.eqs[[i]]$form),"+ e", "\t","e ~ N(0,",paste0(deparse1(private$obs.var[[i]]$rhs),")"),"\n")
-#                   } else {
-#                     cat("\t",deparse1(private$obs.eqs[[i]]$form),"+ e", "\t","e ~ N(0,?)","\n")
-#                   }
-#                 }
-#               }
-#               if (q>0) {
-#                 cat("\nAlgebraic Relations:\n\n")
-#                 for(i in 1:length(private$alg.eqs)){
-#                   cat("\t",deparse1(private$alg.eqs[[i]]$form),"\n")
-#                 }
-#               }
-#               # if the algebraic transformations have occured
-#               if (!is.null(private$sys.eqs.trans)) {
-#                 cat("\nTransformed System Equations:\n\n")
-#                 lapply(private$sys.eqs.trans,function(x) cat("\t",deparse1(x$form),"\n"))
-#               }
-#               # if the algebraic transformations have occured
-#               if (!is.null(private$obs.eqs.trans) | !is.null(private$obs.var.trans)) {
-#                 cat("\nTransformed Observation Equations:\n\n")
-#                 for (i in 1:length(private$obs.eqs)) {
-#                   bool = private$obs.names[i] %in% private$obsvar.names
-#                   if (bool) {
-#                     cat("\t",deparse1(private$obs.eqs.trans[[i]]$form),"+ e", "\t","e ~ N(0,",paste0(deparse1(private$obs.var.trans[[i]]$rhs),")"),"\n")
-#                   } else {
-#                     cat("\t",deparse1(private$obs.eqs[[i]]$form),"+ e", "\t","e ~ N(0,?)","\n")
-#                   }
-#                 }
-#               }
-#               if (p>1) {
-#                 cat("\nInputs:\n")
-#                 cat("\t", paste(private$input.names[!private$input.names %in% "t"],collapse=", "))
-#               }
-#               if (par>0) {
-#                 cat("\n\nParameters:\n")
-#                 cat("\t", paste(private$parameter.names,collapse=", "))
-#               }
-#               if (fixedpars>0) {
-#                 cat("\n\nFixed Parameters:\n")
-#                 cat("\t", paste(names(private$fixed.pars),collapse=", "))
-#               }
-#               return(invisible(self))
-#             }
-# )
-# 
-# sdemTMB$set("public","summary",
-#             function(correlation=FALSE) {
-#               
-#               # check if model was estimated
-#               if (is.null(private$fit)) {
-#                 message("Please estimate your model to get a fit summary.")
-#                 return(invisible(NULL))
-#               }
-#               
-#               sumfit = summary(private$fit,correlation=correlation)
-#               return(invisible(sumfit$parameters))
-#             }
-# )
-# 
-# 
-# sdemTMB$set("public","plot",
-#             function(plot.obs=1, use.ggplot=FALSE, extended=FALSE, ggtheme=getggplot2theme()){
-#               
-#               # check if model was estimated
-#               if (is.null(private$fit)) {
-#                 message("Please estimate your model in order to plot residuals.")
-#                 return(invisible(NULL))
-#               }
-#               
-#               # if we have estimated
-#               plotlist = plot(private$fit, plot.obs=plot.obs, use.ggplot=use.ggplot,
-#                               extended=extended, ggtheme=ggtheme)
-#               return(invisible(plotlist))
-#             }
-# )
-# 

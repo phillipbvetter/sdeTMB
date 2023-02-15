@@ -1,10 +1,10 @@
-Package: sdemTMB
+Package: ctsmrTMB
 Title: Estimation, State Filtering and Forecasting in Stochastic State Space Models
 Version: 0.5
 Authors@R: 
     person("Phillip", "Vetter", , "phillipvetter@outlook.com", role = c("aut", "cre"),
            comment = c(ORCID = "YOUR-ORCID-ID"))
-Description: 'sdemTMB' (Stochastic Differential Equation Modelling) is a package built around the TMB package for user-friendly construction, parameter estimation and prediction based on continuous-discrete stochastic state space models.
+Description: 'ctsmrTMB' (Continuous Time Stochastic Modelling for Template Model Builder) is a package inspired by Continuous Time Stochastic Modelling for R (CTSMr) and built around the Template Model Builder (TMB) R packages for user-friendly system construction, but with access to automatic differentiation and handling of random effect, for parameter estimation and prediction in stochastic state space systems.
 License: `use_mit_license()`, `use_gpl3_license()` or friends to pick a
     license
 Encoding: UTF-8
