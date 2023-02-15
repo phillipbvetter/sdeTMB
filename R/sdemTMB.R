@@ -476,7 +476,19 @@ sdemTMB = R6::R6Class(
     #' \code{stats::nlminb} to use the fixed effects hessian of the (negative log) likelihood when
     #' performing the optimization. This feature is only available for the kalman filter methods 
     #' without any random effects.
-    #' @param ode.timestep
+    #' @param ode.timestep numeric value. Sets the time step-size in numerical filtering schemes. 
+    #' The defined step-size is used to calculate the number of steps between observation time-points as 
+    #' defined by the provided \code{data}. If the calculated number of steps is larger than N.01 where N 
+    #' is an integer, then the time-step is reduced such that exactly N+1 steps is taken between observations  
+    #' The step-size is used in the two following ways depending on the
+    #' chosen method:
+    #' 1. Kalman filters: The time-step is used as the step-size in the
+    #' numerical Forward-Euler scheme to compute the prior state mean and
+    #' covariance estimate as the final time solution to the first and second
+    #' order moment differential equations.
+    #' 2. TMB method: The time-step is used as the step-size in the Euler-Maruyama
+    #' scheme for simulating a sample path of the stochastic differential equation,
+    #' which serves to link together the latent (random effects) states.
     #' @param silence boolean value. Sets the tracing information for \code{TMB::MakeADFun} in the
     #' argument \code{silent} which disables outputs from the optimization algoritm during runtime.
     #' @param compile boolean value. The default (\code{FALSE}) is to not compile the C++ objective
@@ -486,8 +498,39 @@ sdemTMB = R6::R6Class(
     #' in \code{<cppfile_directory>/<modelname>/(dll/so)} then the compile flag is set to \code{TRUE}.
     #' If the user makes changes to system equations, observation equations, observation variances, 
     #' algebraic relations or lamperi transformations then the C++ object should be recompiled.
-    #' @param method
-    #' @param loss
+    #' @param method character vector - one of either "ekf", "ukf" or "tmb". Sets the estimation 
+    #' method. The package has three available methods implemented:
+    #' 1. The natural TMB-style formulation where latent states are considered random effects
+    #' and are integrated out using the Laplace approximation. This method only yields the gradient
+    #' of the (negative log) likelihood function with respect to the fixed effects for optimization.
+    #' The method is slower although probably has some precision advantages, and allows for non-Gaussian
+    #' observation noise (not yet implemented). One-step / K-step residuals are not yet available in
+    #' the package.
+    #' 2. (Continous-Discrete) Extended Kalman Filter where the system dynamics are linearized
+    #' to handle potential non-linearities. This is computationally the fastest method.
+    #' 3. (Continous-Discrete) Unscented Kalman Filter. This is a higher order non-linear Kalman Filter
+    #' which improves the mean and covariance estimates when the system display high nonlinearity, and
+    #' circumvents the necessity to compute the jacobian of the drift and observation functions.
+    #' 
+    #' All package features are currently available for the kalman filters, while TMB is limited to
+    #' parameter estimation. In particular, it is straight-forward to obtain k-step-ahead predictions
+    #' with these methods (use the \code{predict} S3 method), and stochastic simulation is also available 
+    #' in the cases where long prediction horizons are sought, where the normality assumption will be 
+    #' inaccurate.
+    #' @param loss character vector. Sets the loss function type (only implemented for the kalman filter
+    #' methods). The loss function is per default quadratic in the one-step residauls as is natural 
+    #' when the Gaussian (negative log) likelihood is evaluated, but if the tails of the 
+    #' distribution is considered too small i.e. outliers are weighted too much, then one 
+    #' can choose loss functions that accounts for this. The three available types available:
+    #' 
+    #' 1. Quadratic loss (standard).
+    #' 2. Quadratic-Linear (\code{huber})
+    #' 3. Quadratic-Constant (\code{tukey})
+    #' 
+    #' The cutoff for the Huber and Tukey loss functions are determined from a provided cutoff 
+    #' parameter \code{loss_c}. The implementations of these losses are approximations (pseudo-huber and sigmoid 
+    #' approxmation respectively) for smooth derivatives.
+    #' @param loss_c cutoff value for huber and tukey loss functions. Defaults to \code{c=3}
     estimate = function(data, 
                         return.fit=TRUE, 
                         return.nll=FALSE, 
@@ -496,7 +539,8 @@ sdemTMB = R6::R6Class(
                         silence=FALSE, 
                         compile=FALSE,
                         method="ekf",
-                        loss="standard") {
+                        loss="standard",
+                        loss_c=3) {
       
       # set flags
       private$use_hessian(use.hessian)
@@ -504,7 +548,7 @@ sdemTMB = R6::R6Class(
       private$set_silence(silence)
       private$set_compile(compile)
       private$set_method(method)
-      private$set_loss(loss)
+      private$set_loss(loss,loss_c)
       # if the model isnt built we must build
       if (!private$build | private$compile) {
         message("Building model...")
@@ -528,6 +572,118 @@ sdemTMB = R6::R6Class(
       if(!return.fit){
         return(optlist)
       }
+    },
+    ########################################################################
+    ########################################################################
+    # PRINT FUNCTION
+    #' @description Function to print the model object
+    print = function() {
+      n = length(private$sys.eqs)
+      m = length(private$obs.eqs)
+      p = length(private$inputs)-1
+      ng = max(length(unique(unlist(lapply(private$sys.eqs, function(x) x$diff))))-1,0)
+      q = length(private$alg.eqs)
+      par = length(private$parameters)
+      fixedpars = length(private$fixed.pars)
+      # If the model is empty
+      cat("Stochastic State Space Model:")
+      basic.data = c(private$modelname,n,ng,m,p,par)
+      row.names = c("Name", "States","Diffusions",
+                    "Observations","Inputs",
+                    "Parameters")
+      mat=data.frame(basic.data,row.names=row.names,fix.empty.names=F)
+      print(mat,quote=FALSE)
+      #
+      # if there are any state equations
+      if (n>0) {
+        cat("\nSystem Equations:\n\n")
+        lapply(private$sys.eqs,function(x) cat("\t",deparse1(x$form),"\n"))
+      }
+      if (m>0) {
+        cat("\nObservation Equations:\n\n")
+        for (i in 1:length(private$obs.eqs)) {
+          bool = private$obs.names[i] %in% private$obsvar.names
+          if (bool) {
+            cat("\t",deparse1(private$obs.eqs[[i]]$form),"+ e", "\t","e ~ N(0,",paste0(deparse1(private$obs.var[[i]]$rhs),")"),"\n")
+          } else {
+            cat("\t",deparse1(private$obs.eqs[[i]]$form),"+ e", "\t","e ~ N(0,?)","\n")
+          }
+        }
+      }
+      if (q>0) {
+        cat("\nAlgebraic Relations:\n\n")
+        for(i in 1:length(private$alg.eqs)){
+          cat("\t",deparse1(private$alg.eqs[[i]]$form),"\n")
+        }
+      }
+      # if the algebraic transformations have occured
+      if (!is.null(private$sys.eqs.trans)) {
+        cat("\nTransformed System Equations:\n\n")
+        lapply(private$sys.eqs.trans,function(x) cat("\t",deparse1(x$form),"\n"))
+      }
+      # if the algebraic transformations have occured
+      if (!is.null(private$obs.eqs.trans) | !is.null(private$obs.var.trans)) {
+        cat("\nTransformed Observation Equations:\n\n")
+        for (i in 1:length(private$obs.eqs)) {
+          bool = private$obs.names[i] %in% private$obsvar.names
+          if (bool) {
+            cat("\t",deparse1(private$obs.eqs.trans[[i]]$form),"+ e", "\t","e ~ N(0,",paste0(deparse1(private$obs.var.trans[[i]]$rhs),")"),"\n")
+          } else {
+            cat("\t",deparse1(private$obs.eqs[[i]]$form),"+ e", "\t","e ~ N(0,?)","\n")
+          }
+        }
+      }
+      if (p>1) {
+        cat("\nInputs:\n")
+        cat("\t", paste(private$input.names[!private$input.names %in% "t"],collapse=", "))
+      }
+      if (par>0) {
+        cat("\n\nParameters:\n")
+        cat("\t", paste(private$parameter.names,collapse=", "))
+      }
+      if (fixedpars>0) {
+        cat("\n\nFixed Parameters:\n")
+        cat("\t", paste(names(private$fixed.pars),collapse=", "))
+      }
+      return(invisible(self))
+    },
+    ########################################################################
+    ########################################################################
+    # SUMMARY FUNCTION
+    #' @description Summary function for fit
+    #' @param correlation boolean value. The default (\code{FALSE}) is to not provide the fixed effects parameter
+    #' correlation matrix. 
+    summary = function(correlation=FALSE) {
+      
+      # check if model was estimated
+      if (is.null(private$fit)) {
+        message("Please estimate your model to get a fit summary.")
+        return(invisible(NULL))
+      }
+      
+      sumfit = summary(private$fit,correlation=correlation)
+      return(invisible(sumfit$parameters))
+    },
+    ########################################################################
+    ########################################################################
+    # PLOT FUNCTION
+    #' @description Function to print the model object
+    #' @param plot.obs integer value. The value determines which state residual plot is shown, when the states are numbered
+    #' by the order in which they were defined in the model object.
+    #' @param use.ggplot boolean value. The default \code{FALSE} is to use base plots in R, if \code{TRUE} then \code{ggplot2} 
+    #' is used to show and return a list of all residual state plots.
+    #' @param extended boolean value. No functionality yet.
+    #' @param ggtheme ggplot theme. This determines the theme used to construct the ggplot2 if \code{use.ggplot=TRUE}.
+    plot = function(plot.obs=1, use.ggplot=FALSE, extended=FALSE, ggtheme=getggplot2theme()){
+      # check if model was estimated
+      if (is.null(private$fit)) {
+        message("Please estimate your model in order to plot residuals.")
+        return(invisible(NULL))
+      }
+      # if we have estimated
+      plotlist = plot(private$fit, plot.obs=plot.obs, use.ggplot=use.ggplot,
+                      extended=extended, ggtheme=ggtheme)
+      return(invisible(plotlist))
     }
   ),
   # private fields
@@ -646,15 +802,6 @@ sdemTMB = R6::R6Class(
     ########################################################################
     ########################################################################
     # compile function
-    #' @description Set compile flag
-    #'
-    #' The compile flag defualt is \code{FALSE}. If the C++ binary file generated from compiling
-    #' the model function is not found in the specified directory i.e. \code{<cppfile_directory>/<modelname>./(dll/so)}
-    #' then the compile flag is automatically set to \code{TRUE}. When the model specifications
-    #' is changed but the model name is not, then its necessary to manually set the compile flag
-    #' to \code{TRUE}.
-    #'
-    #' @param name logical value
     set_compile = function(bool) {
       # is bool logical
       if (!is.logical(bool)) {
@@ -666,12 +813,6 @@ sdemTMB = R6::R6Class(
     ########################################################################
     ########################################################################
     # silent function
-    #' @description set tracing information for TMB
-    #'
-    #' Passes to the \code{silent} argument of \code{TMB::MakeADFun} which disables outputs from the
-    #' optimization algoritm during runtime.
-    #'
-    #' @param bool logical value
     set_silence = function(bool) {
       # is bool logical
       if (!is.logical(bool)) {
@@ -683,27 +824,6 @@ sdemTMB = R6::R6Class(
     ########################################################################
     ########################################################################
     # set method
-    #' @description Set estimation method
-    #'
-    #' The package has three available methods implemented currently:
-    #'
-    #' 1. The natural TMB-style formulation where latent states are considered random effects
-    #' and are integrated out using the Laplace approximation. This method only yields the gradient
-    #' of the (negative log) likelihood function with respect to the fixed effects for optimization.
-    #' The method is slower although probably has some precision advantages, and allows for non-Gaussian
-    #' observation noise (not yet implemented). One-step / K-step residuals are not yet available in
-    #' the package.
-    #'
-    #' 2. (Continous-Discrete) Extended Kalman Filter. This is computationally the fastest method
-    #' and all the package features are available, in particular it is straight-forward to obtain
-    #' K-step-ahead residuals. The \code{predict} S3 method for \code{sdemTMB.fit} also has stochastic
-    #' simulation available to obtain the K-step-ahead residuals.
-    #'
-    #' 3. (Continous-Discrete) Unscented Kalman Filter. This is a higher order Kalman Filter which
-    #' improves the mean and covariance estimates when the system display high nonlinearity, and
-    #' circumvents the necessity to compute the jacobian of the drift and observation functions.
-    #'
-    #' @param method character vector - one of either "ekf", "ukf" or "tmb".
     set_method = function(method) {
       # is the method a string?
       if (!(is.character(method))) {
@@ -723,26 +843,6 @@ sdemTMB = R6::R6Class(
     ########################################################################
     ########################################################################
     # set time-step
-    #' @description Set the time step-size in numerical schemes. The defined
-    #' step-size is used to calculate
-    #' the number of steps between observation time-points as defined by the
-    #' provided \code{.data} when calling \code{estimate(.data)} to estimate
-    #' parameters. If the calculated number of steps is larger than N.01 where N
-    #' is an integer, then the time-step is decreased to match with N+1 steps
-    #' instead. The step-size is used in the two following ways depending on the
-    #' chosen method:
-    #'
-    #' * Kalman filters: The time-step is used as the step-size in the
-    #' numerical Forward-Euler scheme to compute the prior state mean and
-    #' covariance estimate as the final time solution to the first and second
-    #' order moment differential equations.
-    #'
-    #' * TMB method: The time-step is used as the step-size in the Euler-Maruyama
-    #' scheme for simulating a sample path of the stochastic differential equation,
-    #' which serves to link together the latent (random effects) states.
-    #'
-    #' @examples set_timestep(1e-3)
-    #' @param dt numerical value
     set_timestep = function(dt) {
       # OK if NULL
       if(is.null(dt)){
@@ -762,12 +862,6 @@ sdemTMB = R6::R6Class(
     ########################################################################
     ########################################################################
     # USE HESSIAN FUNCTION
-    #' @description Set a flag to indicate whether or not the optimization algorithm
-    #' should use the fixed effects (negative log) likelihood hessian. This is only
-    #' available for the kalman filter methods without any random effects.
-    #' 
-    #' @examples set_hessian(TRUE)
-    #' @param bool 
     use_hessian = function(bool) {
       if (!is.logical(bool)) {
         stop("This must be a logical")
@@ -777,25 +871,6 @@ sdemTMB = R6::R6Class(
     ########################################################################
     ########################################################################
     # SET LOSS FUNCTION
-    #' @description Set loss function type (kalman filters only)
-    #'
-    #' The loss function is per default quadratic in the one-step residauls as is natural 
-    #' when the Gaussian (negative log) likelihood is evaluated, but if the tails of the 
-    #' distribution is considered too small i.e. outliers are weighted too much, then one 
-    #' can choose loss functions thataccounts for this. The three available types available:
-    #'
-    #' 1. Quadratic loss
-    #' 
-    #' 2. Quadratic-Linear (\code{huber} loss)
-    #'
-    #' 3. Quadratic-Constant (\code{tukey} loss)
-    #' 
-    #' The cutoff for the Huber and Tukey loss functions are determined from a provided cutoff 
-    #' parameter. The implementations of these losses are approximations (pseudo-huber and sigmoid 
-    #' approxmation respectively) for smooth derivatives.
-    #' 
-    #' @param loss string of either "standard", "huber" or "tukey"
-    #' @param c cutoff value for huber and tukey loss functions. Default is \code{c=3}
     set_loss = function(loss,c=3) {
       # is the method a string?
       if (!(is.character(loss))) {
@@ -836,217 +911,107 @@ sdemTMB = R6::R6Class(
   )
 )
 
-#### ################ ################ ############
-#### ################ ################ ############
-#### ################ ################ ############
-
-# sdemTMB$set("public","use_hessian",
-# function(bool) {
-#   if (!is.logical(bool)) {
-#     stop("This must be a logical")
-#   }
-#   private$use.hessian = bool
-# }
-# )
-
-# sdemTMB$set("public","set_tmb_init_state",
-#          function(state_vec) {
-#
-#            if (any(private$method != c("tmb","tmb_exact"))) {
-#              stop("This option is only relevant if you use a tmb random effects style estimation. Use set_method first.")
-#            }
-#            if (!is.list(state_vec)) {
-#              stop("You must pass a named-list of numeric values")
-#            }
-#            if (any(sapply(state_vec, function(x) !is.numeric(x)))){
-#              stop("The list entries must contain numeric values")
-#            }
-#            if (!all(private$state.names==names(state_vec))) {
-#              stop("The names of the passed list do not match the state names")
-#            }
-#            private$tmb.initial.state = state_vec
-#          }
-# )
-
-#### ################ ################ ############
-#### ################ ################ ############
-#### ################ ################ ############
-
-# sdemTMB$set("public","build_model",
+# sdemTMB$set("public","print",
 #             function() {
-#               
-#               # basic checks for model, add class n, ng, m, diff procs
-#               init_build(self, private)
-#               
-#               # apply algebraics
-#               check_algebraics_before_applying(self, private)
-#               apply_algebraics(self, private)
-#               
-#               # update diff.terms and apply lamperti
-#               update_diffterms(self, private)
-#               apply_lamperti(self, private)
-#               update_diffterms(self, private)
-#               
-#               # check if model is ok
-#               lastcheck_before_compile(self, private)
-#               
-#               # compile cpp file
-#               compile_cppfile(self, private)
-#               
-#               # set build
-#               private$build = TRUE
-#               
+#               n = length(private$sys.eqs)
+#               m = length(private$obs.eqs)
+#               p = length(private$inputs)-1
+#               ng = max(length(unique(unlist(lapply(private$sys.eqs, function(x) x$diff))))-1,0)
+#               q = length(private$alg.eqs)
+#               par = length(private$parameters)
+#               fixedpars = length(private$fixed.pars)
+#               # If the model is empty
+#               cat("Stochastic State Space Model:")
+#               basic.data = c(private$modelname,n,ng,m,p,par)
+#               row.names = c("Name", "States","Diffusions",
+#                             "Observations","Inputs",
+#                             "Parameters")
+#               mat=data.frame(basic.data,row.names=row.names,fix.empty.names=F)
+#               print(mat,quote=FALSE)
+#               #
+#               # if there are any state equations
+#               if (n>0) {
+#                 cat("\nSystem Equations:\n\n")
+#                 lapply(private$sys.eqs,function(x) cat("\t",deparse1(x$form),"\n"))
+#               }
+#               if (m>0) {
+#                 cat("\nObservation Equations:\n\n")
+#                 for (i in 1:length(private$obs.eqs)) {
+#                   bool = private$obs.names[i] %in% private$obsvar.names
+#                   if (bool) {
+#                     cat("\t",deparse1(private$obs.eqs[[i]]$form),"+ e", "\t","e ~ N(0,",paste0(deparse1(private$obs.var[[i]]$rhs),")"),"\n")
+#                   } else {
+#                     cat("\t",deparse1(private$obs.eqs[[i]]$form),"+ e", "\t","e ~ N(0,?)","\n")
+#                   }
+#                 }
+#               }
+#               if (q>0) {
+#                 cat("\nAlgebraic Relations:\n\n")
+#                 for(i in 1:length(private$alg.eqs)){
+#                   cat("\t",deparse1(private$alg.eqs[[i]]$form),"\n")
+#                 }
+#               }
+#               # if the algebraic transformations have occured
+#               if (!is.null(private$sys.eqs.trans)) {
+#                 cat("\nTransformed System Equations:\n\n")
+#                 lapply(private$sys.eqs.trans,function(x) cat("\t",deparse1(x$form),"\n"))
+#               }
+#               # if the algebraic transformations have occured
+#               if (!is.null(private$obs.eqs.trans) | !is.null(private$obs.var.trans)) {
+#                 cat("\nTransformed Observation Equations:\n\n")
+#                 for (i in 1:length(private$obs.eqs)) {
+#                   bool = private$obs.names[i] %in% private$obsvar.names
+#                   if (bool) {
+#                     cat("\t",deparse1(private$obs.eqs.trans[[i]]$form),"+ e", "\t","e ~ N(0,",paste0(deparse1(private$obs.var.trans[[i]]$rhs),")"),"\n")
+#                   } else {
+#                     cat("\t",deparse1(private$obs.eqs[[i]]$form),"+ e", "\t","e ~ N(0,?)","\n")
+#                   }
+#                 }
+#               }
+#               if (p>1) {
+#                 cat("\nInputs:\n")
+#                 cat("\t", paste(private$input.names[!private$input.names %in% "t"],collapse=", "))
+#               }
+#               if (par>0) {
+#                 cat("\n\nParameters:\n")
+#                 cat("\t", paste(private$parameter.names,collapse=", "))
+#               }
+#               if (fixedpars>0) {
+#                 cat("\n\nFixed Parameters:\n")
+#                 cat("\t", paste(names(private$fixed.pars),collapse=", "))
+#               }
 #               return(invisible(self))
 #             }
 # )
-
-# sdemTMB$set("public","estimate",
-#             function(data, return.fit=TRUE, return.nll=FALSE, use.hessian=FALSE,
-#                      ode.timestep=NULL, silence=FALSE, compile=FALSE) {
+# 
+# sdemTMB$set("public","summary",
+#             function(correlation=FALSE) {
 #               
-#               # set flags
-#               self$use_hessian(use.hessian)
-#               self$set_timestep(ode.timestep)
-#               self$set_silence(silence)
-#               self$set_compile(compile)
-#               
-#               # if the model isnt built we must build
-#               if (!private$build | private$compile) {
-#                 message("Building model...")
-#                 private$build_model()
+#               # check if model was estimated
+#               if (is.null(private$fit)) {
+#                 message("Please estimate your model to get a fit summary.")
+#                 return(invisible(NULL))
 #               }
 #               
-#               # check and set data
-#               check_and_set_data(data, self, private)
-#               
-#               # construct neg. log-likelihood function
-#               optlist = construct_and_optimise(self, private, return.fit, return.nll)
-#               
-#               # if return.nll just return the function objective and exit
-#               if(return.nll){
-#                 message("Returning AD objective function, and exiting...")
-#                 return(private$nll)
-#               }
-#               
-#               # create and return fit object
-#               if(return.fit){
-#                 create_return_fit(self, private)
-#                 return(private$fit)
-#               }
-#               
-#               # return optimization and cpu-time instead of fit
-#               if(!return.fit){
-#                 return(optlist)
-#               }
+#               sumfit = summary(private$fit,correlation=correlation)
+#               return(invisible(sumfit$parameters))
 #             }
 # )
-
-
-#### ################ ################ ############
-#### ################ ################ ############
-#### ################ ################ ############
-
-sdemTMB$set("public","print",
-            function() {
-              n = length(private$sys.eqs)
-              m = length(private$obs.eqs)
-              p = length(private$inputs)-1
-              ng = max(length(unique(unlist(lapply(private$sys.eqs, function(x) x$diff))))-1,0)
-              q = length(private$alg.eqs)
-              par = length(private$parameters)
-              fixedpars = length(private$fixed.pars)
-              # If the model is empty
-              cat("A stochastic state space model called",private$modelname,"\n")
-              basic.data = c(n,ng,m,p,par)
-              row.names = c("Number of States","Number of Diffusions",
-                            "Number of Observations","Number of Inputs",
-                            "Number of Parameters")
-              mat=data.frame(basic.data,row.names=row.names,fix.empty.names=F)
-              print(mat,quote=FALSE)
-              #
-              # if there are any state equations
-              if (n>0) {
-                cat("\nSystem Equations:\n\n")
-                lapply(private$sys.eqs,function(x) cat("\t",deparse1(x$form),"\n"))
-              }
-              if (m>0) {
-                cat("\nObservation Equations:\n\n")
-                for (i in 1:length(private$obs.eqs)) {
-                  bool = private$obs.names[i] %in% private$obsvar.names
-                  if (bool) {
-                    cat("\t",deparse1(private$obs.eqs[[i]]$form),"+ e", "\t","e ~ N(0,",paste0(deparse1(private$obs.var[[i]]$rhs),")"),"\n")
-                  } else {
-                    cat("\t",deparse1(private$obs.eqs[[i]]$form),"+ e", "\t","e ~ N(0,?)","\n")
-                  }
-                }
-              }
-              if (q>0) {
-                cat("\nAlgebraic Relations:\n\n")
-                for(i in 1:length(private$alg.eqs)){
-                  cat("\t",deparse1(private$alg.eqs[[i]]$form),"\n")
-                }
-              }
-              # if the algebraic transformations have occured
-              if (!is.null(private$sys.eqs.trans)) {
-                cat("\nTransformed System Equations:\n\n")
-                lapply(private$sys.eqs.trans,function(x) cat("\t",deparse1(x$form),"\n"))
-              }
-              # if the algebraic transformations have occured
-              if (!is.null(private$obs.eqs.trans) | !is.null(private$obs.var.trans)) {
-                cat("\nTransformed Observation Equations:\n\n")
-                for (i in 1:length(private$obs.eqs)) {
-                  bool = private$obs.names[i] %in% private$obsvar.names
-                  if (bool) {
-                    cat("\t",deparse1(private$obs.eqs.trans[[i]]$form),"+ e", "\t","e ~ N(0,",paste0(deparse1(private$obs.var.trans[[i]]$rhs),")"),"\n")
-                  } else {
-                    cat("\t",deparse1(private$obs.eqs[[i]]$form),"+ e", "\t","e ~ N(0,?)","\n")
-                  }
-                }
-              }
-              if (p>1) {
-                cat("\nInputs:\n")
-                cat("\t", paste(private$input.names[!private$input.names %in% "t"],collapse=", "))
-              }
-              if (par>0) {
-                cat("\n\nParameters:\n")
-                cat("\t", paste(private$parameter.names,collapse=", "))
-              }
-              if (fixedpars>0) {
-                cat("\n\nFixed Parameters:\n")
-                cat("\t", paste(names(private$fixed.pars),collapse=", "))
-              }
-              return(invisible(self))
-            }
-)
-
-sdemTMB$set("public","summary",
-            function(correlation=FALSE) {
-              
-              # check if model was estimated
-              if (is.null(private$fit)) {
-                message("Please estimate your model to get a fit summary.")
-                return(invisible(NULL))
-              }
-              
-              sumfit = summary(private$fit,correlation=correlation)
-              return(invisible(sumfit$parameters))
-            }
-)
-
-
-sdemTMB$set("public","plot",
-            function(plot.obs=1, use.ggplot=FALSE, extended=FALSE, ggtheme=getggplot2theme()){
-              
-              # check if model was estimated
-              if (is.null(private$fit)) {
-                message("Please estimate your model in order to plot residuals.")
-                return(invisible(NULL))
-              }
-              
-              # if we have estimated
-              plotlist = plot(private$fit, plot.obs=plot.obs, use.ggplot=use.ggplot,
-                              extended=extended, ggtheme=ggtheme)
-              return(invisible(plotlist))
-            }
-)
-
+# 
+# 
+# sdemTMB$set("public","plot",
+#             function(plot.obs=1, use.ggplot=FALSE, extended=FALSE, ggtheme=getggplot2theme()){
+#               
+#               # check if model was estimated
+#               if (is.null(private$fit)) {
+#                 message("Please estimate your model in order to plot residuals.")
+#                 return(invisible(NULL))
+#               }
+#               
+#               # if we have estimated
+#               plotlist = plot(private$fit, plot.obs=plot.obs, use.ggplot=use.ggplot,
+#                               extended=extended, ggtheme=ggtheme)
+#               return(invisible(plotlist))
+#             }
+# )
+# 

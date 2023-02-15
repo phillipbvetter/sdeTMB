@@ -32,13 +32,6 @@ add_observations(y ~ x)
 
 Specify observation as the sum of exponentials of two latent states
 add_observations(y ~ exp(x1) + exp(x2))
-
-## ------------------------------------------------
-## Method `sdemTMB$print`
-## ------------------------------------------------
-
-set_timestep(1e-3)
-set_hessian(TRUE)
 }
 \section{Methods}{
 \subsection{Public methods}{
@@ -403,7 +396,8 @@ Estimate the fixed effects parameters in the specified model.
   silence = FALSE,
   compile = FALSE,
   method = "ekf",
-  loss = "standard"
+  loss = "standard",
+  loss_c = 3
 )}\if{html}{\out{</div>}}
 }
 
@@ -427,6 +421,22 @@ calling the objective function 'f' in the output list.}
 performing the optimization. This feature is only available for the kalman filter methods
 without any random effects.}
 
+\item{\code{ode.timestep}}{numeric value. Sets the time step-size in numerical filtering schemes.
+The defined step-size is used to calculate the number of steps between observation time-points as
+defined by the provided \code{data}. If the calculated number of steps is larger than N.01 where N
+is an integer, then the time-step is reduced such that exactly N+1 steps is taken between observations
+The step-size is used in the two following ways depending on the
+chosen method:
+\enumerate{
+\item Kalman filters: The time-step is used as the step-size in the
+numerical Forward-Euler scheme to compute the prior state mean and
+covariance estimate as the final time solution to the first and second
+order moment differential equations.
+\item TMB method: The time-step is used as the step-size in the Euler-Maruyama
+scheme for simulating a sample path of the stochastic differential equation,
+which serves to link together the latent (random effects) states.
+}}
+
 \item{\code{silence}}{boolean value. Sets the tracing information for \code{TMB::MakeADFun} in the
 argument \code{silent} which disables outputs from the optimization algoritm during runtime.}
 
@@ -437,6 +447,45 @@ C++ object. If a precompiled C++ object is not found in the specified directory 
 in \code{<cppfile_directory>/<modelname>/(dll/so)} then the compile flag is set to \code{TRUE}.
 If the user makes changes to system equations, observation equations, observation variances,
 algebraic relations or lamperi transformations then the C++ object should be recompiled.}
+
+\item{\code{method}}{character vector - one of either "ekf", "ukf" or "tmb". Sets the estimation
+method. The package has three available methods implemented:
+\enumerate{
+\item The natural TMB-style formulation where latent states are considered random effects
+and are integrated out using the Laplace approximation. This method only yields the gradient
+of the (negative log) likelihood function with respect to the fixed effects for optimization.
+The method is slower although probably has some precision advantages, and allows for non-Gaussian
+observation noise (not yet implemented). One-step / K-step residuals are not yet available in
+the package.
+\item (Continous-Discrete) Extended Kalman Filter where the system dynamics are linearized
+to handle potential non-linearities. This is computationally the fastest method.
+\item (Continous-Discrete) Unscented Kalman Filter. This is a higher order non-linear Kalman Filter
+which improves the mean and covariance estimates when the system display high nonlinearity, and
+circumvents the necessity to compute the jacobian of the drift and observation functions.
+}
+
+All package features are currently available for the kalman filters, while TMB is limited to
+parameter estimation. In particular, it is straight-forward to obtain k-step-ahead predictions
+with these methods (use the \code{predict} S3 method), and stochastic simulation is also available
+in the cases where long prediction horizons are sought, where the normality assumption will be
+inaccurate.}
+
+\item{\code{loss}}{character vector. Sets the loss function type (only implemented for the kalman filter
+methods). The loss function is per default quadratic in the one-step residauls as is natural
+when the Gaussian (negative log) likelihood is evaluated, but if the tails of the
+distribution is considered too small i.e. outliers are weighted too much, then one
+can choose loss functions that accounts for this. The three available types available:
+\enumerate{
+\item Quadratic loss (standard).
+\item Quadratic-Linear (\code{huber})
+\item Quadratic-Constant (\code{tukey})
+}
+
+The cutoff for the Huber and Tukey loss functions are determined from a provided cutoff
+parameter \code{loss_c}. The implementations of these losses are approximations (pseudo-huber and sigmoid
+approxmation respectively) for smooth derivatives.}
+
+\item{\code{loss_c}}{cutoff value for huber and tukey loss functions. Defaults to \code{c=3}}
 }
 \if{html}{\out{</div>}}
 }
@@ -445,114 +494,9 @@ algebraic relations or lamperi transformations then the C++ object should be rec
 \if{html}{\out{<a id="method-sdemTMB-print"></a>}}
 \if{latex}{\out{\hypertarget{method-sdemTMB-print}{}}}
 \subsection{Method \code{print()}}{
-Set compile flag
-
-The compile flag defualt is \code{FALSE}. If the C++ binary file generated from compiling
-the model function is not found in the specified directory i.e. \code{<cppfile_directory>/<modelname>./(dll/so)}
-then the compile flag is automatically set to \code{TRUE}. When the model specifications
-is changed but the model name is not, then its necessary to manually set the compile flag
-to \code{TRUE}.
-
-
-set tracing information for TMB
-
-Passes to the \code{silent} argument of \code{TMB::MakeADFun} which disables outputs from the
-optimization algoritm during runtime.
-
-
-Set estimation method
-
-The package has three available methods implemented currently:
-\enumerate{
-\item The natural TMB-style formulation where latent states are considered random effects
-and are integrated out using the Laplace approximation. This method only yields the gradient
-of the (negative log) likelihood function with respect to the fixed effects for optimization.
-The method is slower although probably has some precision advantages, and allows for non-Gaussian
-observation noise (not yet implemented). One-step / K-step residuals are not yet available in
-the package.
-\item (Continous-Discrete) Extended Kalman Filter. This is computationally the fastest method
-and all the package features are available, in particular it is straight-forward to obtain
-K-step-ahead residuals. The \code{predict} S3 method for \code{sdemTMB.fit} also has stochastic
-simulation available to obtain the K-step-ahead residuals.
-\item (Continous-Discrete) Unscented Kalman Filter. This is a higher order Kalman Filter which
-improves the mean and covariance estimates when the system display high nonlinearity, and
-circumvents the necessity to compute the jacobian of the drift and observation functions.
-}
-
-
-Set the time step-size in numerical schemes. The defined
-step-size is used to calculate
-the number of steps between observation time-points as defined by the
-provided \code{.data} when calling \code{estimate(.data)} to estimate
-parameters. If the calculated number of steps is larger than N.01 where N
-is an integer, then the time-step is decreased to match with N+1 steps
-instead. The step-size is used in the two following ways depending on the
-chosen method:
-\itemize{
-\item Kalman filters: The time-step is used as the step-size in the
-numerical Forward-Euler scheme to compute the prior state mean and
-covariance estimate as the final time solution to the first and second
-order moment differential equations.
-\item TMB method: The time-step is used as the step-size in the Euler-Maruyama
-scheme for simulating a sample path of the stochastic differential equation,
-which serves to link together the latent (random effects) states.
-}
-
-
-Set a flag to indicate whether or not the optimization algorithm
-should use the fixed effects (negative log) likelihood hessian. This is only
-available for the kalman filter methods without any random effects.
-
-
-Set loss function type (kalman filters only)
-
-The loss function is per default quadratic in the one-step residauls as is natural
-when the Gaussian (negative log) likelihood is evaluated, but if the tails of the
-distribution is considered too small i.e. outliers are weighted too much, then one
-can choose loss functions thataccounts for this. The three available types available:
-\enumerate{
-\item Quadratic loss
-\item Quadratic-Linear (\code{huber} loss)
-\item Quadratic-Constant (\code{tukey} loss)
-}
-
-The cutoff for the Huber and Tukey loss functions are determined from a provided cutoff
-parameter. The implementations of these losses are approximations (pseudo-huber and sigmoid
-approxmation respectively) for smooth derivatives.
+Function to print the model object
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{sdemTMB$print()}\if{html}{\out{</div>}}
-}
-
-\subsection{Arguments}{
-\if{html}{\out{<div class="arguments">}}
-\describe{
-\item{\code{name}}{logical value}
-
-\item{\code{bool}}{logical value}
-
-\item{\code{method}}{character vector - one of either "ekf", "ukf" or "tmb".}
-
-\item{\code{dt}}{numerical value}
-
-\item{\code{bool}}{}
-
-\item{\code{loss}}{string of either "standard", "huber" or "tukey"}
-
-\item{\code{c}}{cutoff value for huber and tukey loss functions. Default is \code{c=3}}
-}
-\if{html}{\out{</div>}}
-}
-\subsection{Examples}{
-\if{html}{\out{<div class="r example copy">}}
-\preformatted{set_timestep(1e-3)
-}
-\if{html}{\out{</div>}}
-
-\if{html}{\out{<div class="r example copy">}}
-\preformatted{set_hessian(TRUE)
-}
-\if{html}{\out{</div>}}
-
 }
 
 }
@@ -560,15 +504,25 @@ approxmation respectively) for smooth derivatives.
 \if{html}{\out{<a id="method-sdemTMB-summary"></a>}}
 \if{latex}{\out{\hypertarget{method-sdemTMB-summary}{}}}
 \subsection{Method \code{summary()}}{
+Summary function for fit
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{sdemTMB$summary(correlation = FALSE)}\if{html}{\out{</div>}}
 }
 
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{correlation}}{boolean value. The default (\code{FALSE}) is to not provide the fixed effects parameter
+correlation matrix.}
+}
+\if{html}{\out{</div>}}
+}
 }
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-sdemTMB-plot"></a>}}
 \if{latex}{\out{\hypertarget{method-sdemTMB-plot}{}}}
 \subsection{Method \code{plot()}}{
+Function to print the model object
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{sdemTMB$plot(
   plot.obs = 1,
@@ -578,6 +532,21 @@ approxmation respectively) for smooth derivatives.
 )}\if{html}{\out{</div>}}
 }
 
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{plot.obs}}{integer value. The value determines which state residual plot is shown, when the states are numbered
+by the order in which they were defined in the model object.}
+
+\item{\code{use.ggplot}}{boolean value. The default \code{FALSE} is to use base plots in R, if \code{TRUE} then \code{ggplot2}
+is used to show and return a list of all residual state plots.}
+
+\item{\code{extended}}{boolean value. No functionality yet.}
+
+\item{\code{ggtheme}}{ggplot theme. This determines the theme used to construct the ggplot2 if \code{use.ggplot=TRUE}.}
+}
+\if{html}{\out{</div>}}
+}
 }
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-sdemTMB-clone"></a>}}

@@ -7,25 +7,25 @@
 #' @returns A huge amount of information
 #' @export
 print.sdemTMB = function(object,...) {
-
+  
   obj = object$print()
   #
   return(invisible(obj))
-
+  
 }
 
 #' Basic print of objects of class 'sdemTMB'
 #' @returns A huge amount of information
 #' @export
 print.sdemTMB.fit = function(fit) {
-
+  
   mat = cbind(fit$par.fixed,fit$sd.fixed,fit$tvalue,fit$Pr.tvalue)
   colnames(mat) = c("Estimate","Std. Error","t value","Pr(>|t|)")
   cat("Coefficent Matrix \n")
   stats::printCoefmat(mat)
-
+  
   return(invisible(mat))
-
+  
 }
 
 
@@ -37,21 +37,21 @@ print.sdemTMB.fit = function(fit) {
 #' @returns A huge amount of information
 #' @export
 summary.sdemTMB = function(object,correlation=FALSE) {
-
+  
   obj = object$summary(correlation)
   #
   return(invisible(obj))
-
+  
 }
 
 #' @returns summary of fit object from \code{obj$estimate()}
 #' @export
 summary.sdemTMB.fit = function(fit,correlation=FALSE) {
-
+  
   if (!is.logical(correlation)) {
     stop("correlation must be logical")
   }
-
+  
   mat = cbind(fit$par.fixed,fit$sd.fixed,fit$tvalue,fit$Pr.tvalue)
   colnames(mat) = c("Estimate","Std. Error","t value","Pr(>|t|)")
   cat("Coefficent Matrix \n")
@@ -68,7 +68,7 @@ summary.sdemTMB.fit = function(fit,correlation=FALSE) {
     # cor[!lower.tri(cor)] <- ""
     # print(cor[-1, -(dim(cor)[1]), drop = FALSE], quote = FALSE)
   }
-
+  
   return(invisible(list(parameters=mat)))
 }
 
@@ -108,12 +108,10 @@ getggplot2colors = function(n) {
 #' @returns A huge amount of information
 #' @export
 plot.sdemTMB = function(object,
-                     plot.obs=1,
-                     extended=FALSE,
-                     use.ggplot=FALSE,
-                     ggtheme=getggplot2theme()
-) {
-
+                        plot.obs=1,
+                        extended=FALSE,
+                        use.ggplot=FALSE,
+                        ggtheme=getggplot2theme()) {
   object$plot(plot.obs=plot.obs, use.ggplot=use.ggplot, extended=extended, ggtheme=ggtheme)
   return(invisible(NULL))
 }
@@ -124,12 +122,14 @@ plot.sdemTMB = function(object,
 #' @export
 #' @importFrom stats frequency fft spec.taper
 plot.sdemTMB.fit = function(fit,
-                         plot.obs=1,
-                         use.ggplot=FALSE,
-                         extended=FALSE,
-                         ggtheme=getggplot2theme()
-){
-
+                            plot.obs=1,
+                            use.ggplot=FALSE,
+                            extended=FALSE,
+                            ggtheme=getggplot2theme()) {
+  
+  # get private fields from object
+  private = fit$.__object__$.__enclos_env__$private
+  
   if (!is.logical(use.ggplot)) {
     stop("use.ggplot must be logical")
   }
@@ -139,14 +139,19 @@ plot.sdemTMB.fit = function(fit,
   if (!(inherits(ggtheme,"theme") & inherits(ggtheme,"gg"))) {
     stop("ggtheme must be a ggplot2 theme")
   }
-
-  private = fit$.__object__$.__enclos_env__$private
-
+  if(!is.numeric(plot.obs)){
+    stop("plot.obs must be a numeric (or integer) value")
+  }
+  if(plot.obs > private$n){
+    message("Can't plot state ", plot.obs, " because there are only ", private$n, " state(s). Setting plot.obs = ",private$n)
+    plot.obs = private$n
+  }
+  
   if(private$method == "tmb"){
     message("'plot' is not available for method 'tmb' yet.")
     return(NULL)
   }
-
+  
   mycolor = getggplot2colors(2)[2]
   if (use.ggplot) {
     plots = list()
@@ -157,7 +162,7 @@ plot.sdemTMB.fit = function(fit,
       e = e[id]
       t = t[id]
       nam = private$obs.names[i]
-
+      
       # time vs residuals
       plot.res =
         ggplot2::ggplot(data=data.frame(t,e)) +
@@ -182,7 +187,8 @@ plot.sdemTMB.fit = function(fit,
       # histogram
       plot.hist =
         ggplot2::ggplot(data=data.frame(e)) +
-        ggplot2::geom_histogram(ggplot2::aes(x=e,y=..density..),bins=100,color="black",fill=mycolor) +
+        # ggplot2::geom_histogram(ggplot2::aes(x=e,y=..density..),bins=100,color="black",fill=mycolor) +
+        ggplot2::geom_histogram(ggplot2::aes(x=e,y=after_stat(density)),bins=100,color="black",fill=mycolor) +
         ggtheme +
         ggplot2::labs(
           title = paste("Histogram: "),
@@ -222,13 +228,13 @@ plot.sdemTMB.fit = function(fit,
       # store plot
       plots[[i]] = (plot.qq + plot.hist) / (plot.acf + plot.cpgram) +
         patchwork::plot_annotation(title=paste("Residuals for ", nam),theme=ggtheme + ggplot2::theme(text=ggplot2::element_text("Avenir Next Condensed",size=18,face="bold")),)
-
+      
     }
     # return plot list, and print one of the plots
     print(plots[[plot.obs]])
     return(invisible(plots))
   }
-
+  
   # if we aren't using ggplot we can't return the plots, we just print one plot
   graphics::par(mfrow=c(2,2))
   e = fit$residuals$normalized[[plot.obs+1]]
@@ -279,7 +285,7 @@ plot.sdemTMB.fit = function(fit,
   graphics::axis(2)
   # overall title
   graphics::title(main=paste("Residuals for ", nam),outer=TRUE,line=-1.25,cex.main=1.5)
-
+  
   # return
   return(invisible(NULL))
 }
@@ -299,33 +305,33 @@ plot.sdemTMB.fit = function(fit,
 #' @returns Prediction from model
 #' @export
 predict.sdemTMB.fit = function(fit,
-                            data=NULL,
-                            x0=NULL,
-                            p0=NULL,
-                            n.step.ahead=1,
-                            ode.timestep=NULL,
-                            return.state.dispersion=FALSE,
-                            covariance=FALSE,
-                            give.only.n.step.ahead=FALSE,
-                            use.simulation=FALSE,
-                            sim.timestep=NULL,
-                            returned.sim.dt=NULL,
-                            n.sim=100,
-                            quantiles=c(0.05,0.5,0.95),
-                            return.full.simulations=FALSE
+                               data=NULL,
+                               x0=NULL,
+                               p0=NULL,
+                               n.step.ahead=1,
+                               ode.timestep=NULL,
+                               return.state.dispersion=FALSE,
+                               covariance=FALSE,
+                               give.only.n.step.ahead=FALSE,
+                               use.simulation=FALSE,
+                               sim.timestep=NULL,
+                               returned.sim.dt=NULL,
+                               n.sim=100,
+                               quantiles=c(0.05,0.5,0.95),
+                               return.full.simulations=FALSE
 ){
-
-
-
+  
+  
+  
   ############################################################
   ############################################################
   ##################### INITIALIZATION #######################
   ############################################################
   ############################################################
-
+  
   # extract private fields from object
   private = fit$.__object__$.__enclos_env__$private
-
+  
   # if data is null use fit data
   if(is.null(data)){
     data = private$data
@@ -338,7 +344,7 @@ predict.sdemTMB.fit = function(fit,
   if(is.null(p0)){
     p0 = private$initial.state$cov
   }
-
+  
   if(n.step.ahead < 1){
     stop("You must choose a positive integer for n.step.ahead")
   }
@@ -367,15 +373,15 @@ predict.sdemTMB.fit = function(fit,
   if(!all(input.bool)){
     stop("The data frame does not contain any entry for the input(s): ",private$input.names[!input.bool])
   }
-
+  
   # ODE time-step
   if (!is.null(ode.timestep)) {
     # must be numeric
-    if (!is.numeric(dt)) {
+    if (!is.numeric(ode.timestep)) {
       stop("ode.timestep should be a numeric value.")
     }
     # must have length 1
-    if (length(dt)!=1) {
+    if (length(ode.timestep)!=1) {
       stop("ode.timestep must have length 1.")
     }
   }
@@ -391,7 +397,7 @@ predict.sdemTMB.fit = function(fit,
   bool = diff(data$t)/ode.timestep - ode.N > 1e-2
   ode.N[bool] = ode.N[bool] + 1
   ode.dt = diff(data$t)/ode.N
-
+  
   # Simulation time-step
   if (is.null(sim.timestep)) {
     sim.timestep = min(diff(data$t))/10
@@ -405,20 +411,20 @@ predict.sdemTMB.fit = function(fit,
   bool = diff(data$t)/sim.timestep - sim.N > 1e-2
   sim.N[bool] = sim.N[bool] + 1
   sim.dt = diff(data$t)/sim.N
-
+  
   # last index for predictions
   last.possible.index = nrow(data) - n.step.ahead
   if(last.possible.index < 1){
     stop("There are only ", nrow(data), " time points in the provided data, so it is not possible to choose n.step.ahead = ",n.step.ahead)
   }
-
-
+  
+  
   ############################################################
   ##################### KALMAN FILTERS #######################
   ############################################################
-
+  
   if (private$method == "ekf" | private$method == "ukf") {
-
+    
     ##################### helper functions for construction ####################
     fun.wrapper = function(name,states,inputs,return.name.type,body,return.name){
       paste(c(name,"=function(states,inputs){",states,inputs,return.name.type,";",body,"return(",return.name,")}"),collapse="")
@@ -427,8 +433,8 @@ predict.sdemTMB.fit = function(fit,
     fun.inputs = paste(private$input.names,"=","inputs[",1:length(private$input.names),"]",";",sep="",collapse="")
     # vectorized helper
     fun.states.vec = paste(private$state.names,"=","states[,",1:private$n,"]",";",sep="",collapse="")
-
-
+    
+    
     ##################### construct drift function f ####################
     f = c()
     for(i in 1:private$n){
@@ -437,7 +443,7 @@ predict.sdemTMB.fit = function(fit,
     f. = paste(c(paste(f,collapse=";"),";"),collapse="")
     txt = fun.wrapper("f",fun.states,fun.inputs,"f=c()",f.,"f")
     eval(parse(text=txt))
-
+    
     # vectorized verrsion of f to evaluate many simulations with one call
     txt = fun.wrapper("fvector",fun.states.vec,fun.inputs,"f=c()",f.,"f")
     eval(parse(text=txt))
@@ -449,7 +455,7 @@ predict.sdemTMB.fit = function(fit,
     f. = paste(c(paste(f_,collapse=";"),";"),collapse="")
     txt = fun.wrapper("fvector",fun.states.vec,fun.inputs,"f=c()",f.,"f")
     eval(parse(text=txt))
-
+    
     ############### construct jacobian of drift function dfdx ############
     dfdx = matrix(0,nrow=private$n,ncol=private$n)
     for(i in 1:private$n){
@@ -461,7 +467,7 @@ predict.sdemTMB.fit = function(fit,
     dfdx. = paste(c(paste(dfdx,collapse=";"),";"),collapse="")
     txt = fun.wrapper("dfdx",fun.states,fun.inputs,sprintf("dfdx=diag(%s)",private$n),dfdx.,"dfdx")
     eval(parse(text=txt))
-
+    
     ##################### construct diffusion function g ####################
     g = matrix(0,nrow=private$n,ncol=private$ng)
     for(i in 1:private$n){
@@ -484,7 +490,7 @@ predict.sdemTMB.fit = function(fit,
     g. = paste(c(paste(g_,collapse=";"),";"),collapse="")
     txt = fun.wrapper("gvector",fun.states.vec,fun.inputs,"g=c()",g.,"g")
     eval(parse(text=txt))
-
+    
     # function to easily compute sum G %* dw
     g_dot_dw = function(gvec) {
       temp = c()
@@ -495,7 +501,7 @@ predict.sdemTMB.fit = function(fit,
       }
       return(temp)
     }
-
+    
     ##################### construct observation function h ####################
     h = c()
     for(i in 1:private$m){
@@ -504,7 +510,7 @@ predict.sdemTMB.fit = function(fit,
     h. = paste(c(paste(h,collapse=";"),";"),collapse="")
     txt = fun.wrapper("h",fun.states,fun.inputs,"h=c()",h.,"h")
     eval(parse(text=txt))
-
+    
     ##################### construct jacobian of observation function dhdx ####################
     dhdx = matrix(NA,nrow=private$m,ncol=private$n)
     for(i in 1:private$m){
@@ -516,7 +522,7 @@ predict.sdemTMB.fit = function(fit,
     dhdx. = paste(c(paste(dhdx,collapse=";"),";"),collapse="")
     txt = fun.wrapper("dhdx",fun.states,fun.inputs,sprintf("dhdx=matrix(0,nrow=%s,ncol=%s)",private$m,private$n),dhdx.,"dhdx")
     eval(parse(text=txt))
-
+    
     ##################### observation variance function ####################
     obs_f = c()
     for(i in 1:private$m){
@@ -525,7 +531,7 @@ predict.sdemTMB.fit = function(fit,
     obs_f. = paste(c(paste(obs_f,collapse=";"),";"),collapse="")
     txt = fun.wrapper("obs_f",fun.states,fun.inputs,"obs_f=c()",obs_f.,"obs_f")
     eval(parse(text=txt))
-
+    
     ##################### assign parameter values #######################
     for(parname in names(private$fixed.pars)){
       # print(parname)
@@ -535,19 +541,19 @@ predict.sdemTMB.fit = function(fit,
       # print(parname)
       assign(parname,fit$par.fixed[parname])
     }
-
+    
     ##################### MAIN FOR-LOOP ########################
     ##################### MAIN FOR-LOOP ########################
     ##################### MAIN FOR-LOOP ########################
-
-
+    
+    
     ##########################################
     ####### Branch 1: Simulations ############
     ##########################################
     if(use.simulation){
-
+      
       ##### CREATE DATA FRAME TO HOLD RESULTS #####
-
+      
       # create data.frame to hold state predictions and quantiles
       df.out = data.frame(matrix(nrow=last.possible.index*(n.step.ahead+1), ncol=5+private$n+private$n*length(quantiles)))
       quantile.names = paste(rep(private$state.names,each=length(quantiles)),paste0("quantile(",quantiles,")"),sep="-")
@@ -558,31 +564,31 @@ predict.sdemTMB.fit = function(fit,
       df.out["n.step.ahead"] = rep(0:n.step.ahead,last.possible.index)
       df.out["t_{k}"] = rep(data$t[ran+1],each=n.step.ahead+1)
       df.out["t_{k+i}"] = data$t[df.out[,"k"]+1+rep(0:n.step.ahead,last.possible.index)]
-
+      
       # create list of data.frames to hold simulations
       df.sim = stats::setNames(
         lapply(1:last.possible.index,function(x) stats::setNames(replicate(private$n,data.frame(matrix(nrow=n.sim),fix.empty.names=FALSE),simplify=FALSE),private$state.names)),
         paste0("t=",data$t[1:last.possible.index]))
-
+      
       ##### KALMAN FILTER INITIALIZATION #####
-
+      
       datmat = as.matrix(data)
       I.n = diag(private$n)
       V.obs = diag(private$n)
       dw_number = private$ng * n.sim
       len.g = private$n * private$ng * n.sim
-
+      
       ##### LOOP OVER DATA TIME POINTS #####
-
+      
       for (i in 1:last.possible.index){
         # store the posterior estimate (initial or previous loop)
         index_i_i = (i-1)*(n.step.ahead+1) + 1
         df.out[index_i_i, private$state.names] = x0
-
+        
         # compute the n.step.ahead ahead priors (predictions): x{i+k|i}, k = 1..n.step.ahead
         for(k in 1:n.step.ahead){
           inputs = datmat[i+k-1,private$input.names]
-
+          
           # solve moment odes using ode.N time-steps with ode.dt step size.
           for(j in 1:ode.N[i+k-1]){
             A. = dfdx(x0,inputs)
@@ -590,16 +596,16 @@ predict.sdemTMB.fit = function(fit,
             x0 = x0 + f(x0,inputs) * ode.dt[i+k-1]
             p0 = p0 + (A. %*% p0 + p0 %*% t(A.) + G. %*% t(G.)) * ode.dt[i+k-1]
           }
-
+          
           # store n.step.ahead ahead state x_{i+k|i} and covariance p_{i+k|i}
           index_i_k = (i-1) * (n.step.ahead+1) + k + 1
           df.out[index_i_k,private$state.names] = x0
         }
-
+        
         # recover state x{i+1|i} and covariance p{i+1|i} one-step prior
         index_i_1 = (i-1) * (n.step.ahead+1) + 2
         x0 = unlist(df.out[index_i_1, private$state.names])
-
+        
         # store x0 in first columns
         .x0 = matrix(x0,ncol=private$n,nrow=n.sim,byrow=T)
         for(ii in seq_len(private$n)){
@@ -610,7 +616,7 @@ predict.sdemTMB.fit = function(fit,
         for(k in 1:n.step.ahead){
           inputs = datmat[i+k-1,private$input.names]
           sqrt_dt = sqrt(sim.dt[i+k-1])
-
+          
           # simulate between t_{i+k-1} and t_{i+k}
           for(j in 1:sim.N[i+k-1]){
             dw = rep(stats::rnorm(dw_number),times=private$n)
@@ -624,11 +630,11 @@ predict.sdemTMB.fit = function(fit,
             }
           }
         }
-
+        
         # recover state x{i+1|i} and covariance p{i+1|i} one-step prior
         index_i_1 = (i-1) * (n.step.ahead+1) + 2
         x0 = unlist(df.out[index_i_1, private$state.names])
-
+        
         # data:update to update from prior to posterior
         inputs = datmat[i,private$input.names]
         diag(V.obs) = obs_f(x0,inputs)
@@ -649,7 +655,7 @@ predict.sdemTMB.fit = function(fit,
           p0  = (I.n - K. %*% C.) %*% p0 %*% t(I.n - K. %*% C.) + K. %*% V. %*% t(K.)
         }
       }
-
+      
       # return
       return(list(pred=df.out,simulations=df.sim))
     }
@@ -658,7 +664,7 @@ predict.sdemTMB.fit = function(fit,
     ### Branch 2: kalman filter predictions ##
     ##########################################
     if(!use.simulation){
-
+      
       ##### CREATE OUTPUT DATA FRAME #####
       df.out = data.frame(matrix(nrow=last.possible.index*(n.step.ahead+1), ncol=5+private$n+private$n^2))
       disp_names = sprintf(rep("cor[%s,%s]",private$n^2),rep(private$state.names,each=private$n),rep(private$state.names,private$n))
@@ -675,15 +681,15 @@ predict.sdemTMB.fit = function(fit,
       df.out["n.step.ahead"] = rep(0:n.step.ahead,last.possible.index)
       df.out["t_{k}"] = rep(data$t[ran+1],each=n.step.ahead+1)
       df.out["t_{k+i}"] = data$t[df.out[,"k"]+1+rep(0:n.step.ahead,last.possible.index)]
-
+      
       ##### KALMAN FILTER INITIALIZATION #####
-
+      
       datmat = as.matrix(data)
       I.n = diag(private$n)
       V.obs = diag(private$n)
-
+      
       ##### LOOP OVER DATA TIME POINTS #####
-
+      
       for (i in 1:last.possible.index){
         # store the posterior estimate (initial or previous loop)
         index_i_i = (i-1)*(n.step.ahead+1) + 1
@@ -693,11 +699,11 @@ predict.sdemTMB.fit = function(fit,
         if(covariance){
           df.out[index_i_i, disp_names] = as.vector(p0)
         }
-
+        
         # compute the n.step.ahead ahead priors (predictions): x{i+k|i}, k = 1..n.step.ahead
         for(k in 1:n.step.ahead){
           inputs = datmat[i+k-1,private$input.names]
-
+          
           # solve moment odes using ode.N time-steps with ode.dt step size.
           for(j in 1:ode.N[i+k-1]){
             A. = dfdx(x0,inputs)
@@ -705,18 +711,18 @@ predict.sdemTMB.fit = function(fit,
             x0 = x0 + f(x0,inputs) * ode.dt[i+k-1]
             p0 = p0 + (A. %*% p0 + p0 %*% t(A.) + G. %*% t(G.)) * ode.dt[i+k-1]
           }
-
+          
           # store n.step.ahead ahead state x_{i+k|i} and covariance p_{i+k|i}
           index_i_k = (i-1) * (n.step.ahead+1) + k + 1
           df.out[index_i_k,private$state.names] = x0
           df.out[index_i_k, disp_names] = as.vector(p0)
         }
-
+        
         # recover state x{i+1|i} and covariance p{i+1|i} one-step prior
         index_i_1 = (i-1) * (n.step.ahead+1) + 2
         x0 = unlist(df.out[index_i_1, private$state.names])
         p0 = matrix(unlist(df.out[index_i_1, disp_names]), nrow=private$n, ncol=private$n)
-
+        
         # data:update to update from prior to posterior
         inputs = datmat[i,private$input.names]
         diag(V.obs) = obs_f(x0,inputs)
@@ -750,36 +756,36 @@ predict.sdemTMB.fit = function(fit,
                                       }
         ))
       }
-
+      
       # should we return covariance/correlation stats?
       if(!return.state.dispersion){
         bool = !stringr::str_detect(names(df.out),"cor") & !stringr::str_detect(names(df.out),"cov")
         df.out = df.out[,bool]
       }
-
+      
       # should 1:n.step.ahead be provided, or only n.step.ahead?
       if(give.only.n.step.ahead){
         df.out = df.out[df.out[["n.step.ahead"]]==n.step.ahead,]
       }
-
+      
       # return data.frame
       return(pred=df.out)
     }
-
+    
   }
-
-
+  
+  
   ############################################################
   ############################################################
   ##################### TMB-STYLE ############################
   ############################################################
   ############################################################
-
+  
   if (private$method == "tmb") {
     message("'predict' is not available for method 'tmb' yet.")
     return(NULL)
   }
-
-
-
+  
+  
+  
 }

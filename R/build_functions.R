@@ -4,7 +4,7 @@
 
 init_build = function(self, private) {
 
-
+  # basic checks
   if (length(private$sys.eqs) == 0) {
     stop("Need at least one system equation")
   }
@@ -18,10 +18,14 @@ init_build = function(self, private) {
     stop("You must set an initial state estimate and covariance")
   }
 
+  # set system size variables
   private$diff.processes = unique(unlist(lapply(private$sys.eqs, function(x) x$diff)))
   private$n = length(private$sys.eqs)
   private$m = length(private$obs.eqs)
   private$ng = length(private$diff.processes) - 1
+  
+  # update cpp file name to reflect 'method'
+  private$cppfile.path = paste(private$cppfile.path,"_",private$method,sep="")
 
   return(invisible(self))
 }
@@ -162,14 +166,13 @@ apply_lamperti = function(self, private) {
   dw.bool.list = dw.bool.list[states_bool]
   diff.terms = private$diff.terms[states_bool]
 
+  # define and select lamperti transform from list below
   psi = list(
     log = list( quote(exp(x)), quote(1/x),quote(-1/x^2)),
     logit = list( quote(exp(x/(1+x))), quote(1/(x*(1-x))), quote((2*x-1)/(x^2*(x-1)^2))),
     'sqrt-logit' = list( quote(0.5*(sin(x)+1)), quote(1/(sqrt(x*(1-x)))), quote(0.5*(2*x-1)/(x*(1-x)*sqrt(x*(1-x)))))
     # 'power-logit' = quote(1/(x*(1-x^a)))
-  )
-  # select the choosen transform from above list
-  psi = psi[[transform]]
+  )[[transform]]
   names(psi) = c("..psi..","..dpsidx..","..d2psidx2..")
 
   if (length(states)>0) {
