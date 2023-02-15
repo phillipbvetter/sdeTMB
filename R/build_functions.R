@@ -270,7 +270,7 @@ compile_cppfile = function(self, private) {
            ukf = write_ukf_cppfile(self, private),
            tmb_exact = write_tmbexact_cppfile(self, private)
     )
-    TMB::compile(paste(private$cppfile.path,".cpp",sep=""))
+    TMB::compile(paste(private$cppfile.path.with.method,".cpp",sep=""))
 
     #reload the shared dll libraries (fix for arm mac problems)
     try(dyn.unload(TMB::dynlib(private$cppfile.path.with.method)),silent=T)
@@ -285,7 +285,6 @@ compile_cppfile = function(self, private) {
       modelpath.so = paste(private$cppfile.path.with.method,".so",sep="")
       if (!file.exists(modelpath.so)) {
         message("Compiling model...")
-                # because no precompilation of '",private$modelname,"' in directory ",private$cppfile.directory," was found.")
         private$compile = TRUE
         compile_cppfile(self, private)
       }
@@ -295,7 +294,6 @@ compile_cppfile = function(self, private) {
       modelpath.dll = paste(private$cppfile.path.with.method,".dll",sep="")
       if (!file.exists(modelpath.dll)) {
         message("Compiling model...")
-                # because no precompilation of '",private$modelname,"' in directory ",private$cppfile.directory," was found.")
         private$compile = TRUE
         compile_cppfile(self, private)
       }
