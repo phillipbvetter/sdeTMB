@@ -390,7 +390,7 @@ predict.ctsmrTMB.fit = function(fit,
   }
   if (ode.timestep - min(diff(data$t)) > 1e-12) {
     ode.timestep = min(diff(data$t))
-    message(sprintf("'ode.timestep' is too large - reducing to min(diff(data$t)) = %s...", format(ode.timestep,digits=10,scientific=T)))
+    message(sprintf("The parsed 'ode.timestep' is larger than the minimum time difference. Reducing to min(diff(data$t)) = %s...", format(ode.timestep,digits=10,scientific=T)))
   }
   # correct time-step to give integer steps - if the step-size is N.01 or larger we use N+1 steps instead of N
   ode.N = floor(diff(data$t)/ode.timestep)
@@ -400,11 +400,11 @@ predict.ctsmrTMB.fit = function(fit,
   
   # Simulation time-step
   if (is.null(sim.timestep)) {
-    sim.timestep = min(diff(data$t))/10
+    sim.timestep = min(diff(data$t))
   }
   if (sim.timestep - min(diff(data$t)) > 1e-12) {
-    sim.timestep = min(diff(data$t))/10
-    message(sprintf("'sim.timestep' is too large - reducing to min(diff(data$t))/10 = %s...", format(sim.timestep,digits=10,scientific=T)))
+    sim.timestep = min(diff(data$t))
+    message(sprintf("The parsed 'sim.timestep' is larger than the minimum time difference. Reducing to min(diff(data$t))/10 = %s...", format(sim.timestep,digits=10,scientific=T)))
   }
   # correct time-step to give integer steps - if the step-size is N.01 or larger we use N+1 steps instead of N
   sim.N = floor(diff(data$t)/sim.timestep)

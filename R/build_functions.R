@@ -24,8 +24,9 @@ init_build = function(self, private) {
   private$m = length(private$obs.eqs)
   private$ng = length(private$diff.processes) - 1
   
-  # update cpp file name to reflect 'method'
-  private$cppfile.path = paste(private$cppfile.path,"_",private$method,sep="")
+  # add method to filepath and modelname to reflect 'method'
+  private$cppfile.path.with.method = paste(private$cppfile.path,"_",private$method,sep="")
+  private$modelname.with.method = paste(private$modelname,"_",private$method,sep="")
 
   return(invisible(self))
 }
@@ -258,8 +259,8 @@ lastcheck_before_compile = function(self, private) {
 
 compile_cppfile = function(self, private) {
 
-  modelpath.cpp = paste(private$cppfile.path,".cpp",sep="")
-  modelname.cpp = paste(private$modelname,".cpp",sep="")
+  modelpath.cpp = paste(private$cppfile.path.with.method,".cpp",sep="")
+  modelname.cpp = paste(private$modelname.with.method,".cpp",sep="")
 
   # if compile=TRUE
   if (private$compile) {
@@ -272,8 +273,8 @@ compile_cppfile = function(self, private) {
     TMB::compile(paste(private$cppfile.path,".cpp",sep=""))
 
     #reload the shared dll libraries (fix for arm mac problems)
-    try(dyn.unload(TMB::dynlib(private$cppfile.path)),silent=T)
-    try(dyn.load(TMB::dynlib(private$cppfile.path)),silent=T)
+    try(dyn.unload(TMB::dynlib(private$cppfile.path.with.method)),silent=T)
+    try(dyn.load(TMB::dynlib(private$cppfile.path.with.method)),silent=T)
   }
 
   # If compile=FALSE then the shared library must exist
@@ -281,7 +282,7 @@ compile_cppfile = function(self, private) {
 
     # for mac and linux
     if (.Platform$OS.type=="unix") {
-      modelpath.so = paste(private$cppfile.path,".so",sep="")
+      modelpath.so = paste(private$cppfile.path.with.method,".so",sep="")
       if (!file.exists(modelpath.so)) {
         message("Compiling model...")
                 # because no precompilation of '",private$modelname,"' in directory ",private$cppfile.directory," was found.")
@@ -291,7 +292,7 @@ compile_cppfile = function(self, private) {
     }
     # for windows
     if (.Platform$OS.type=="windows") {
-      modelpath.dll = paste(private$cppfile.path,".dll",sep="")
+      modelpath.dll = paste(private$cppfile.path.with.method,".dll",sep="")
       if (!file.exists(modelpath.dll)) {
         message("Compiling model...")
                 # because no precompilation of '",private$modelname,"' in directory ",private$cppfile.directory," was found.")
@@ -304,7 +305,7 @@ compile_cppfile = function(self, private) {
   # load the library (if dll arents loaded but cpp is already compiled)
   if (!private$compile) {
     message("Loading pre-compiled model...")
-    try(dyn.load(TMB::dynlib(private$cppfile.path)),silent=T)
+    try(dyn.load(TMB::dynlib(private$cppfile.path.with.method)),silent=T)
   }
 
   # change compile flag

@@ -40,7 +40,7 @@ check_and_set_data = function(data, self, private) {
   }
   if (private$ode.timestep > min(diff(data$t))) {
     private$ode.timestep = min(diff(data$t))
-    message(sprintf("'ode.timestep' is too large - reducing to min(diff(data$t)) = %s...", format(private$ode.timestep,digits=10,scientific=T)))
+    message(sprintf("The parsed 'ode.timestep' is larger than the minimum time difference. Reducing to min(diff(data$t)) = %s...", format(private$ode.timestep,digits=10,scientific=T)))
   }
   # correct time-step to give integer steps
   # if the step-size is N.1 or larger we use N+1 steps instead of N
@@ -153,12 +153,13 @@ construct_and_optimise = function(self, private, return.fit, return.nll) {
   if (any(private$method==c("ekf","ukf"))) {
     .random = NULL
   }
-
+  
   message("Constructing function template...")
   nll = TMB::MakeADFun(data = data,
                        parameters = parameters,
                        map = private$fixed.pars,
-                       DLL = private$modelname,
+                       # DLL = private$modelname,
+                       DLL = private$modelname.with.method,
                        silent = private$silent,
                        random = .random)
 

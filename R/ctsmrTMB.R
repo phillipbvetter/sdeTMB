@@ -16,6 +16,8 @@ ctsmrTMB = R6::R6Class(
       private$modelname = "sde_model"
       private$cppfile.directory = getwd()
       private$cppfile.path = paste(getwd(),"/",private$modelname,sep="")
+      private$cppfile.path.with.method = NULL
+      private$modelname.with.method = NULL
       # model equations
       private$sys.eqs = NULL
       private$obs.eqs = NULL
@@ -692,6 +694,8 @@ ctsmrTMB = R6::R6Class(
     modelname = character(0),
     cppfile.directory = NULL,
     cppfile.path = character(0),
+    cppfile.path.with.method = NULL,
+    modelname.with.method = NULL,
     # model equations
     sys.eqs = NULL,
     obs.eqs = NULL,
