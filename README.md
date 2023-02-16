@@ -22,7 +22,10 @@ remotes::install_github(repo="phillipbvetter/ctsmrTMB", dependencies=TRUE)
 ## Example Usage
 
 ``` r
-# Create model object
+library(ctsmrTMB)
+library(ggplot2)
+
+# 
 obj = ctsmrTMB$new()
 
 # Modelname
@@ -61,41 +64,62 @@ obj$add_algebraics(
 
 # Specify parameter initial values and lower/upper bounds in estimation
 obj$add_parameters(
-  logtheta ~ log(c(1,1e-5,2)),
-  mu ~ c(1,-10,10),
-  logsigma_x ~ log(c(1e-1,1e-20,2)),
-  logsigma_y ~ log(c(1e-1,1e-20,2))
+  logtheta ~ log(c(init = 1, lower=1e-5, upper=50)),
+  mu ~ c(init=1.5, lower=0, upper=5),
+  logsigma_x ~ log(c(init= 1e-1, lower=1e-10, upper=10)),
+  logsigma_y ~ log(c(init=1e-1, lower=1e-10, upper=10))
 )
+
+# Simulate data using Euler Maruyama
+set.seed(10)
+pars = c(theta=10, mu=1, sigma_x=1, sigma_y=1e-2)
+# 
+dt.sim = 1e-3
+t.sim = seq(0,1,by=dt.sim)
+dw = rnorm(length(t.sim)-1,sd=sqrt(dt.sim))
+x = 3
+for(i in 1:N.sim) {
+  x[i+1] = x[i] + pars[1]*(pars[2]-x[i])*dt.sim + pars[3]*dw[i]
+}
+
+# Extract observations and add noise
+dt.obs = 1e-2
+t.obs = seq(0,1,by=dt.obs)
+y = x[t.sim %in% t.obs] + sqrt(pars[4]) * rnorm(length(t.obs))
 
 # Set initial state mean and covariance
-obj$set_initial_state(c(1,1),1e-2*diag(2))
+obj$set_initial_state(x[1], 1e-1*diag(1))
 
-#Generate data
-n = 101
-set.seed(10)
-t = seq(0,10,length.out=n)
-data = data.frame(t = t ,
-                  Qf = rep(1,n),
-                  Sf = rep(1,n),
-                  Qr = rep(1,n),
-                  y = rnorm(n,mean=1,sd=0.2),
-                  w = rnorm(n,mean=1,sd=0.05)
+# Create data
+.data = data.frame(
+  t = t.obs,
+  y = y
 )
 
-# Carry out estimation, choose between methods ("ekf", "ukf", "tmb")
-fit <- obj$estimate(data, 
-                    silence=TRUE, 
-                    compile=FALSE,
-                    method="ekf")
+# Carry out estimation using extended kalman filter method
+fit <- obj$estimate(.data, method="ekf", use.hessian=T)
+
+# Check parameter estimates against truth
+pars2real = function(x) c(exp(x[1]),x[2],exp(x[3]),exp(x[4]))
+cbind( pars2real(fit$par.fixed), pars )
+
+# plot one-step predictions, simulated states and observations
+t.est = fit$states$mean$prior$t
+x.mean = fit$states$mean$prior$x
+x.sd = fit$states$sd$prior$x
+ggplot() +
+  geom_ribbon(aes(x=t.est, ymin=x.mean-2*x.sd, ymax=x.mean+2*x.sd),fill="grey", alpha=0.9) +
+  geom_line(aes(x=t.sim,y=x)) + 
+  geom_line(aes(x=t.est, x.mean),col="blue") +
+  geom_point(aes(x=t.obs,y=y),col="red",size=2) +
+  theme_minimal()
 
 
-# Use prediction function
-pred = predict(fit,
-               n.step.ahead=10,
-               use.simulation=FALSE,
-               return.state.dispersion=TRUE,
-               covariance=FALSE,
-               give.only.n.step.ahead=FALSE)
+# Check one-step-ahead residuals
+plot(fit, use.ggplot=T)
+
+# Use prediction function to get 10-step-ahead state predictions
+pred = predict(fit, n.step.ahead=10)
 ```
 
 

@@ -562,7 +562,7 @@ ctsmrTMB = R6::R6Class(
       optlist = construct_and_optimise(self, private, return.fit, return.nll)
       # if return.nll just return the function objective and exit
       if(return.nll){
-        message("Returning AD objective function, and exiting...")
+        message("Succesfully returned the negative log-likelihood function handlers.")
         return(private$nll)
       }
       # create and return fit object

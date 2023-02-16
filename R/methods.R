@@ -152,6 +152,10 @@ plot.ctsmrTMB.fit = function(fit,
     return(NULL)
   }
   
+  # retrieve user default parameter settings
+  .defaultpars = par()
+  
+  # use ggplot to plot
   mycolor = getggplot2colors(2)[2]
   if (use.ggplot) {
     plots = list()
@@ -285,6 +289,10 @@ plot.ctsmrTMB.fit = function(fit,
   graphics::axis(2)
   # overall title
   graphics::title(main=paste("Residuals for ", nam),outer=TRUE,line=-1.25,cex.main=1.5)
+  
+  
+  # restore old parameter settings
+  par(.defaultpars)
   
   # return
   return(invisible(NULL))
