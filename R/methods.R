@@ -323,7 +323,6 @@ predict.ctsmrTMB.fit = function(fit,
                                give.only.n.step.ahead=FALSE,
                                use.simulation=FALSE,
                                sim.timestep=NULL,
-                               returned.sim.dt=NULL,
                                n.sim=100,
                                quantiles=c(0.05,0.5,0.95),
                                return.full.simulations=FALSE
@@ -379,7 +378,7 @@ predict.ctsmrTMB.fit = function(fit,
   }
   input.bool = private$input.names %in% names(data)
   if(!all(input.bool)){
-    stop("The data frame does not contain any entry for the input(s): ",private$input.names[!input.bool])
+    stop("The data frame does not contain any entry for the input(s): ",paste(private$input.names[!input.bool],collapse=", "))
   }
   
   # ODE time-step
@@ -423,7 +422,7 @@ predict.ctsmrTMB.fit = function(fit,
   # last index for predictions
   last.possible.index = nrow(data) - n.step.ahead
   if(last.possible.index < 1){
-    stop("There are only ", nrow(data), " time points in the provided data, so it is not possible to choose n.step.ahead = ",n.step.ahead)
+    stop("There are only ", nrow(data), " time points in the provided data, so the maximum allowed n.step.ahead is = ",nrow(data)-1)
   }
   
   
