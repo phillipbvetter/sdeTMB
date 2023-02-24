@@ -1,6 +1,6 @@
-### NOTE: The package is work in progress, and features might be deleted or changed altogether
-
 # Continuous Time Stochastic Modelling for R using Template Model Builder (ctsmrTMB)
+
+### NOTE: The package is work in progress, and features might be deleted or changed altogether
 
 `ctsmrTMB` is an R package for parameter estimation, state filtration and forecasting in stochastic state space models, heavily inspired by [Continuous Time Stochastic Modelling](https://ctsm.info). 
 The package is a user-friendly wrapper for [Template Model Builder](https://github.com/kaskr/adcomp) that frees the user from writing
