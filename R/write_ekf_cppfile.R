@@ -440,6 +440,7 @@ vector<Type> get_free_pars__(vector<int> mapints, int sum_mapints, vector<Type> 
   #
   txt = c(txt,"\t\t\t x0__ = x0__ + F__ * dt__(i);")
   txt = c(txt, "\t\t\t p0__ = p0__ + ( A__*p0__ + p0__*A__.transpose() + G__*G__.transpose() ) * dt__(i);")
+   
   #
   txt = c(txt, "\t\t }")
   #

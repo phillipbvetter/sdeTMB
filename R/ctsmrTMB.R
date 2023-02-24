@@ -334,6 +334,10 @@ ctsmrTMB = R6::R6Class(
       if (!all(dim(cov)==c(length(private$sys.eqs),length(private$sys.eqs)))) {
         stop("The covariance matrix should be square with dimension ", length(private$sys.eqs))
       }
+      # convert scalar to matrix
+      if(!is.matrix(cov) & is.numeric(cov) & length(cov)==1){
+        cov = cov*diag(1)
+      }
       if (!is.numeric(cov)) {
         stop("The covariance matrix is not a numeric")
       }
@@ -551,11 +555,14 @@ ctsmrTMB = R6::R6Class(
       private$set_compile(compile)
       private$set_method(method)
       private$set_loss(loss,loss_c)
-      # if the model isnt built we must build
-      if (!private$build | private$compile) {
-        message("Building model...")
-        private$build_model()
-      }
+      
+      
+      # build model
+      # if (private$compile) {
+      message("Building model...")
+      private$build_model()
+      # }
+      
       # check and set data
       check_and_set_data(data, self, private)
       # construct neg. log-likelihood function
