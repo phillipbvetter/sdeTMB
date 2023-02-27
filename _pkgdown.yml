@@ -13,12 +13,6 @@ template:
 
 navbar:
   bg: dark
-  components:
-    articles:
-    text: Vignettes
-    menu:
-    - text: Simple Model
-    hfref: articles/SimpleModel.html
 
 
 
