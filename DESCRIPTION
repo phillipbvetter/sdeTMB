@@ -21,6 +21,6 @@ Imports:
     	TMB
 Suggests: 
     	ggplot2
-URL: https://phillipbvetter.github.io/ctsmrTMB/, https://github.com/phillipbvetter/ctsmrTMB
+URL: https://phillipbvetter.github.io/ctsmrTMB, https://github.com/phillipbvetter/ctsmrTMB
 
 	
