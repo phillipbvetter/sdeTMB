@@ -3,7 +3,7 @@ Type: Package
 Title: Continuous Time Stochastic Modelling with Template Model Builder
 Version: 0.5
 Date: 2023-02-27
-Authors@R: c(person("Phillip", "Vetter", "email=pbrve@dtu.dk", role = c("aut", "cre")),
+Authors@R: c(person("Phillip", "Vetter", email="pbrve@dtu.dk", role = c("aut", "cre")),
 		person("Jan", "Møller", email="jkmo@dtu.dk", role="ctb"),
 		person("Uffe", "Thygesen", email="uhth@dtu.dk", role="ctb"),
 		person("Peder", "Bacher", email="pbac@dtu.dk", role="ctb") )
