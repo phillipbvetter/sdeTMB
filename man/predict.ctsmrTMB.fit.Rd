@@ -16,7 +16,6 @@
   give.only.n.step.ahead = FALSE,
   use.simulation = FALSE,
   sim.timestep = NULL,
-  returned.sim.dt = NULL,
   n.sim = 100,
   quantiles = c(0.05, 0.5, 0.95),
   return.full.simulations = FALSE

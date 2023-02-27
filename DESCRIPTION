@@ -1,20 +1,26 @@
 Package: ctsmrTMB
 Title: Estimation, State Filtering and Forecasting in Stochastic State Space Models
 Version: 0.5
-Authors@R: 
-    person("Phillip", "Vetter", , "phillipvetter@outlook.com", role = c("aut", "cre"),
-           comment = c(ORCID = "YOUR-ORCID-ID"))
-Description: 'ctsmrTMB' (Continuous Time Stochastic Modelling for Template Model Builder) is a package inspired by Continuous Time Stochastic Modelling for R (CTSMr) and built around the Template Model Builder (TMB) R packages for user-friendly system construction, but with access to automatic differentiation and handling of random effect, for parameter estimation and prediction in stochastic state space systems.
-License: `use_mit_license()`, `use_gpl3_license()` or friends to pick a
-    license
+Authors@R: c( 
+    	person("Phillip B.", "Vetter", "pbrve@dtu.dk", role = c("aut", "cre")),
+	person("Jan K.", "Møller", "jkmo@dtu.dk", role = "ths"),
+	person("Uffe H.", "Thygesen", "uhth@dtu.dk", role = "ths"),
+	person("Peder", "Bacher", "pbac@dtu.dk", role = "ths"))
+Description: 'ctsmrTMB' (Continuous Time Stochastic Modelling in R using Template Model Builder) is a package inspired by Continuous Time Stochastic Modelling for R (CTSMr) and built around the Template Model Builder (TMB) R packages for user-friendly system construction, but with access to automatic differentiation and handling of random effect, for parameter estimation and prediction in stochastic state space systems.
+License:GPL-3
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.2.1
+Depends:
+	R (>= 4.2.2)
 Imports: 
-    Deriv,
-    patchwork,
-    R6,
-    stats,
-    TMB
+	Deriv,
+	patchwork,
+    	R6,
+    	stats,
+    	TMB
 Suggests: 
-    ggplot2
+    	ggplot2
+URL: https://phillipbvetter.github.io/ctsmrTMB/
+
+	
