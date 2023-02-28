@@ -6,12 +6,14 @@ Date: 2023-02-27
 Authors@R: c(person("Phillip", "Vetter", email="pbrve@dtu.dk", role = c("aut", "cre")),
 		person("Jan", "Møller", email="jkmo@dtu.dk", role="ctb"),
 		person("Uffe", "Thygesen", email="uhth@dtu.dk", role="ctb"),
-		person("Peder", "Bacher", email="pbac@dtu.dk", role="ctb") )
+		person("Peder", "Bacher", email="pbac@dtu.dk", role="ctb"),
+		person("Tobias", "Ritschel", email="tobk@dtu.dk", role="ctb") )
 Maintainer: Phillip Brinck Vetter <pbrve@dtu.dk>
 Author: Phillip Brinck Vetter [aut, cre],
 	Jan K. Møller [ctb],
 	Uffe H. Thygesen [ctb],
-	Peder Bacher [ctb]
+	Peder Bacher [ctb],
+	Tobias Ritschel [ctb]
 Description: 'ctsmrTMB' (Continuous Time Stochastic Modelling in R using Template Model Builder) is a package inspired by Continuous Time Stochastic Modelling for R (CTSMr) and built around the Template Model Builder (TMB) R packages for user-friendly system construction, but with access to automatic differentiation and handling of random effect, for parameter estimation and prediction in stochastic state space systems.
 License: GPL-3
 Encoding: UTF-8
