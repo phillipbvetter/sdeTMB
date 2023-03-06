@@ -12,3 +12,9 @@ This should be for both moment diff eqs and simulation (stochastic!)
 1. We need to be able to set `nlminb` settings in the `estimate` function.
 
 ## plot function for returned object from `predict`
+
+# add_parameters
+doesnt remove a fixed parameter when recalling add_parameters without NA's.
+We need to update this
+
+# Maybe just compile 1 single cpp function for all methods?
