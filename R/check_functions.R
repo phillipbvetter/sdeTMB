@@ -211,19 +211,20 @@ check_inputs <- function(input, self, private) {
   }
 
   # Does the input name start with dt or dw?
-  valid = !is.na(stringr::str_match(input,"^(?!d[tw])[[:alnum:]]*"))
+  as.char.input = deparse(input)
+  valid = !is.na(stringr::str_match(as.char.input,"^(?!d[tw])[[:alnum:]]*"))
   if (!valid) {
     stop("Input names are not allowed to start with dt or dw")
   }
 
   # Reserved input names
-  valid = !(input == "t")
+  valid = !(as.char.input == "t")
   if (!valid) {
     stop("'t' is already reserved for the time vector")
   }
 
   result = list(list(input=input))
-  names(result) = deparse(input)
+  names(result) = as.char.input
   return(result)
 }
 

@@ -26,7 +26,8 @@ Imports:
 	patchwork,
     	R6,
     	stats,
-    	TMB
+    	TMB,
+	stringr
 Suggests: 
     	ggplot2
 URL: https://phillipbvetter.github.io/ctsmrTMB, https://github.com/phillipbvetter/ctsmrTMB
