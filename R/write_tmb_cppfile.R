@@ -139,7 +139,7 @@ vector<Type> get_free_pars__(vector<int> mapints, int sum_mapints, vector<Type> 
     obsvars2 = sub(pattern=sprintf("^%s$",state.names[i]), replacement=sprintf("%s(Nc__(i))",state.names[i]), x=obsvars2)
   }
   if(length(obsvars2)<1){
-    obsvars2 = "Type a"
+    obsvars1 = "Type a"
     obsvars2 = "Type(0.0)"
   }
 

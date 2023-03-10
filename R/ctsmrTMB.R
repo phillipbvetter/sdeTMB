@@ -44,6 +44,7 @@ ctsmrTMB = R6::R6Class(
       private$tukey.pars = rep(0,4)
       private$silent = FALSE
       private$map = NULL
+      private$control.nlminb = list()
       # hidden
       private$linear = NULL
       private$fixed.pars = NULL
@@ -430,9 +431,10 @@ ctsmrTMB = R6::R6Class(
       if (!is.character(directory)) {
         stop("You must pass a string")
       }
-      # does the exist?
+      # create directory if it does not exist?
       if (!dir.exists(directory)) {
-        stop("The specified directory does not exist")
+        message("The specified directory does not exist - creating it")
+        dir.create(directory)
       }
       private$cppfile.directory = directory
       
@@ -464,6 +466,104 @@ ctsmrTMB = R6::R6Class(
         stop("The MAP covariance matrix should be square with dimension ", length(private$parameters))
       }
       private$map = list(mean=mean,cov=cov)
+      return(invisible(self))
+    },
+    ########################################################################
+    ########################################################################
+    #' @description Construct and extract function handlers for the negative
+    #' log likelihood function.
+    #'
+    #' The handlers from \code{TMB}'s \code{MakeADFun} are constructed and returned. 
+    #' This enables the user to e.g. determine their own optimization algorithm to use
+    #' for estimation.
+    #' 
+    #' @param data data.frame containing time-vector 't', observations and inputs. The observations
+    #' can take \code{NA}-values.  
+    #' @param ode.timestep numeric value. Sets the time step-size in numerical filtering schemes. 
+    #' The defined step-size is used to calculate the number of steps between observation time-points as 
+    #' defined by the provided \code{data}. If the calculated number of steps is larger than N.01 where N 
+    #' is an integer, then the time-step is reduced such that exactly N+1 steps is taken between observations  
+    #' The step-size is used in the two following ways depending on the
+    #' chosen method:
+    #' 1. Kalman filters: The time-step is used as the step-size in the
+    #' numerical Forward-Euler scheme to compute the prior state mean and
+    #' covariance estimate as the final time solution to the first and second
+    #' order moment differential equations.
+    #' 2. TMB method: The time-step is used as the step-size in the Euler-Maruyama
+    #' scheme for simulating a sample path of the stochastic differential equation,
+    #' which serves to link together the latent (random effects) states.
+    #' @param silence boolean value. Sets the tracing information for \code{TMB::MakeADFun} in the
+    #' argument \code{silent} which disables outputs from the optimization algoritm during runtime.
+    #' @param compile boolean value. The default (\code{FALSE}) is to not compile the C++ objective
+    #' function but assume it is already compiled and corresponds to the specified model object. It is
+    #' the user's responsibility to ensure correspondence between the specified model and the precompiled
+    #' C++ object. If a precompiled C++ object is not found in the specified directory i.e. 
+    #' in \code{<cppfile_directory>/<modelname>/(dll/so)} then the compile flag is set to \code{TRUE}.
+    #' If the user makes changes to system equations, observation equations, observation variances, 
+    #' algebraic relations or lamperi transformations then the C++ object should be recompiled.
+    #' @param method character vector - one of either "ekf", "ukf" or "tmb". Sets the estimation 
+    #' method. The package has three available methods implemented:
+    #' 1. The natural TMB-style formulation where latent states are considered random effects
+    #' and are integrated out using the Laplace approximation. This method only yields the gradient
+    #' of the (negative log) likelihood function with respect to the fixed effects for optimization.
+    #' The method is slower although probably has some precision advantages, and allows for non-Gaussian
+    #' observation noise (not yet implemented). One-step / K-step residuals are not yet available in
+    #' the package.
+    #' 2. (Continous-Discrete) Extended Kalman Filter where the system dynamics are linearized
+    #' to handle potential non-linearities. This is computationally the fastest method.
+    #' 3. (Continous-Discrete) Unscented Kalman Filter. This is a higher order non-linear Kalman Filter
+    #' which improves the mean and covariance estimates when the system display high nonlinearity, and
+    #' circumvents the necessity to compute the jacobian of the drift and observation functions.
+    #' 
+    #' All package features are currently available for the kalman filters, while TMB is limited to
+    #' parameter estimation. In particular, it is straight-forward to obtain k-step-ahead predictions
+    #' with these methods (use the \code{predict} S3 method), and stochastic simulation is also available 
+    #' in the cases where long prediction horizons are sought, where the normality assumption will be 
+    #' inaccurate.
+    #' @param loss character vector. Sets the loss function type (only implemented for the kalman filter
+    #' methods). The loss function is per default quadratic in the one-step residauls as is natural 
+    #' when the Gaussian (negative log) likelihood is evaluated, but if the tails of the 
+    #' distribution is considered too small i.e. outliers are weighted too much, then one 
+    #' can choose loss functions that accounts for this. The three available types available:
+    #' 
+    #' 1. Quadratic loss (\code{quadratic}).
+    #' 2. Quadratic-Linear (\code{huber})
+    #' 3. Quadratic-Constant (\code{tukey})
+    #' 
+    #' The cutoff for the Huber and Tukey loss functions are determined from a provided cutoff 
+    #' parameter \code{loss_c}. The implementations of these losses are approximations (pseudo-huber and sigmoid 
+    #' approxmation respectively) for smooth derivatives.
+    #' @param loss_c cutoff value for huber and tukey loss functions. Defaults to \code{c=3}
+    construct_nll = function(data,
+                       ode.timestep=NULL, 
+                       silence=FALSE, 
+                       compile=FALSE,
+                       method="ekf",
+                       loss="quadratic",
+                       loss_c=3) {
+      
+      # set flags
+      private$set_timestep(ode.timestep)
+      private$set_silence(silence)
+      private$set_compile(compile)
+      private$set_method(method)
+      private$set_loss(loss,loss_c)
+      
+      # build model
+      message("Building model...")
+      private$build_model()
+      
+      # check and set data
+      message("Checking data...")
+      check_and_set_data(data, self, private)
+      
+      # construct neg. log-likelihood
+      message("Constructing objective function...")
+      construct_nll(self, private)
+      
+      # return
+      message("Succesfully returned function handlers")
+      return(private$nll)
     },
     ########################################################################
     ########################################################################
@@ -471,13 +571,6 @@ ctsmrTMB = R6::R6Class(
     #' 
     #' @param data data.frame containing time-vector 't', observations and inputs. The observations
     #' can take \code{NA}-values.  
-    #' @param return.fit boolean value. The default (\code{TRUE}) is to return a list of parameter 
-    #' estimates, state estimates, and more. If \code{FALSE} then only the optimization object from
-    #' \code{stats::nlminb} and a \code{system.time} object is returned.
-    #' @param return.nll boolean value. If \code{TRUE} then a call to \code{estimate} will only return
-    #' the output from \code{TMB:MakeADFun} which is a list containing function handles to the (negative log)
-    #' likelihood and its gradient (and the hessian if available). The filter itself can therefore be run by
-    #' calling the objective function 'f' in the output list.
     #' @param use.hessian boolean value. The default (\code{TRUE}) causes the optimization algorithm
     #' \code{stats::nlminb} to use the fixed effects hessian of the (negative log) likelihood when
     #' performing the optimization. This feature is only available for the kalman filter methods 
@@ -529,7 +622,7 @@ ctsmrTMB = R6::R6Class(
     #' distribution is considered too small i.e. outliers are weighted too much, then one 
     #' can choose loss functions that accounts for this. The three available types available:
     #' 
-    #' 1. Quadratic loss (standard).
+    #' 1. Quadratic loss (\code{quadratic}).
     #' 2. Quadratic-Linear (\code{huber})
     #' 3. Quadratic-Constant (\code{tukey})
     #' 
@@ -537,16 +630,17 @@ ctsmrTMB = R6::R6Class(
     #' parameter \code{loss_c}. The implementations of these losses are approximations (pseudo-huber and sigmoid 
     #' approxmation respectively) for smooth derivatives.
     #' @param loss_c cutoff value for huber and tukey loss functions. Defaults to \code{c=3}
+    #' @param control list of control parameters parsed to \code{nlminb} as its \code{control} argument. 
+    #' See \code{?stats::nlminb} for more information
     estimate = function(data, 
-                        return.fit=TRUE, 
-                        return.nll=FALSE, 
                         use.hessian=FALSE,
                         ode.timestep=NULL, 
-                        silence=FALSE, 
+                        silence=TRUE, 
                         compile=FALSE,
                         method="ekf",
-                        loss="standard",
-                        loss_c=3) {
+                        loss="quadratic",
+                        loss_c=3,
+                        control=list(trace=1)) {
       
       # set flags
       private$use_hessian(use.hessian)
@@ -555,6 +649,7 @@ ctsmrTMB = R6::R6Class(
       private$set_compile(compile)
       private$set_method(method)
       private$set_loss(loss,loss_c)
+      private$set_control(control)
       
       
       # build model
@@ -564,23 +659,22 @@ ctsmrTMB = R6::R6Class(
       # }
       
       # check and set data
+      message("Checking data...")
       check_and_set_data(data, self, private)
+      
       # construct neg. log-likelihood function
-      optlist = construct_and_optimise(self, private, return.fit, return.nll)
-      # if return.nll just return the function objective and exit
-      if(return.nll){
-        message("Succesfully returned the negative log-likelihood function handlers.")
-        return(private$nll)
-      }
-      # create and return fit object
-      if(return.fit){
-        create_return_fit(self, private)
-        return(private$fit)
-      }
-      # return optimization and cpu-time instead of fit
-      if(!return.fit){
-        return(optlist)
-      }
+      message("Constructing objective function...")
+      construct_nll(self, private)
+      
+      # estimate
+      message("Minimizing the negative log-likelihood...")
+      optimise_nll(self, private)
+      
+      # create return fit
+      create_return_fit(self, private)
+      
+      # return fit
+      return(invisible(private$fit))
     },
     ########################################################################
     ########################################################################
@@ -739,6 +833,7 @@ ctsmrTMB = R6::R6Class(
     ode.dt = NULL,
     ode.N = NULL,
     ode.Ncumsum = NULL,
+    control.nlminb = NULL,
     # hidden
     linear = NULL,
     fixed.pars = NULL,
@@ -888,10 +983,10 @@ ctsmrTMB = R6::R6Class(
         stop("You must pass a string")
       }
       # choose one of the available methods
-      available_losses = c("standard","huber","tukey")
+      available_losses = c("quadratic","huber","tukey")
       if (!(loss %in% available_losses)) {
         stop("That method is not available. Please choose one of the following instead: \n
-                  1. Quadratic loss = 'standard'
+                  1. Quadratic loss = 'quadratic'
                   2. Quadratic-Linear loss = 'huber'
                   3. Quadratic-Constant loss = 'tukey'")
       }
@@ -917,6 +1012,17 @@ ctsmrTMB = R6::R6Class(
         l = 0L
       }
       private$loss = list(loss=l,c=c)
+      return(invisible(self))
+    },
+    ########################################################################
+    ########################################################################
+    # SET CONTROL FOR NLMINB
+    set_control = function(control) {
+      # is the control a list?
+      if (!(is.list(control))) {
+        stop("The control argument must be a list")
+      }
+      private$control.nlminb = control
       return(invisible(self))
     }
   )

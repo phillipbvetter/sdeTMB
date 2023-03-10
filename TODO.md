@@ -18,3 +18,5 @@ doesnt remove a fixed parameter when recalling add_parameters without NA's.
 We need to update this
 
 # Maybe just compile 1 single cpp function for all methods?
+
+# g function does not currently take states into arguments of function

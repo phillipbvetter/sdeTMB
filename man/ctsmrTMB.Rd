@@ -49,6 +49,7 @@ add_observations(y ~ exp(x1) + exp(x2))
 \item \href{#method-ctsmrTMB-set_modelname}{\code{ctsmrTMB$set_modelname()}}
 \item \href{#method-ctsmrTMB-set_cppfile_directory}{\code{ctsmrTMB$set_cppfile_directory()}}
 \item \href{#method-ctsmrTMB-set_map}{\code{ctsmrTMB$set_map()}}
+\item \href{#method-ctsmrTMB-construct_nll}{\code{ctsmrTMB$construct_nll()}}
 \item \href{#method-ctsmrTMB-estimate}{\code{ctsmrTMB$estimate()}}
 \item \href{#method-ctsmrTMB-print}{\code{ctsmrTMB$print()}}
 \item \href{#method-ctsmrTMB-summary}{\code{ctsmrTMB$summary()}}
@@ -382,21 +383,23 @@ with \code{mean} and \code{covariance} as provided.
 }
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-ctsmrTMB-estimate"></a>}}
-\if{latex}{\out{\hypertarget{method-ctsmrTMB-estimate}{}}}
-\subsection{Method \code{estimate()}}{
-Estimate the fixed effects parameters in the specified model.
+\if{html}{\out{<a id="method-ctsmrTMB-construct_nll"></a>}}
+\if{latex}{\out{\hypertarget{method-ctsmrTMB-construct_nll}{}}}
+\subsection{Method \code{construct_nll()}}{
+Construct and extract function handlers for the negative
+log likelihood function.
+
+The handlers from \code{TMB}'s \code{MakeADFun} are constructed and returned.
+This enables the user to e.g. determine their own optimization algorithm to use
+for estimation.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{ctsmrTMB$estimate(
+\if{html}{\out{<div class="r">}}\preformatted{ctsmrTMB$construct_nll(
   data,
-  return.fit = TRUE,
-  return.nll = FALSE,
-  use.hessian = FALSE,
   ode.timestep = NULL,
   silence = FALSE,
   compile = FALSE,
   method = "ekf",
-  loss = "standard",
+  loss = "quadratic",
   loss_c = 3
 )}\if{html}{\out{</div>}}
 }
@@ -407,14 +410,99 @@ Estimate the fixed effects parameters in the specified model.
 \item{\code{data}}{data.frame containing time-vector 't', observations and inputs. The observations
 can take \code{NA}-values.}
 
-\item{\code{return.fit}}{boolean value. The default (\code{TRUE}) is to return a list of parameter
-estimates, state estimates, and more. If \code{FALSE} then only the optimization object from
-\code{stats::nlminb} and a \code{system.time} object is returned.}
+\item{\code{ode.timestep}}{numeric value. Sets the time step-size in numerical filtering schemes.
+The defined step-size is used to calculate the number of steps between observation time-points as
+defined by the provided \code{data}. If the calculated number of steps is larger than N.01 where N
+is an integer, then the time-step is reduced such that exactly N+1 steps is taken between observations
+The step-size is used in the two following ways depending on the
+chosen method:
+\enumerate{
+\item Kalman filters: The time-step is used as the step-size in the
+numerical Forward-Euler scheme to compute the prior state mean and
+covariance estimate as the final time solution to the first and second
+order moment differential equations.
+\item TMB method: The time-step is used as the step-size in the Euler-Maruyama
+scheme for simulating a sample path of the stochastic differential equation,
+which serves to link together the latent (random effects) states.
+}}
 
-\item{\code{return.nll}}{boolean value. If \code{TRUE} then a call to \code{estimate} will only return
-the output from \code{TMB:MakeADFun} which is a list containing function handles to the (negative log)
-likelihood and its gradient (and the hessian if available). The filter itself can therefore be run by
-calling the objective function 'f' in the output list.}
+\item{\code{silence}}{boolean value. Sets the tracing information for \code{TMB::MakeADFun} in the
+argument \code{silent} which disables outputs from the optimization algoritm during runtime.}
+
+\item{\code{compile}}{boolean value. The default (\code{FALSE}) is to not compile the C++ objective
+function but assume it is already compiled and corresponds to the specified model object. It is
+the user's responsibility to ensure correspondence between the specified model and the precompiled
+C++ object. If a precompiled C++ object is not found in the specified directory i.e.
+in \code{<cppfile_directory>/<modelname>/(dll/so)} then the compile flag is set to \code{TRUE}.
+If the user makes changes to system equations, observation equations, observation variances,
+algebraic relations or lamperi transformations then the C++ object should be recompiled.}
+
+\item{\code{method}}{character vector - one of either "ekf", "ukf" or "tmb". Sets the estimation
+method. The package has three available methods implemented:
+\enumerate{
+\item The natural TMB-style formulation where latent states are considered random effects
+and are integrated out using the Laplace approximation. This method only yields the gradient
+of the (negative log) likelihood function with respect to the fixed effects for optimization.
+The method is slower although probably has some precision advantages, and allows for non-Gaussian
+observation noise (not yet implemented). One-step / K-step residuals are not yet available in
+the package.
+\item (Continous-Discrete) Extended Kalman Filter where the system dynamics are linearized
+to handle potential non-linearities. This is computationally the fastest method.
+\item (Continous-Discrete) Unscented Kalman Filter. This is a higher order non-linear Kalman Filter
+which improves the mean and covariance estimates when the system display high nonlinearity, and
+circumvents the necessity to compute the jacobian of the drift and observation functions.
+}
+
+All package features are currently available for the kalman filters, while TMB is limited to
+parameter estimation. In particular, it is straight-forward to obtain k-step-ahead predictions
+with these methods (use the \code{predict} S3 method), and stochastic simulation is also available
+in the cases where long prediction horizons are sought, where the normality assumption will be
+inaccurate.}
+
+\item{\code{loss}}{character vector. Sets the loss function type (only implemented for the kalman filter
+methods). The loss function is per default quadratic in the one-step residauls as is natural
+when the Gaussian (negative log) likelihood is evaluated, but if the tails of the
+distribution is considered too small i.e. outliers are weighted too much, then one
+can choose loss functions that accounts for this. The three available types available:
+\enumerate{
+\item Quadratic loss (\code{quadratic}).
+\item Quadratic-Linear (\code{huber})
+\item Quadratic-Constant (\code{tukey})
+}
+
+The cutoff for the Huber and Tukey loss functions are determined from a provided cutoff
+parameter \code{loss_c}. The implementations of these losses are approximations (pseudo-huber and sigmoid
+approxmation respectively) for smooth derivatives.}
+
+\item{\code{loss_c}}{cutoff value for huber and tukey loss functions. Defaults to \code{c=3}}
+}
+\if{html}{\out{</div>}}
+}
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-ctsmrTMB-estimate"></a>}}
+\if{latex}{\out{\hypertarget{method-ctsmrTMB-estimate}{}}}
+\subsection{Method \code{estimate()}}{
+Estimate the fixed effects parameters in the specified model.
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{ctsmrTMB$estimate(
+  data,
+  use.hessian = FALSE,
+  ode.timestep = NULL,
+  silence = TRUE,
+  compile = FALSE,
+  method = "ekf",
+  loss = "quadratic",
+  loss_c = 3,
+  control = list(trace = 1)
+)}\if{html}{\out{</div>}}
+}
+
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{data}}{data.frame containing time-vector 't', observations and inputs. The observations
+can take \code{NA}-values.}
 
 \item{\code{use.hessian}}{boolean value. The default (\code{TRUE}) causes the optimization algorithm
 \code{stats::nlminb} to use the fixed effects hessian of the (negative log) likelihood when
@@ -476,7 +564,7 @@ when the Gaussian (negative log) likelihood is evaluated, but if the tails of th
 distribution is considered too small i.e. outliers are weighted too much, then one
 can choose loss functions that accounts for this. The three available types available:
 \enumerate{
-\item Quadratic loss (standard).
+\item Quadratic loss (\code{quadratic}).
 \item Quadratic-Linear (\code{huber})
 \item Quadratic-Constant (\code{tukey})
 }
@@ -486,6 +574,9 @@ parameter \code{loss_c}. The implementations of these losses are approximations 
 approxmation respectively) for smooth derivatives.}
 
 \item{\code{loss_c}}{cutoff value for huber and tukey loss functions. Defaults to \code{c=3}}
+
+\item{\code{control}}{list of control parameters parsed to \code{nlminb} as its \code{control} argument.
+See \code{?stats::nlminb} for more information}
 }
 \if{html}{\out{</div>}}
 }

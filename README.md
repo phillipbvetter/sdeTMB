@@ -26,14 +26,46 @@ remotes::install_github(repo="phillipbvetter/ctsmrTMB", dependencies=TRUE)
 library(ctsmrTMB)
 library(ggplot2)
 
+
+############################################################
+# Data simulation
+############################################################
+
+# Simulate data using Euler Maruyama
+set.seed(10)
+pars = c(theta=10, mu=1, sigma_x=1, sigma_y=1e-2)
 # 
+dt.sim = 1e-3
+t.sim = seq(0,1,by=dt.sim)
+dw = rnorm(length(t.sim)-1,sd=sqrt(dt.sim))
+x = 3
+for(i in 1:N.sim) {
+  x[i+1] = x[i] + pars[1]*(pars[2]-x[i])*dt.sim + pars[3]*dw[i]
+}
+
+# Extract observations and add noise
+dt.obs = 1e-2
+t.obs = seq(0,1,by=dt.obs)
+y = x[t.sim %in% t.obs] + sqrt(pars[4]) * rnorm(length(t.obs))
+
+# Create data
+.data = data.frame(
+  t = t.obs,
+  y = y
+)
+
+############################################################
+# Model creation and estimation
+############################################################
+
+# Create model object
 obj = ctsmrTMB$new()
 
-# Modelname
+# Set name of model (and the created .cpp file)
 obj$set_modelname("ornstein_uhlenbeck")
 
-# Set location path for C++ file generation
-# obj$set_path("~/")
+# Set location where generated C++ files are stored
+obj$set_cppfile_directory("ctsmrTMB_cppfiles")
 
 # Add system equations
 obj$add_systems(
@@ -58,9 +90,12 @@ obj$add_algebraics(
 )
 
 # Perform a lamperti transformation (for state dependent diffusion)
+# This would be useful if we had sigma_x * x * dw in the diffusion term.
+# In this case the transformation z = log(x) would leave the transformed
+# process with state independent diffusion.
 # obj$set_lamperti("log")
 
-# Specify inputs
+# Specify inputs (if there were any)
 # obj$add_inputs(input1, input2)
 
 # Specify parameter initial values and lower/upper bounds in estimation
@@ -71,34 +106,31 @@ obj$add_parameters(
   logsigma_y ~ log(c(init=1e-1, lower=1e-10, upper=10))
 )
 
-# Simulate data using Euler Maruyama
-set.seed(10)
-pars = c(theta=10, mu=1, sigma_x=1, sigma_y=1e-2)
-# 
-dt.sim = 1e-3
-t.sim = seq(0,1,by=dt.sim)
-dw = rnorm(length(t.sim)-1,sd=sqrt(dt.sim))
-x = 3
-for(i in 1:N.sim) {
-  x[i+1] = x[i] + pars[1]*(pars[2]-x[i])*dt.sim + pars[3]*dw[i]
-}
-
-# Extract observations and add noise
-dt.obs = 1e-2
-t.obs = seq(0,1,by=dt.obs)
-y = x[t.sim %in% t.obs] + sqrt(pars[4]) * rnorm(length(t.obs))
-
 # Set initial state mean and covariance
 obj$set_initial_state(x[1], 1e-1*diag(1))
 
-# Create data
-.data = data.frame(
-  t = t.obs,
-  y = y
-)
+# If you want the objective function handlers (function, gradient and maybe hessian)
+# and choose you own optimizer then extract these by
+nll <- obj$construct_nll(.data, method="ekf")
 
-# Carry out estimation using extended kalman filter method
-fit <- obj$estimate(.data, method="ekf", use.hessian=T)
+# Carry out estimation using extended kalman filter method with in-built nlminb optimizer
+fit <- obj$estimate(.data, method="ekf", use.hessian=FALSE)
+
+# See the full list of options and explanations for estimate in
+?ctsmrTMB
+
+# Default options in estimate are
+fit <- obj$estimate(
+  data = .data,
+  use.hessian = FALSE,
+  ode.timestep = NULL,
+  silence = TRUE,
+  compile = FALSE,
+  method = "ekf", 
+  loss = "quadratic", 
+  loss_c = 3,
+  control = list(trace=1) 
+  )
 
 # Check parameter estimates against truth
 pars2real = function(x) c(exp(x[1]),x[2],exp(x[3]),exp(x[4]))
