@@ -114,7 +114,7 @@ obj$set_initial_state(x[1], 1e-1*diag(1))
 nll <- obj$construct_nll(.data, method="ekf")
 
 # Carry out estimation using extended kalman filter method with in-built nlminb optimizer
-fit <- obj$estimate(.data, method="ekf", use.hessian=FALSE)
+fit <- obj$estimate(.data, method="ekf")
 
 # See the full list of options and explanations for estimate in
 ?ctsmrTMB
