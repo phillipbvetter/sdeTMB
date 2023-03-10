@@ -46,7 +46,7 @@ for(i in 1:N.sim) {
 # Extract observations and add noise
 dt.obs = 1e-2
 t.obs = seq(0,1,by=dt.obs)
-y = x[t.sim %in% t.obs] + sqrt(pars[4]) * rnorm(length(t.obs))
+y = x[t.sim %in% t.obs] + pars[4] * rnorm(length(t.obs))
 
 # Create data
 .data = data.frame(
