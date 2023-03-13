@@ -327,9 +327,7 @@ predict.ctsmrTMB.fit = function(fit,
                                quantiles=c(0.05,0.5,0.95),
                                return.full.simulations=FALSE
 ){
-  
-  
-  
+
   ############################################################
   ############################################################
   ##################### INITIALIZATION #######################
@@ -392,8 +390,12 @@ predict.ctsmrTMB.fit = function(fit,
       stop("ode.timestep must have length 1.")
     }
   }
-  if (is.null(ode.timestep)) {
-    ode.timestep = min(diff(data$t))
+  if(is.null(ode.timestep)){
+    if(!is.null(private$ode.timestep)){
+      ode.timestep = private$ode.timestep
+    } else {
+      ode.timestep = min(diff(data$t))
+    }
   }
   if (ode.timestep - min(diff(data$t)) > 1e-12) {
     ode.timestep = min(diff(data$t))
@@ -558,7 +560,6 @@ predict.ctsmrTMB.fit = function(fit,
     ####### Branch 1: Simulations ############
     ##########################################
     if(use.simulation){
-      
       ##### CREATE DATA FRAME TO HOLD RESULTS #####
       
       # create data.frame to hold state predictions and quantiles
@@ -581,13 +582,15 @@ predict.ctsmrTMB.fit = function(fit,
       
       datmat = as.matrix(data)
       I.n = diag(private$n)
-      V.obs = diag(private$n)
+      V.obs = diag(private$m)
       dw_number = private$ng * n.sim
       len.g = private$n * private$ng * n.sim
       
       ##### LOOP OVER DATA TIME POINTS #####
       
       for (i in 1:last.possible.index){
+        message(sprintf("Predicting...: %s out of %s",i,last.possible.index))
+        
         # store the posterior estimate (initial or previous loop)
         index_i_i = (i-1)*(n.step.ahead+1) + 1
         df.out[index_i_i, private$state.names] = x0
@@ -650,7 +653,7 @@ predict.ctsmrTMB.fit = function(fit,
         s = sum(nas)
         if (s > 0){
           ynew = y[nas]
-          E. = diag(private$n)[nas,,drop=FALSE]
+          E. = diag(private$m)[nas,,drop=FALSE]
           e. = ynew - E. %*% h(x0,inputs)
           C. = E. %*% dhdx(x0,inputs)
           V. = E. %*% V.obs %*% t(E.)
@@ -693,12 +696,15 @@ predict.ctsmrTMB.fit = function(fit,
       
       datmat = as.matrix(data)
       I.n = diag(private$n)
-      V.obs = diag(private$n)
+      # V.obs = diag(private$n)
+      V.obs = diag(private$m)
       
       ##### LOOP OVER DATA TIME POINTS #####
       
       for (i in 1:last.possible.index){
-        # store the posterior estimate (initial or previous loop)
+        message(sprintf("Predicting...: %s out of %s",i,last.possible.index))
+
+                # store the posterior estimate (initial or previous loop)
         index_i_i = (i-1)*(n.step.ahead+1) + 1
         df.out[index_i_i, private$state.names] = x0
         df.out[index_i_i,disp_names] = as.vector(stats::cov2cor(p0))
@@ -738,7 +744,7 @@ predict.ctsmrTMB.fit = function(fit,
         s = sum(nas)
         if (s > 0){
           ynew = y[nas]
-          E. = diag(private$n)[nas,,drop=FALSE]
+          E. = diag(private$m)[nas,,drop=FALSE]
           e. = ynew - E. %*% h(x0,inputs)
           C. = E. %*% dhdx(x0,inputs)
           V. = E. %*% V.obs %*% t(E.)
@@ -775,7 +781,9 @@ predict.ctsmrTMB.fit = function(fit,
         df.out = df.out[df.out[["n.step.ahead"]]==n.step.ahead,]
       }
       
+      
       # return data.frame
+      message("Prediction finished!")
       return(pred=df.out)
     }
     

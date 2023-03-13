@@ -1002,7 +1002,8 @@ ctsmrTMB = R6::R6Class(
           )
         }
         tukeyloss = function(.pars){
-          res = sum((funtukey(rtukey) - .pars[4]*(sigmoid(rtukey,a=.pars[1],b=.pars[2])+.pars[3]))^2)
+          # res = sum((funtukey(rtukey) - .pars[4]*(sigmoid(rtukey,a=.pars[1],b=.pars[2])+.pars[3]))^2)
+          res = sum((funtukey(rtukey) - .pars[4]*(invlogit2(rtukey,a=.pars[1],b=.pars[2])+.pars[3]))^2)
         }
         tukeyopt = nlminb(start=rep(1,4),objective=tukeyloss)
         private$tukey.pars = tukeyopt$par

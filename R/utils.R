@@ -22,6 +22,7 @@ simplify_formula = function(form) {
 
 logit = function(x) log(x/(1-x))
 invlogit = function(x) 1/(1+exp(-x))
+invlogit2 = function(x,a,b) 1/(1+exp(-a*(x-b)))
 
 #######################################################
 # CHANGE FROM R POWER NOTATION TO C++
