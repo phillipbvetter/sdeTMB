@@ -112,6 +112,8 @@ obj$set_initial_state(x[1], 1e-1*diag(1))
 # If you want the objective function handlers (function, gradient and maybe hessian)
 # and choose you own optimizer then extract these by
 nll <- obj$construct_nll(.data, method="ekf")
+# then nll$fn(), nll$gr() and nll$he() evaluates the objective function, its gradient and hessian respectively.
+# the functions takes values of the fixed effects as argument (initial parameter values are found in nll$par)
 
 # Carry out estimation using extended kalman filter method with in-built nlminb optimizer
 fit <- obj$estimate(.data, method="ekf")
