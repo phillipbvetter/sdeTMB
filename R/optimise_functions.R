@@ -83,7 +83,7 @@ check_and_set_data = function(data, self, private) {
 }
 
 #######################################################
-# CONSTRUCT AD-FUN AND RUN OPTIMIZATION
+# CONSTRUCT AD-FUN
 #######################################################
 
 construct_nll = function(self, private){
@@ -106,6 +106,9 @@ construct_nll = function(self, private){
   .data1 = list(
     # method
     estMethod__ = estMethod__,
+    pred__ = private$pred.bool,
+    last_pred_index = private$last.pred.index,
+    k_step_ahead = private$k.step.ahead,
     # initial
     X0__ = private$initial.state$mean,
     P0__ = private$initial.state$cov,
@@ -175,6 +178,10 @@ construct_nll = function(self, private){
   private$nll = nll
   return(invisible(self))
 }
+
+#######################################################
+# OPTIMISE AD FUN
+#######################################################
 
 optimise_nll = function(self, private) {
   
@@ -252,200 +259,6 @@ optimise_nll = function(self, private) {
   # return
   return(invisible(self))
 }
-
-# construct_and_optimise = function(self, private, return.fit, return.nll) {
-# 
-#   # Find free parameters
-#   bool = private$parameter.names %in% names(private$fixed.pars)
-#   private$free.pars = private$parameters[!bool]
-# 
-#   ################################################
-#   # Data
-#   ################################################
-#   
-#   estMethod__ = switch(private$method,
-#     ekf = 1,
-#     ukf = 2,
-#     tmb = 3
-#   )
-#     
-# 
-#   # add mandatory entries to data
-#   .data1 = list(
-#     # method
-#     estMethod__ = estMethod__,
-#     # initial
-#     X0__ = private$initial.state$mean,
-#     P0__ = private$initial.state$cov,
-#     # time-steps
-#     dt__ = private$ode.dt,
-#     N__ = private$ode.N,
-#     Nc__ = private$ode.Ncumsum,
-#     # loss function
-#     which_loss__ = private$loss$loss,
-#     loss_c_value__ = private$loss$c,
-#     tukey_pars__ = private$tukey.pars,
-#     # misc
-#     n__ = private$n,
-#     m__ = private$m,
-#     ng__ = private$ng
-#   )
-# 
-#   # add MAP entries to data if MAP is active
-#   if (!is.null(private$map)) {
-#     .data2 = list(
-#       map_bool__ = 1,
-#       map_mean__ = private$map$mean,
-#       map_cov__ = private$map$cov,
-#       map_ints__ = as.numeric(!bool),
-#       sum_map_ints__ = sum(as.numeric(!bool))
-#     )
-#     private$map$mean = private$map$mean[!bool]
-#     private$map$cov = private$map$cov[!bool,!bool]
-#   } else {
-#     .data2 = list(
-#       map_bool__ = 0
-#     )
-#   }
-#   # add constants to data
-#   .data3 = lapply(private$constants, function(x) x$rhs)
-# 
-#   # construct final data list
-#   data = c( private$data, .data1, private$iobs, .data2, .data3)
-# 
-#   ################################################
-#   # Parameters
-#   ################################################
-# 
-#   parameters = c(
-#     private$tmb.initial.state.for.parameters,
-#     lapply(private$parameters, function(x) x$init)
-#   )
-# 
-#   ################################################
-#   # Construct Neg. Log-Likelihood
-#   ################################################
-#   
-#   .random = private$state.names
-#   if (any(private$method==c("ekf","ukf"))) {
-#     .random = NULL
-#   }
-#   
-#   message("Constructing function template...")
-#   nll = TMB::MakeADFun(data = data,
-#                        parameters = parameters,
-#                        map = private$fixed.pars,
-#                        DLL = private$modelname,
-#                        # DLL = private$modelname.with.method,
-#                        silent = private$silent,
-#                        random = .random)
-# 
-#   # save objective function
-#   private$nll = nll
-# 
-#   # if return.nll is true just return the objective function and exit
-#   if(return.nll){
-#     return(invisible(NULL))
-#   }
-# 
-#   ################################################
-#   # Optimise
-#   ################################################
-# 
-#   lb = unlist(lapply(private$free.pars, function(x) x$lb))
-#   ub = unlist(lapply(private$free.pars, function(x) x$ub))
-# 
-#   message("Minimizing the negative log-likelihood...")
-# 
-#   # IF METHOD IS KALMAN FILTER
-#   if (any(private$method==c("ekf","ukf"))) {
-#     # use function, gradient and hessian
-#     if (private$use.hessian) {
-#       comptime = system.time(
-#         opt <- try_withWarningRecovery(stats::nlminb(start = private$nll$par,
-#                                                      objective = private$nll$fn,
-#                                                      gradient = private$nll$gr,
-#                                                      he = private$nll$he,
-#                                                      lower = lb,
-#                                                      upper = ub,
-#                                                      control=private$control.nlminb))
-#       )
-#       # or just function and gradient
-#     } else {
-#       comptime = system.time(
-#         opt <- try_withWarningRecovery(stats::nlminb(start = private$nll$par,
-#                                                      objective = private$nll$fn,
-#                                                      gradient = private$nll$gr,
-#                                                      lower = lb,
-#                                                      upper = ub,
-#                                                      control=private$control.nlminb))
-#       )
-#     }
-#   }
-#   # IF METHOD IS TMB
-#   if (private$method =="tmb") {
-#     comptime = system.time(
-#       opt <- try_withWarningRecovery(stats::nlminb(start = private$nll$par,
-#                                                    objective = private$nll$fn,
-#                                                    gradient = private$nll$gr,
-#                                                    lower = lb,
-#                                                    upper = ub,
-#                                                    control=private$control.nlminb))
-#     )
-#   }
-# 
-#   # Check for error in the optimization
-#   if (inherits(opt,"try-error")) {
-#     message("The optimisation failed due to the following error: \n\n\t",opt)
-#   }
-# 
-#   # If optimization failed return NULL
-#   if (is.null(opt$convergence)) {
-#     private$opt = NULL
-#     return(invisible(self))
-#   }
-#   private$opt = opt
-# 
-#   # mgc and computation time
-#   outer_mgc = max(abs(nll$gr(opt$par)))
-#   comp.time = format(round(as.numeric(comptime["elapsed"])*1e4)/1e4,digits=5,scientific=F)
-# 
-#   # print convergence and timing result
-#   if(private$opt$convergence==0){
-#     message("The optimization converged:
-#             Elapsed time: ", comp.time, " seconds.
-#             The objetive value is: ",format(opt$objective,scientific=T),"
-#             The maximum gradient component is: ",format(outer_mgc,digits=2,scientific=T),"
-#             The convergence message is: ", opt$message,"
-#             Iterations: ",opt$iterations,"
-#             Evaluations: Fun: ",opt$evaluations["function"]," Grad: ",opt$evaluations[["gradient"]]
-#     )
-#   }
-#   #
-#   if(private$opt$convergence==1){
-#     message("The optimization did not converge:
-#             Elapsed time: ", comp.time, " seconds.
-#             The objetive value is: ",opt$objective,"
-#             The maximum gradient component is: ",format(outer_mgc,digits=2,scientific=T),"
-#             The convergence message is: ", opt$message,"
-#             Iterations: ",opt$iterations,"
-#             Evaluations: Fun: ",opt$evaluations["function"]," Grad: ",opt$evaluations[["gradient"]]
-#     )
-#   }
-# 
-#   # For TMB method: computes various stats
-#   if (private$method=="tmb") {
-#     private$sdr = TMB::sdreport(private$nll)
-#   }
-# 
-#   # if we dont want the return fit, just give opt and timing
-#   if(!return.fit){
-#     return(list(time=comptime,opt=opt))
-#   }
-# 
-#   # return
-#   return(invisible(self))
-# }
 
 #######################################################
 # MAKE RETURN DATA NICE AFTER OPTIMIZATION

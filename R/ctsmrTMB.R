@@ -71,6 +71,10 @@ ctsmrTMB = R6::R6Class(
       private$nll = NULL
       private$opt = NULL
       private$fit = NULL
+      # predict
+      private$pred.bool = 0
+      private$k.step.ahead = 0
+      private$last.pred.index = 0
     },
     ########################################################################
     ########################################################################
@@ -535,12 +539,12 @@ ctsmrTMB = R6::R6Class(
     #' approxmation respectively) for smooth derivatives.
     #' @param loss_c cutoff value for huber and tukey loss functions. Defaults to \code{c=3}
     construct_nll = function(data,
-                       ode.timestep=NULL, 
-                       silence=FALSE, 
-                       compile=FALSE,
-                       method="ekf",
-                       loss="quadratic",
-                       loss_c=3) {
+                             ode.timestep=NULL, 
+                             silence=FALSE, 
+                             compile=FALSE,
+                             method="ekf",
+                             loss="quadratic",
+                             loss_c=3) {
       
       # set flags
       private$set_timestep(ode.timestep)
@@ -650,6 +654,7 @@ ctsmrTMB = R6::R6Class(
       private$set_method(method)
       private$set_loss(loss,loss_c)
       private$set_control(control)
+      private$pred.bool=0
       
       
       # build model
@@ -675,6 +680,99 @@ ctsmrTMB = R6::R6Class(
       
       # return fit
       return(invisible(private$fit))
+    },
+    ########################################################################
+    ########################################################################
+    #' @description Estimate the fixed effects parameters in the specified model.
+    #' 
+    #' @param data data.frame containing time-vector 't', observations and inputs. The observations
+    #' can take \code{NA}-values.  
+    #' @param pars fixed parameter vector
+    #' @param k.step.ahead integer specifying the desired number of time-steps (as determined by the provided
+    #' data time-vector) for which predictions are made (integrating the moment ODEs forward in time without 
+    #' data updates).
+    #' @param ode.timestep numeric value. Sets the time step-size in numerical filtering schemes. 
+    #' The defined step-size is used to calculate the number of steps between observation time-points as 
+    #' defined by the provided \code{data}. If the calculated number of steps is larger than N.01 where N 
+    #' is an integer, then the time-step is reduced such that exactly N+1 steps is taken between observations  
+    #' The step-size is used in the two following ways depending on the
+    #' chosen method:
+    #' 1. Kalman filters: The time-step is used as the step-size in the
+    #' numerical Forward-Euler scheme to compute the prior state mean and
+    #' covariance estimate as the final time solution to the first and second
+    #' order moment differential equations.
+    #' 2. TMB method: The time-step is used as the step-size in the Euler-Maruyama
+    #' scheme for simulating a sample path of the stochastic differential equation,
+    #' which serves to link together the latent (random effects) states.
+    #' @param compile boolean value. The default (\code{FALSE}) is to not compile the C++ objective
+    #' function but assume it is already compiled and corresponds to the specified model object. It is
+    #' the user's responsibility to ensure correspondence between the specified model and the precompiled
+    #' C++ object. If a precompiled C++ object is not found in the specified directory i.e. 
+    #' in \code{<cppfile_directory>/<modelname>/(dll/so)} then the compile flag is set to \code{TRUE}.
+    #' If the user makes changes to system equations, observation equations, observation variances, 
+    #' algebraic relations or lamperi transformations then the C++ object should be recompiled.
+    #' @param method character vector - one of either "ekf", "ukf" or "tmb". Sets the estimation 
+    #' method. The package has three available methods implemented:
+    #' 1. The natural TMB-style formulation where latent states are considered random effects
+    #' and are integrated out using the Laplace approximation. This method only yields the gradient
+    #' of the (negative log) likelihood function with respect to the fixed effects for optimization.
+    #' The method is slower although probably has some precision advantages, and allows for non-Gaussian
+    #' observation noise (not yet implemented). One-step / K-step residuals are not yet available in
+    #' the package.
+    #' 2. (Continous-Discrete) Extended Kalman Filter where the system dynamics are linearized
+    #' to handle potential non-linearities. This is computationally the fastest method.
+    #' 3. (Continous-Discrete) Unscented Kalman Filter. This is a higher order non-linear Kalman Filter
+    #' which improves the mean and covariance estimates when the system display high nonlinearity, and
+    #' circumvents the necessity to compute the jacobian of the drift and observation functions.
+    #' 
+    #' All package features are currently available for the kalman filters, while TMB is limited to
+    #' parameter estimation. In particular, it is straight-forward to obtain k-step-ahead predictions
+    #' with these methods (use the \code{predict} S3 method), and stochastic simulation is also available 
+    #' in the cases where long prediction horizons are sought, where the normality assumption will be 
+    #' inaccurate.
+    predict = function(data,
+                       pars=NULL,
+                       k.step.ahead=1,
+                       ode.timestep=NULL, 
+                       compile=FALSE,
+                       method="ekf") {
+      
+      # set flags
+      private$set_compile(compile)
+      private$set_method(method)
+    
+      # build model
+      # if (private$compile) {
+      message("Building model...")
+      private$build_model()
+      # }
+      
+      # check and set data
+      message("Checking data...")
+      check_and_set_data(data, self, private)
+      
+      # set flags
+      private$set_k_step_ahead_and_last_pred_index(data, k.step.ahead)
+      private$pred.bool = 1
+      
+      # construct neg. log-likelihood function
+      message("Constructing objective function...")
+      construct_nll(self, private)
+      
+      # evaluate nll
+      if(is.null(pars)){
+        pars=private$nll$par
+      }
+      message("Predicting...")
+      private$nll$fn(pars)
+      rep = private$nll$rep()
+      
+      # construct return data.frame
+      
+      
+
+      # return 
+      return(invisible(rep))
     },
     ########################################################################
     ########################################################################
@@ -854,6 +952,10 @@ ctsmrTMB = R6::R6Class(
     opt = NULL,
     sdr = NULL,
     fit = NULL,
+    # predict
+    pred.bool = NULL,
+    k.step.ahead = NULL,
+    last.pred.index = NULL,
     ########################################################################
     ########################################################################
     # lamperti transform functions
@@ -1024,6 +1126,23 @@ ctsmrTMB = R6::R6Class(
         stop("The control argument must be a list")
       }
       private$control.nlminb = control
+      return(invisible(self))
+    },
+    ########################################################################
+    ########################################################################
+    # SET k step ahead and last pred index for obj$predict
+    set_k_step_ahead_and_last_pred_index = function(data, k.step.ahead) {
+      # is integer numeric?
+      if (!(is.numeric(k.step.ahead)) & !(length(k.step.ahead==1)) & k.step.ahead >= 0) {
+        stop("k.step.ahead must be a non-negative numeric integer")
+      }
+      last.pred.index = nrow(data) - k.step.ahead
+      if(last.pred.index < 0){
+        message(sprintf("The provided k.step.ahead exceeds the provided data. Setting k.step.ahead = %i.",nrow(data)))
+        last.pred.index = nrow(data)
+      }
+      private$k.step.ahead = k.step.ahead
+      private$last.pred.index = last.pred.index
       return(invisible(self))
     }
   )

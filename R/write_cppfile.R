@@ -160,18 +160,21 @@ matrix<Type> Phi__(matrix<Type> M){
   fvars1 = paste("Type", fvars0, collapse=", ")
   fvars1_sigma = paste("Type", fvars0_sigma, collapse=", ")
   fvars2 = fvars0
+  fvars2.pred = fvars0
   fvars2.tmb = fvars0
   fvars2_sigma = fvars0
   fvars2_sigma2 = fvars0_sigma
   if(length(private$input.names)>0){
     for(i in 1:length(private$input.names)){
       fvars2 = sub(pattern=sprintf("^%s$",private$input.names[i]), replacement=sprintf("%s(i)",private$input.names[i]), x=fvars2)
+      fvars2.pred = sub(pattern=sprintf("^%s$",private$input.names[i]), replacement=sprintf("%s(i+k)",private$input.names[i]), x=fvars2.pred)
       fvars2.tmb = sub(pattern=sprintf("^%s$",private$input.names[i]), replacement=sprintf("%s(i)",private$input.names[i]), x=fvars2.tmb)
       fvars2_sigma2 = sub(pattern=sprintf("^%s$",private$input.names[i]), replacement=sprintf("%s(i)",private$input.names[i]), x=fvars2_sigma2)
     }
   }
   for(i in 1:private$n){
     fvars2 = sub(pattern=sprintf("^%s$",private$state.names[i]),replacement=sprintf("x0__(%s)",i-1),fvars2)
+    fvars2.pred = sub(pattern=sprintf("^%s$",private$state.names[i]),replacement=sprintf("x0__(%s)",i-1),fvars2.pred)
     fvars2.tmb = sub(pattern=sprintf("^%s$",private$state.names[i]), replacement=sprintf("%s(Nc__(i)+j)",private$state.names[i]), x=fvars2.tmb)
     fvars2_sigma = sub(pattern=sprintf("^%s$",private$state.names[i]),replacement=sprintf("x0(%s)",i-1),fvars2_sigma)
   }
@@ -222,17 +225,22 @@ matrix<Type> construct_F__(matrix<Type> Xsp, %s){
   dfdxvars0 = sort(unique(dfdxvars0))
   dfdxvars1 = paste("Type", dfdxvars0, collapse=", ")
   dfdxvars2 = dfdxvars0
+  dfdxvars2.pred = dfdxvars0
   if(length(private$input.names)>0){
     for(i in 1:length(private$input.names)){
       dfdxvars2 = sub(pattern=sprintf("^%s$",private$input.names[i]), replacement=sprintf("%s(i)",private$input.names[i]), x=dfdxvars2)
+      dfdxvars2.pred = sub(pattern=sprintf("^%s$",private$input.names[i]), replacement=sprintf("%s(i+k)",private$input.names[i]), x=dfdxvars2.pred)
     }
   }
   for(i in 1:private$n){
     dfdxvars2 = sub(pattern=sprintf("^%s$",private$state.names[i]),replacement=sprintf("x0__(%s)",i-1),dfdxvars2)
+    dfdxvars2.pred = sub(pattern=sprintf("^%s$",private$state.names[i]),replacement=sprintf("x0__(%s)",i-1),dfdxvars2.pred)
   }
   if(length(dfdxvars2)<1){
     dfdxvars1 = "Type void_filler"
     dfdxvars2 = "Type(0.0)"
+    dfdxvars2.pred = "Type(0.0)"
+    
   }
   
   dfdx = matrix(0,nrow=private$n,ncol=private$n)
@@ -265,11 +273,13 @@ matrix<Type> construct_F__(matrix<Type> Xsp, %s){
   gvars0 = sort(unique(gvars0))
   gvars1 = paste("Type", gvars0, collapse=", ")
   gvars2 = gvars0
+  gvars2.pred = gvars0
   gvars2.tmb = gvars0
   gvars2_sigma = gvars0
   if(length(private$input.names)>0){
     for(i in 1:length(private$input.names)){
       gvars2 = sub(pattern=sprintf("^%s$",private$input.names[i]), replacement=sprintf("%s(i)",private$input.names[i]), x=gvars2)
+      gvars2.pred = sub(pattern=sprintf("^%s$",private$input.names[i]), replacement=sprintf("%s(i+k)",private$input.names[i]), x=gvars2.pred)
       gvars2.tmb = sub(pattern=sprintf("^%s$",private$input.names[i]), replacement=sprintf("%s(i)",private$input.names[i]), x=gvars2.tmb)
       gvars2_sigma = sub(pattern=sprintf("^%s$",private$state.names[i]),replacement=sprintf("Xsp0__(0,%s)",i-1),gvars2)
     }
@@ -396,10 +406,10 @@ matrix<Type> construct_F__(matrix<Type> Xsp, %s){
   }
 return H;
 }",
-  hvars1.withoutStates, 
-  2*private$n+1, 
-  private$m, 
-  hvars2)
+hvars1.withoutStates, 
+2*private$n+1, 
+private$m, 
+hvars2)
   
   txt = c(txt, temptxt)
   
@@ -470,8 +480,8 @@ return H;
   V = obsvarFun__(%s);
   return V;
   }",
-    obsvars1.withoutStates,
-    obsvars2)
+  obsvars1.withoutStates,
+  obsvars2)
   txt = c(txt, temptxt)
   
   ##################################################
@@ -483,6 +493,7 @@ return H;
   txt = c(txt,"template<class Type>\nType objective_function<Type>::operator() ()\n{")
   
   txt = c(txt, "\t DATA_INTEGER(estMethod__);")
+  txt = c( txt , "\t DATA_INTEGER(pred__);")
   txt = c(txt, "\t Type nll__ = 0;")
   
   ##################################################
@@ -491,6 +502,11 @@ return H;
   
   txt = c(txt, "\n//////////// EKF METHOD ///////////")
   txt = c(txt, "\t if(estMethod__ == 1){")
+  
+  
+  txt = c(txt, "\n\t //////////// Estimation //////////////")
+  txt = c(txt, "\n\t //////////// Estimation //////////////")
+  txt = c(txt, "\t if(pred__ == 0){")
   
   # Observation Vectors
   txt = c(txt, "\n//// observations ////")
@@ -653,6 +669,152 @@ return H;
   txt = c(txt ,"\t REPORT(xPost);")
   txt = c(txt, "\t REPORT(pPrior);")
   txt = c(txt, "\t REPORT(pPost);")
+  
+  
+  txt = c(txt, "\n\t //////////// Prediction //////////////")
+  txt = c(txt, "\n\t //////////// Prediction //////////////")
+  txt = c(txt, "\t } else if(pred__ == 1){")
+  
+  # Observation Vectors
+  txt = c(txt, "\n//// observations ////")
+  for(i in 1:length(private$obs.names)){
+    txt = c(txt, sprintf("\t DATA_VECTOR(%s);",private$obs.names[i]))
+  }
+  
+  # Input Vectors
+  txt = c(txt, "\n//// inputs ////")
+  for(i in 1:length(private$input.names)){
+    txt = c(txt, sprintf("\t DATA_VECTOR(%s);",private$input.names[i]))
+  }
+  
+  # Initialize State
+  txt = c(txt, "\n//// initial state ////")
+  txt = c(txt, "\t DATA_VECTOR(X0__);")
+  txt = c(txt, "\t DATA_MATRIX(P0__);")
+  
+  # Time-step
+  txt = c(txt, "\t DATA_VECTOR(dt__);")
+  txt = c(txt, "\t DATA_IVECTOR(N__);")
+  
+  # Parameters
+  txt = c(txt, "\n//// parameters ////")
+  for(i in 1:length(private$parameters)){
+    txt = c(txt, sprintf("\t PARAMETER(%s);",private$parameter.names[i]))
+  }
+  
+  # Constants
+  txt = c(txt, "\n//// constants ////")
+  for (i in 1:length(private$constants)) {
+    txt = c( txt , sprintf("\t DATA_SCALAR(%s);",private$constant.names[i]))
+  }
+  
+  # System size
+  txt = c(txt, "\n//// system size ////")
+  txt = c( txt , "\t DATA_INTEGER(n__);")
+  txt = c( txt , "\t DATA_INTEGER(m__);")
+  
+  # Prediction variables
+  txt = c( txt , "\t DATA_INTEGER(last_pred_index);")
+  txt = c( txt , "\t DATA_INTEGER(k_step_ahead);")
+  
+  # Prediction storage
+  # index i storage
+  txt = c(txt, "\t vector<matrix<Type>> xk__(last_pred_index+1);")
+  txt = c(txt, "\t vector<matrix<Type>> pk__(last_pred_index+1);")
+  txt = c(txt, "\t xk__.fill(matrix<Type>(k_step_ahead+1,n__));")
+  txt = c(txt, "\t pk__.fill(matrix<Type>(k_step_ahead+1,n__*n__));")
+  # temp index k storage
+  txt = c(txt, "\t matrix<Type> xk_temp__(k_step_ahead+1,n__);")
+  txt = c(txt, "\t array<Type> pk_temp__(n__,n__,k_step_ahead+1);")
+  
+  # in each k-step-ahead im saving k state vectors, and k covariance matrices temporarily.
+  # these can be saved into a matrix and stored in a vector of index i...
+  
+  txt = c(txt, "\n//////////// set initial value ///////////")
+  txt = c(txt, "\t vector<Type> x0__ = X0__;")
+  txt = c(txt, "\t matrix<Type> p0__ = P0__;")
+  
+  # Initiaze variables
+  txt = c(txt, "\n\t //////////// initialize variables ///////////")
+  txt = c(txt, "\t int s__;")
+  txt = c(txt, "\t vector<Type> data_vector__(m__),na_bool__,e__,y__,F__,H__;")
+  txt = c(txt, "\t matrix<Type> C__,R__,K__,E__,V__,Ri__,A__,G__;")
+  
+  # Identity Matrix
+  txt = c(txt, "\n\t //////////// identity matrix ///////////")
+  txt = c(txt, "\t matrix<Type> I__(n__,n__);")
+  txt = c(txt, "\t I__.setIdentity();")
+  
+  # Main For-Loop
+  txt = c(txt, "\n\t //////////// MAIN LOOP OVER TIME POINTS ///////////")
+  txt = c(txt, "\t for(int i=0 ; i<last_pred_index ; i++){")
+  
+  txt = c(txt,"\n\t\t xk_temp__.row(0) << x0__;")
+  txt = c(txt,"\t\t pk_temp__.col(0) << p0__;")
+  
+  # K-step-ahead for-loop
+  txt = c(txt, "\n\t //////////// K-STEP-AHEAD LOOP ///////////")
+  txt = c(txt, "\t for(int k=0 ; k < k_step_ahead ; k++){")
+  
+  # Solve Moment ODEs
+  txt = c(txt, "\n\t\t //////////// TIME-UPDATE: SOLVE MOMENT ODES ///////////")
+  txt = c(txt, "\t\t for(int j=0 ; j<N__(i+k) ; j++){")
+  #
+  txt = c(txt, sprintf("\t\t\t F__  = f__(%s);",paste(fvars2.pred,collapse=", ")) )
+  txt = c(txt, sprintf("\t\t\t A__  = dfdx__(%s);",paste(dfdxvars2.pred,collapse=", ")) )
+  txt = c(txt, sprintf("\t\t\t G__  = g__(%s);",paste(gvars2.pred,collapse=", ")) )
+  #
+  txt = c(txt,"\t\t\t x0__ = x0__ + F__ * dt__(i);")
+  txt = c(txt, "\t\t\t p0__ = p0__ + ( A__*p0__ + p0__*A__.transpose() + G__*G__.transpose() ) * dt__(i);")
+  #
+  txt = c(txt, "\t\t }")
+  
+  txt = c(txt, "\n\t\t\t //////////// save k-step-ahead prediction ///////////")
+  txt = c(txt,"\t\t\t xk_temp__.row(k+1) << x0__;")
+  txt = c(txt,"\t\t\t pk_temp__.col(k+1) << p0__;")
+  txt = c(txt, "\t\t }")
+  
+  txt = c(txt, "\n\t\t //////////// save all 0 to k step-ahead predictions ///////////")
+  txt = c(txt,"\t\t xk__(i) = xk_temp__;")
+  txt = c(txt,"\t\t for(int kk=0 ; kk < k_step_ahead+1 ; kk++){")
+  txt = c(txt,"\t\t\t pk__(i).row(kk) = vector<Type>(pk_temp__.col(kk).transpose());")
+  txt = c(txt, "\t\t }")
+  
+  txt = c(txt, "\n\t\t //////////// rewrite x0 and p0 to one-step predictions ///////////")
+  txt = c(txt,"\t\t x0__ = xk_temp__.row(1);")
+  txt = c(txt,"\t\t p0__ = pk_temp__.col(1).matrix();")
+  
+  # Data Update
+  txt = c(txt, "\n\t\t //////////// DATA-UPDATE ///////////")
+  obs.lhs = paste(unlist(lapply(private$obs.eqs.trans,function(x) deparse(x$form[[2]]))),"(i+1)",sep="")
+  txt = c(txt, sprintf("\t\t data_vector__ << %s;", paste(obs.lhs,collapse=", ")))
+  txt = c(txt, "\t\t na_bool__ = is_not_na(data_vector__);")
+  txt = c(txt, "\t\t s__ = CppAD::Integer(sum(na_bool__));")
+  # Start if statement for observations
+  txt = c(txt, "\t\t if( s__ > 0 ){")
+  txt = c(txt, "\t\t\t y__  = remove_nas__(data_vector__, s__, na_bool__);")
+  txt = c(txt, "\t\t\t E__  = construct_permutation_matrix(s__, m__, na_bool__);")
+  txt = c(txt, sprintf("\t\t\t H__  = h__(%s);",paste(hvars2,collapse=", ")))
+  txt = c(txt, sprintf("\t\t\t C__  = E__ * dhdx__(%s);", paste(dhdxvars2,collapse=", ")))
+  txt = c(txt, "\t\t\t e__  = y__ - E__ * H__;")
+  txt = c(txt, sprintf("\t\t\t V__  = E__ * obsvarFun__(%s) * E__.transpose();", paste(obsvars2,collapse=" ,")))
+  txt = c(txt, "\t\t\t R__  = C__ * p0__ * C__.transpose() + V__;")
+  txt = c(txt, "\t\t\t Ri__ = R__.inverse();")
+  txt = c(txt, "\t\t\t K__ 	= p0__ * C__.transpose() * Ri__;")
+  txt = c(txt, "\t\t\t x0__ = x0__ + K__*e__;")
+  txt = c(txt, "\t\t\t p0__ = (I__ - K__ * C__) * p0__ * (I__ - K__ * C__).transpose() + K__* V__ * K__.transpose();")
+  txt = c(txt, "\t\t }")
+  txt = c(txt, "\t }")
+  
+  
+  # Report variables
+  txt = c(txt, "\n\t //////////// Return/Report //////////////")
+  #
+  # txt = c(txt ,"\t REPORT(Innovation);")
+  txt = c(txt ,"\t REPORT(xk__);")
+  txt = c(txt ,"\t REPORT(pk__);")
+  
+  txt = c(txt, "\t }")
   
   txt = c(txt, "\n//////////// UKF METHOD ///////////")
   txt = c(txt, "} else if(estMethod__ == 2){")

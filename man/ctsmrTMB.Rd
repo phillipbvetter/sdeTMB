@@ -51,6 +51,7 @@ add_observations(y ~ exp(x1) + exp(x2))
 \item \href{#method-ctsmrTMB-set_map}{\code{ctsmrTMB$set_map()}}
 \item \href{#method-ctsmrTMB-construct_nll}{\code{ctsmrTMB$construct_nll()}}
 \item \href{#method-ctsmrTMB-estimate}{\code{ctsmrTMB$estimate()}}
+\item \href{#method-ctsmrTMB-predict}{\code{ctsmrTMB$predict()}}
 \item \href{#method-ctsmrTMB-print}{\code{ctsmrTMB$print()}}
 \item \href{#method-ctsmrTMB-summary}{\code{ctsmrTMB$summary()}}
 \item \href{#method-ctsmrTMB-plot}{\code{ctsmrTMB$plot()}}
@@ -577,6 +578,83 @@ approxmation respectively) for smooth derivatives.}
 
 \item{\code{control}}{list of control parameters parsed to \code{nlminb} as its \code{control} argument.
 See \code{?stats::nlminb} for more information}
+}
+\if{html}{\out{</div>}}
+}
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-ctsmrTMB-predict"></a>}}
+\if{latex}{\out{\hypertarget{method-ctsmrTMB-predict}{}}}
+\subsection{Method \code{predict()}}{
+Estimate the fixed effects parameters in the specified model.
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{ctsmrTMB$predict(
+  data,
+  pars = NULL,
+  k.step.ahead = 1,
+  ode.timestep = NULL,
+  compile = FALSE,
+  method = "ekf"
+)}\if{html}{\out{</div>}}
+}
+
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{data}}{data.frame containing time-vector 't', observations and inputs. The observations
+can take \code{NA}-values.}
+
+\item{\code{pars}}{fixed parameter vector}
+
+\item{\code{k.step.ahead}}{integer specifying the desired number of time-steps (as determined by the provided
+data time-vector) for which predictions are made (integrating the moment ODEs forward in time without
+data updates).}
+
+\item{\code{ode.timestep}}{numeric value. Sets the time step-size in numerical filtering schemes.
+The defined step-size is used to calculate the number of steps between observation time-points as
+defined by the provided \code{data}. If the calculated number of steps is larger than N.01 where N
+is an integer, then the time-step is reduced such that exactly N+1 steps is taken between observations
+The step-size is used in the two following ways depending on the
+chosen method:
+\enumerate{
+\item Kalman filters: The time-step is used as the step-size in the
+numerical Forward-Euler scheme to compute the prior state mean and
+covariance estimate as the final time solution to the first and second
+order moment differential equations.
+\item TMB method: The time-step is used as the step-size in the Euler-Maruyama
+scheme for simulating a sample path of the stochastic differential equation,
+which serves to link together the latent (random effects) states.
+}}
+
+\item{\code{compile}}{boolean value. The default (\code{FALSE}) is to not compile the C++ objective
+function but assume it is already compiled and corresponds to the specified model object. It is
+the user's responsibility to ensure correspondence between the specified model and the precompiled
+C++ object. If a precompiled C++ object is not found in the specified directory i.e.
+in \code{<cppfile_directory>/<modelname>/(dll/so)} then the compile flag is set to \code{TRUE}.
+If the user makes changes to system equations, observation equations, observation variances,
+algebraic relations or lamperi transformations then the C++ object should be recompiled.}
+
+\item{\code{method}}{character vector - one of either "ekf", "ukf" or "tmb". Sets the estimation
+method. The package has three available methods implemented:
+\enumerate{
+\item The natural TMB-style formulation where latent states are considered random effects
+and are integrated out using the Laplace approximation. This method only yields the gradient
+of the (negative log) likelihood function with respect to the fixed effects for optimization.
+The method is slower although probably has some precision advantages, and allows for non-Gaussian
+observation noise (not yet implemented). One-step / K-step residuals are not yet available in
+the package.
+\item (Continous-Discrete) Extended Kalman Filter where the system dynamics are linearized
+to handle potential non-linearities. This is computationally the fastest method.
+\item (Continous-Discrete) Unscented Kalman Filter. This is a higher order non-linear Kalman Filter
+which improves the mean and covariance estimates when the system display high nonlinearity, and
+circumvents the necessity to compute the jacobian of the drift and observation functions.
+}
+
+All package features are currently available for the kalman filters, while TMB is limited to
+parameter estimation. In particular, it is straight-forward to obtain k-step-ahead predictions
+with these methods (use the \code{predict} S3 method), and stochastic simulation is also available
+in the cases where long prediction horizons are sought, where the normality assumption will be
+inaccurate.}
 }
 \if{html}{\out{</div>}}
 }
