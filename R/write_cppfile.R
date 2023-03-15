@@ -409,7 +409,9 @@ return H;
 hvars1.withoutStates, 
 2*private$n+1, 
 private$m, 
-hvars2)
+# hvars2
+paste(hvars2,collapse=",")
+)
   
   txt = c(txt, temptxt)
   
@@ -719,8 +721,8 @@ hvars2)
   
   # Prediction storage
   # index i storage
-  txt = c(txt, "\t vector<matrix<Type>> xk__(last_pred_index+1);")
-  txt = c(txt, "\t vector<matrix<Type>> pk__(last_pred_index+1);")
+  txt = c(txt, "\t vector<matrix<Type>> xk__(last_pred_index);")
+  txt = c(txt, "\t vector<matrix<Type>> pk__(last_pred_index);")
   txt = c(txt, "\t xk__.fill(matrix<Type>(k_step_ahead+1,n__));")
   txt = c(txt, "\t pk__.fill(matrix<Type>(k_step_ahead+1,n__*n__));")
   # temp index k storage
@@ -749,8 +751,8 @@ hvars2)
   txt = c(txt, "\n\t //////////// MAIN LOOP OVER TIME POINTS ///////////")
   txt = c(txt, "\t for(int i=0 ; i<last_pred_index ; i++){")
   
-  txt = c(txt,"\n\t\t xk_temp__.row(0) << x0__;")
-  txt = c(txt,"\t\t pk_temp__.col(0) << p0__;")
+  txt = c(txt,"\n\t\t xk_temp__.row(0) = x0__;")
+  txt = c(txt,"\t\t pk_temp__.col(0) = p0__;")
   
   # K-step-ahead for-loop
   txt = c(txt, "\n\t //////////// K-STEP-AHEAD LOOP ///////////")
@@ -764,14 +766,14 @@ hvars2)
   txt = c(txt, sprintf("\t\t\t A__  = dfdx__(%s);",paste(dfdxvars2.pred,collapse=", ")) )
   txt = c(txt, sprintf("\t\t\t G__  = g__(%s);",paste(gvars2.pred,collapse=", ")) )
   #
-  txt = c(txt,"\t\t\t x0__ = x0__ + F__ * dt__(i);")
-  txt = c(txt, "\t\t\t p0__ = p0__ + ( A__*p0__ + p0__*A__.transpose() + G__*G__.transpose() ) * dt__(i);")
+  txt = c(txt,"\t\t\t x0__ = x0__ + F__ * dt__(i+k);")
+  txt = c(txt, "\t\t\t p0__ = p0__ + ( A__*p0__ + p0__*A__.transpose() + G__*G__.transpose() ) * dt__(i+k);")
   #
   txt = c(txt, "\t\t }")
   
   txt = c(txt, "\n\t\t\t //////////// save k-step-ahead prediction ///////////")
-  txt = c(txt,"\t\t\t xk_temp__.row(k+1) << x0__;")
-  txt = c(txt,"\t\t\t pk_temp__.col(k+1) << p0__;")
+  txt = c(txt,"\t\t\t xk_temp__.row(k+1) = x0__;")
+  txt = c(txt,"\t\t\t pk_temp__.col(k+1) = p0__;")
   txt = c(txt, "\t\t }")
   
   txt = c(txt, "\n\t\t //////////// save all 0 to k step-ahead predictions ///////////")
@@ -813,7 +815,6 @@ hvars2)
   # txt = c(txt ,"\t REPORT(Innovation);")
   txt = c(txt ,"\t REPORT(xk__);")
   txt = c(txt ,"\t REPORT(pk__);")
-  
   txt = c(txt, "\t }")
   
   txt = c(txt, "\n//////////// UKF METHOD ///////////")

@@ -687,10 +687,12 @@ ctsmrTMB = R6::R6Class(
     #' 
     #' @param data data.frame containing time-vector 't', observations and inputs. The observations
     #' can take \code{NA}-values.  
-    #' @param pars fixed parameter vector
+    #' @param pars fixed parameter vector parsed to the objective function for prediction/filtration.
     #' @param k.step.ahead integer specifying the desired number of time-steps (as determined by the provided
     #' data time-vector) for which predictions are made (integrating the moment ODEs forward in time without 
     #' data updates).
+    #' @param return.covariance booelan value to indicate whether the covariance (instead of the correlation) 
+    #' should be returned.
     #' @param ode.timestep numeric value. Sets the time step-size in numerical filtering schemes. 
     #' The defined step-size is used to calculate the number of steps between observation time-points as 
     #' defined by the provided \code{data}. If the calculated number of steps is larger than N.01 where N 
@@ -713,6 +715,9 @@ ctsmrTMB = R6::R6Class(
     #' algebraic relations or lamperi transformations then the C++ object should be recompiled.
     #' @param method character vector - one of either "ekf", "ukf" or "tmb". Sets the estimation 
     #' method. The package has three available methods implemented:
+    #' 
+    #' ONLY EKF IS IMPLEMENTED CURRENTLY!!
+    #' 
     #' 1. The natural TMB-style formulation where latent states are considered random effects
     #' and are integrated out using the Laplace approximation. This method only yields the gradient
     #' of the (negative log) likelihood function with respect to the fixed effects for optimization.
@@ -730,22 +735,25 @@ ctsmrTMB = R6::R6Class(
     #' with these methods (use the \code{predict} S3 method), and stochastic simulation is also available 
     #' in the cases where long prediction horizons are sought, where the normality assumption will be 
     #' inaccurate.
+    #' 
     predict = function(data,
                        pars=NULL,
                        k.step.ahead=1,
                        ode.timestep=NULL, 
                        compile=FALSE,
-                       method="ekf") {
+                       method="ekf",
+                       return.covariance=TRUE) {
       
       # set flags
       private$set_compile(compile)
+      if(method!="ekf"){
+        stop("The predict function is currently only implemented for method = 'ekf'.")
+      }
       private$set_method(method)
     
       # build model
-      # if (private$compile) {
       message("Building model...")
       private$build_model()
-      # }
       
       # check and set data
       message("Checking data...")
@@ -767,12 +775,40 @@ ctsmrTMB = R6::R6Class(
       private$nll$fn(pars)
       rep = private$nll$rep()
       
+      message("Constructing return data.frame...")
       # construct return data.frame
+      df.out = data.frame(matrix(nrow=private$last.pred.index*(private$k.step.ahead+1), ncol=5+private$n+private$n^2))
+      # 
+      disp_names = sprintf(rep("cor[%s,%s]",private$n^2),rep(private$state.names,each=private$n),rep(private$state.names,private$n))
+      disp_names[seq.int(1,private$n^2,by=private$n+1)] = sprintf(rep("var[%s]",private$n),private$state.names)
+      var_bool = !stringr::str_detect(disp_names,"cor")
+      if(return.covariance){
+        disp_names = sprintf(rep("cov[%s,%s]",private$n^2),rep(private$state.names,each=private$n),rep(private$state.names,private$n))
+        disp_names[seq.int(1,private$n^2,by=private$n+1)] = sprintf(rep("var[%s]",private$n),private$state.names)
+      }
+      names(df.out) = c("k","k+i","t_{k}","t_{k+i}","k.step.ahead",private$state.names,disp_names)
+      #
+      # print(df.out)
+      ran = 0:(private$last.pred.index-1)
+      df.out["k"] = rep(ran,each=private$k.step.ahead+1)
+      df.out["k+i"] = df.out["k"] + rep(0:private$k.step.ahead,private$last.pred.index)
+      df.out["t_{k}"] = rep(data$t[ran+1],each=private$k.step.ahead+1)
+      df.out["t_{k+i}"] = data$t[df.out[,"k"]+1+rep(0:private$k.step.ahead,private$last.pred.index)]
+      df.out["k.step.ahead"] = rep(0:private$k.step.ahead,private$last.pred.index)
+      # return states
+      df.out[,private$state.names] = do.call(rbind,rep$xk__)
+      # return cov / cor
+      if(return.covariance){
+        df.out[,disp_names] = do.call(rbind,rep$pk__)
+      } else {
+        df.out[,disp_names] = do.call(rbind, lapply(rep$pk__,function(x) do.call(rbind, apply(x,1, function(y) as.vector(cov2cor(matrix(y,ncol=2,byrow=T))),simplify=FALSE))))
+        diag.ids = seq(from=1,to=private$n^2,by=private$n+1)
+        df.out[,disp_names[diag.ids]] = do.call(rbind,rep$pk__)[,diag.ids]
+      }
+      class(df.out) = c("ctsmrTMB.pred", "data.frame")
       
-      
-
       # return 
-      return(invisible(rep))
+      return(invisible(df.out))
     },
     ########################################################################
     ########################################################################
@@ -1133,16 +1169,19 @@ ctsmrTMB = R6::R6Class(
     # SET k step ahead and last pred index for obj$predict
     set_k_step_ahead_and_last_pred_index = function(data, k.step.ahead) {
       # is integer numeric?
-      if (!(is.numeric(k.step.ahead)) & !(length(k.step.ahead==1)) & k.step.ahead >= 0) {
+      if (!(is.numeric(k.step.ahead)) & !(length(k.step.ahead==1)) & k.step.ahead >= 1) {
         stop("k.step.ahead must be a non-negative numeric integer")
       }
       last.pred.index = nrow(data) - k.step.ahead
-      if(last.pred.index < 0){
-        message(sprintf("The provided k.step.ahead exceeds the provided data. Setting k.step.ahead = %i.",nrow(data)))
-        last.pred.index = nrow(data)
+      if(last.pred.index < 1){
+        stop("The provided k.step.ahead exceeds the possible maximum (nrow(data)-1)")
+        # message(sprintf("The argument k.step.ahead = %s can't be larger than the number of rows in the data minus one:\n\t Reducing to k.step.ahead = %i.",k.step.ahead, nrow(data)-1))
+        # k.step.ahead = nrow(data) - 1
       }
+      
+      # return values
       private$k.step.ahead = k.step.ahead
-      private$last.pred.index = last.pred.index
+      private$last.pred.index = nrow(data) - k.step.ahead
       return(invisible(self))
     }
   )

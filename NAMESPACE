@@ -2,6 +2,7 @@
 
 S3method(plot,ctsmrTMB)
 S3method(plot,ctsmrTMB.fit)
+S3method(predict,ctsmrTMB)
 S3method(predict,ctsmrTMB.fit)
 S3method(print,ctsmrTMB)
 S3method(print,ctsmrTMB.fit)

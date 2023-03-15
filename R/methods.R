@@ -108,10 +108,10 @@ getggplot2colors = function(n) {
 #' @returns A huge amount of information
 #' @export
 plot.ctsmrTMB = function(object,
-                        plot.obs=1,
-                        extended=FALSE,
-                        use.ggplot=FALSE,
-                        ggtheme=getggplot2theme()) {
+                         plot.obs=1,
+                         extended=FALSE,
+                         use.ggplot=FALSE,
+                         ggtheme=getggplot2theme()) {
   object$plot(plot.obs=plot.obs, use.ggplot=use.ggplot, extended=extended, ggtheme=ggtheme)
   return(invisible(NULL))
 }
@@ -122,10 +122,10 @@ plot.ctsmrTMB = function(object,
 #' @export
 #' @importFrom stats frequency fft spec.taper
 plot.ctsmrTMB.fit = function(fit,
-                            plot.obs=1,
-                            use.ggplot=FALSE,
-                            extended=FALSE,
-                            ggtheme=getggplot2theme()) {
+                             plot.obs=1,
+                             use.ggplot=FALSE,
+                             extended=FALSE,
+                             ggtheme=getggplot2theme()) {
   
   # get private fields from object
   private = fit$.__object__$.__enclos_env__$private
@@ -299,6 +299,88 @@ plot.ctsmrTMB.fit = function(fit,
 }
 
 #######################################################
+# Predict ctsmrTMB - S3 Method
+#######################################################
+
+
+
+#' @title Perform prediction/filtration on \code{ctsmrTMB} object.
+#' @description Perform prediction/filtration on \code{ctsmrTMB} object.
+#' 
+#' @param data data.frame containing time-vector 't', observations and inputs. The observations
+#' can take \code{NA}-values.  
+#' @param pars fixed parameter vector parsed to the objective function for prediction/filtration.
+#' @param k.step.ahead integer specifying the desired number of time-steps (as determined by the provided
+#' data time-vector) for which predictions are made (integrating the moment ODEs forward in time without 
+#' data updates).
+#' @param return.covariance booelan value to indicate whether the covariance (instead of the correlation) 
+#' should be returned.
+#' @param ode.timestep numeric value. Sets the time step-size in numerical filtering schemes. 
+#' The defined step-size is used to calculate the number of steps between observation time-points as 
+#' defined by the provided \code{data}. If the calculated number of steps is larger than N.01 where N 
+#' is an integer, then the time-step is reduced such that exactly N+1 steps is taken between observations  
+#' The step-size is used in the two following ways depending on the
+#' chosen method:
+#' 1. Kalman filters: The time-step is used as the step-size in the
+#' numerical Forward-Euler scheme to compute the prior state mean and
+#' covariance estimate as the final time solution to the first and second
+#' order moment differential equations.
+#' 2. TMB method: The time-step is used as the step-size in the Euler-Maruyama
+#' scheme for simulating a sample path of the stochastic differential equation,
+#' which serves to link together the latent (random effects) states.
+#' @param compile boolean value. The default (\code{FALSE}) is to not compile the C++ objective
+#' function but assume it is already compiled and corresponds to the specified model object. It is
+#' the user's responsibility to ensure correspondence between the specified model and the precompiled
+#' C++ object. If a precompiled C++ object is not found in the specified directory i.e. 
+#' in \code{<cppfile_directory>/<modelname>/(dll/so)} then the compile flag is set to \code{TRUE}.
+#' If the user makes changes to system equations, observation equations, observation variances, 
+#' algebraic relations or lamperi transformations then the C++ object should be recompiled.
+#' @param method character vector - one of either "ekf", "ukf" or "tmb". Sets the estimation 
+#' method. The package has three available methods implemented:
+#' 
+#' ONLY EKF IS IMPLEMENTED CURRENTLY!!
+#' 
+#' 1. The natural TMB-style formulation where latent states are considered random effects
+#' and are integrated out using the Laplace approximation. This method only yields the gradient
+#' of the (negative log) likelihood function with respect to the fixed effects for optimization.
+#' The method is slower although probably has some precision advantages, and allows for non-Gaussian
+#' observation noise (not yet implemented). One-step / K-step residuals are not yet available in
+#' the package.
+#' 2. (Continous-Discrete) Extended Kalman Filter where the system dynamics are linearized
+#' to handle potential non-linearities. This is computationally the fastest method.
+#' 3. (Continous-Discrete) Unscented Kalman Filter. This is a higher order non-linear Kalman Filter
+#' which improves the mean and covariance estimates when the system display high nonlinearity, and
+#' circumvents the necessity to compute the jacobian of the drift and observation functions.
+#' 
+#' All package features are currently available for the kalman filters, while TMB is limited to
+#' parameter estimation. In particular, it is straight-forward to obtain k-step-ahead predictions
+#' with these methods (use the \code{predict} S3 method), and stochastic simulation is also available 
+#' in the cases where long prediction horizons are sought, where the normality assumption will be 
+#' inaccurate.
+#' @returns State estimates and covariance/correlations
+#' @export
+predict.ctsmrTMB = function(object,
+                            data,
+                            pars=NULL,
+                            k.step.ahead=1,
+                            ode.timestep=NULL, 
+                            compile=FALSE,
+                            method="ekf",
+                            return.covariance=TRUE
+){
+  
+  # Call predict method function
+  df.out = object$predict(data=data, 
+                          pars=pars, 
+                          k.step.ahead=k.step.ahead,
+                          ode.timestep=ode.timestep,
+                          compile=compile,
+                          method=method,
+                          return.covariance=return.covariance)
+  return(invisible(df.out))
+}
+
+#######################################################
 # Predict - S3 Method
 #######################################################
 
@@ -313,21 +395,21 @@ plot.ctsmrTMB.fit = function(fit,
 #' @returns Prediction from model
 #' @export
 predict.ctsmrTMB.fit = function(fit,
-                               data=NULL,
-                               x0=NULL,
-                               p0=NULL,
-                               n.step.ahead=1,
-                               ode.timestep=NULL,
-                               return.state.dispersion=FALSE,
-                               covariance=FALSE,
-                               give.only.n.step.ahead=FALSE,
-                               use.simulation=FALSE,
-                               sim.timestep=NULL,
-                               n.sim=100,
-                               quantiles=c(0.05,0.5,0.95),
-                               return.full.simulations=FALSE
+                                data=NULL,
+                                x0=NULL,
+                                p0=NULL,
+                                n.step.ahead=1,
+                                ode.timestep=NULL,
+                                return.state.dispersion=FALSE,
+                                covariance=FALSE,
+                                give.only.n.step.ahead=FALSE,
+                                use.simulation=FALSE,
+                                sim.timestep=NULL,
+                                n.sim=100,
+                                quantiles=c(0.05,0.5,0.95),
+                                return.full.simulations=FALSE
 ){
-
+  
   ############################################################
   ############################################################
   ##################### INITIALIZATION #######################
@@ -703,8 +785,8 @@ predict.ctsmrTMB.fit = function(fit,
       
       for (i in 1:last.possible.index){
         # message(sprintf("Predicting...: %s out of %s",i,last.possible.index))
-
-                # store the posterior estimate (initial or previous loop)
+        
+        # store the posterior estimate (initial or previous loop)
         index_i_i = (i-1)*(n.step.ahead+1) + 1
         df.out[index_i_i, private$state.names] = x0
         df.out[index_i_i,disp_names] = as.vector(stats::cov2cor(p0))

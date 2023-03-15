@@ -594,7 +594,8 @@ Estimate the fixed effects parameters in the specified model.
   k.step.ahead = 1,
   ode.timestep = NULL,
   compile = FALSE,
-  method = "ekf"
+  method = "ekf",
+  return.covariance = TRUE
 )}\if{html}{\out{</div>}}
 }
 
@@ -604,7 +605,7 @@ Estimate the fixed effects parameters in the specified model.
 \item{\code{data}}{data.frame containing time-vector 't', observations and inputs. The observations
 can take \code{NA}-values.}
 
-\item{\code{pars}}{fixed parameter vector}
+\item{\code{pars}}{fixed parameter vector parsed to the objective function for prediction/filtration.}
 
 \item{\code{k.step.ahead}}{integer specifying the desired number of time-steps (as determined by the provided
 data time-vector) for which predictions are made (integrating the moment ODEs forward in time without
@@ -636,6 +637,8 @@ algebraic relations or lamperi transformations then the C++ object should be rec
 
 \item{\code{method}}{character vector - one of either "ekf", "ukf" or "tmb". Sets the estimation
 method. The package has three available methods implemented:
+
+ONLY EKF IS IMPLEMENTED CURRENTLY!!
 \enumerate{
 \item The natural TMB-style formulation where latent states are considered random effects
 and are integrated out using the Laplace approximation. This method only yields the gradient
@@ -655,6 +658,9 @@ parameter estimation. In particular, it is straight-forward to obtain k-step-ahe
 with these methods (use the \code{predict} S3 method), and stochastic simulation is also available
 in the cases where long prediction horizons are sought, where the normality assumption will be
 inaccurate.}
+
+\item{\code{return.covariance}}{booelan value to indicate whether the covariance (instead of the correlation)
+should be returned.}
 }
 \if{html}{\out{</div>}}
 }
