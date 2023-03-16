@@ -784,7 +784,7 @@ predict.ctsmrTMB.fit = function(fit,
       ##### LOOP OVER DATA TIME POINTS #####
       
       for (i in 1:last.possible.index){
-        # message(sprintf("Predicting...: %s out of %s",i,last.possible.index))
+        message(sprintf("Predicting...: %s out of %s",i,last.possible.index))
         
         # store the posterior estimate (initial or previous loop)
         index_i_i = (i-1)*(n.step.ahead+1) + 1

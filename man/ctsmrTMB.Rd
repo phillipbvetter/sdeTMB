@@ -589,12 +589,14 @@ See \code{?stats::nlminb} for more information}
 Estimate the fixed effects parameters in the specified model.
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{ctsmrTMB$predict(
-  data,
+  data = NULL,
   pars = NULL,
   k.step.ahead = 1,
   ode.timestep = NULL,
   compile = FALSE,
   method = "ekf",
+  x0 = NULL,
+  p0 = NULL,
   return.covariance = TRUE
 )}\if{html}{\out{</div>}}
 }
@@ -658,6 +660,10 @@ parameter estimation. In particular, it is straight-forward to obtain k-step-ahe
 with these methods (use the \code{predict} S3 method), and stochastic simulation is also available
 in the cases where long prediction horizons are sought, where the normality assumption will be
 inaccurate.}
+
+\item{\code{x0}}{numeric vector containing the initial expected state values}
+
+\item{\code{p0}}{numeric matrix contianing the initial state covariances}
 
 \item{\code{return.covariance}}{booelan value to indicate whether the covariance (instead of the correlation)
 should be returned.}

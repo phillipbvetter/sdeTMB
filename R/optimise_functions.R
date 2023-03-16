@@ -102,6 +102,14 @@ construct_nll = function(self, private){
                        tmb = 3
   )
   
+  # Set initial state for estimate or predict
+  initial.state.mean = private$initial.state$mean
+  initial.state.cov = private$initial.state$cov
+  if(private$pred.bool == 1){
+    initial.state.mean = private$pred.initial.state$mean
+    initial.state.cov = private$pred.initial.state$cov
+  }
+  
   # add mandatory entries to data
   .data1 = list(
     # method
@@ -110,8 +118,8 @@ construct_nll = function(self, private){
     last_pred_index = private$last.pred.index,
     k_step_ahead = private$k.step.ahead,
     # initial
-    X0__ = private$initial.state$mean,
-    P0__ = private$initial.state$cov,
+    X0__ = initial.state.mean,
+    P0__ = initial.state.cov,
     # time-steps
     dt__ = private$ode.dt,
     N__ = private$ode.N,
@@ -269,6 +277,9 @@ create_return_fit = function(self, private) {
   if (is.null(private$opt)) {
     return(NULL)
   }
+  
+  # store data in fit
+  private$fit$data = private$data
   
   private$fit$convergence = private$opt$convergence
   private$fit$.__object__ = self$clone()

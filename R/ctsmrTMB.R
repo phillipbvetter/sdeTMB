@@ -28,6 +28,7 @@ ctsmrTMB = R6::R6Class(
       private$constants = NULL
       private$parameters = NULL
       private$initial.state = NULL
+      private$pred.initial.state = list(mean=NULL,cov=NULL)
       private$tmb.initial.state.for.parameters = NULL
       private$iobs = NULL
       # after algebraics
@@ -654,14 +655,12 @@ ctsmrTMB = R6::R6Class(
       private$set_method(method)
       private$set_loss(loss,loss_c)
       private$set_control(control)
-      private$pred.bool=0
+      private$pred.bool = 0
       
       
       # build model
-      # if (private$compile) {
       message("Building model...")
       private$build_model()
-      # }
       
       # check and set data
       message("Checking data...")
@@ -686,13 +685,15 @@ ctsmrTMB = R6::R6Class(
     #' @description Estimate the fixed effects parameters in the specified model.
     #' 
     #' @param data data.frame containing time-vector 't', observations and inputs. The observations
-    #' can take \code{NA}-values.  
+    #' can take \code{NA}-values.
     #' @param pars fixed parameter vector parsed to the objective function for prediction/filtration.
     #' @param k.step.ahead integer specifying the desired number of time-steps (as determined by the provided
     #' data time-vector) for which predictions are made (integrating the moment ODEs forward in time without 
     #' data updates).
     #' @param return.covariance booelan value to indicate whether the covariance (instead of the correlation) 
     #' should be returned.
+    #' @param x0 numeric vector containing the initial expected state values 
+    #' @param p0 numeric matrix contianing the initial state covariances
     #' @param ode.timestep numeric value. Sets the time step-size in numerical filtering schemes. 
     #' The defined step-size is used to calculate the number of steps between observation time-points as 
     #' defined by the provided \code{data}. If the calculated number of steps is larger than N.01 where N 
@@ -736,21 +737,37 @@ ctsmrTMB = R6::R6Class(
     #' in the cases where long prediction horizons are sought, where the normality assumption will be 
     #' inaccurate.
     #' 
-    predict = function(data,
+    predict = function(data=NULL,
                        pars=NULL,
                        k.step.ahead=1,
                        ode.timestep=NULL, 
                        compile=FALSE,
                        method="ekf",
+                       x0 = NULL,
+                       p0 = NULL,
                        return.covariance=TRUE) {
       
       # set flags
       private$set_compile(compile)
-      if(method!="ekf"){
-        stop("The predict function is currently only implemented for method = 'ekf'.")
-      }
+      if(method!="ekf"){ stop("The predict function is currently only implemented for method = 'ekf'.") }
       private$set_method(method)
+      
+      # check data
+      if(is.null(data)){
+        if(is.null(private$fit)){
+          stop("You must either supply new data, or run 'estimate' on the object first")
+        } else {
+          data = private$fit$data
+        }
+      }
     
+      # set initial values
+      if(!is.null(x0) & !is.null(p0)){
+        private$set_pred_initial_state(x0,p0)
+      } else {
+        private$set_pred_initial_state(private$initial.state$mean,private$initial.state$cov)
+      }
+      
       # build model
       message("Building model...")
       private$build_model()
@@ -763,20 +780,21 @@ ctsmrTMB = R6::R6Class(
       private$set_k_step_ahead_and_last_pred_index(data, k.step.ahead)
       private$pred.bool = 1
       
-      # construct neg. log-likelihood function
+      # construct neg. log-likelihood function (stored in private$nll)
       message("Constructing objective function...")
       construct_nll(self, private)
       
-      # evaluate nll
-      if(is.null(pars)){
-        pars=private$nll$par
-      }
+      # check parameters
+      if(is.null(pars)){ pars=private$nll$par }
+      if(!is.null(private$fit)){ pars=private$fit$par.fixed }
+      
+      # get predictions
       message("Predicting...")
       private$nll$fn(pars)
       rep = private$nll$rep()
       
-      message("Constructing return data.frame...")
       # construct return data.frame
+      message("Constructing return data.frame...")
       df.out = data.frame(matrix(nrow=private$last.pred.index*(private$k.step.ahead+1), ncol=5+private$n+private$n^2))
       # 
       disp_names = sprintf(rep("cor[%s,%s]",private$n^2),rep(private$state.names,each=private$n),rep(private$state.names,private$n))
@@ -787,17 +805,13 @@ ctsmrTMB = R6::R6Class(
         disp_names[seq.int(1,private$n^2,by=private$n+1)] = sprintf(rep("var[%s]",private$n),private$state.names)
       }
       names(df.out) = c("k","k+i","t_{k}","t_{k+i}","k.step.ahead",private$state.names,disp_names)
-      #
-      # print(df.out)
       ran = 0:(private$last.pred.index-1)
       df.out["k"] = rep(ran,each=private$k.step.ahead+1)
       df.out["k+i"] = df.out["k"] + rep(0:private$k.step.ahead,private$last.pred.index)
       df.out["t_{k}"] = rep(data$t[ran+1],each=private$k.step.ahead+1)
       df.out["t_{k+i}"] = data$t[df.out[,"k"]+1+rep(0:private$k.step.ahead,private$last.pred.index)]
       df.out["k.step.ahead"] = rep(0:private$k.step.ahead,private$last.pred.index)
-      # return states
       df.out[,private$state.names] = do.call(rbind,rep$xk__)
-      # return cov / cor
       if(return.covariance){
         df.out[,disp_names] = do.call(rbind,rep$pk__)
       } else {
@@ -807,7 +821,8 @@ ctsmrTMB = R6::R6Class(
       }
       class(df.out) = c("ctsmrTMB.pred", "data.frame")
       
-      # return 
+      # return
+      message("Succesfully returned predictions")
       return(invisible(df.out))
     },
     ########################################################################
@@ -940,6 +955,7 @@ ctsmrTMB = R6::R6Class(
     constants = NULL,
     parameters = NULL,
     initial.state = NULL,
+    pred.initial.state = NULL,
     tmb.initial.state.for.parameters = NULL,
     iobs = NULL,
     # after algebraics
@@ -1111,6 +1127,44 @@ ctsmrTMB = R6::R6Class(
         stop("This must be a logical")
       }
       private$use.hessian = bool
+    },
+    ########################################################################
+    ########################################################################
+    # SET PRED INITIAL STATE
+    set_pred_initial_state = function(mean,cov) {
+      if (is.null(private$sys.eqs)) {
+        stop("Please specify system equations first")
+      }
+      if (!is.numeric(mean)) {
+        stop("The mean vector is not a numeric")
+      }
+      if (any(is.na(mean))) {
+        stop("The mean vector contains NAs.")
+      }
+      if (length(mean)!=length(private$sys.eqs)) {
+        stop("The initial state vector should have length ",length(private$sys.eqs))
+      }
+      if (!all(dim(cov)==c(length(private$sys.eqs),length(private$sys.eqs)))) {
+        stop("The covariance matrix should be square with dimension ", length(private$sys.eqs))
+      }
+      # convert scalar to matrix
+      if(!is.matrix(cov) & is.numeric(cov) & length(cov)==1){
+        cov = cov*diag(1)
+      }
+      if (!is.numeric(cov)) {
+        stop("The covariance matrix is not a numeric")
+      }
+      if (any(is.na(cov))) {
+        stop("The covariance matrix contains NAs")
+      }
+      if (any(eigen(cov)$values < 0)){
+        stop("The covariance matrix is not positive semi-definite")
+      }
+      if (!isSymmetric.matrix(cov)){
+        stop("The covariance matrix is symmetric")
+      }
+      private$pred.initial.state = list(mean=mean,cov=as.matrix(cov))
+      return(invisible(self))
     },
     ########################################################################
     ########################################################################
