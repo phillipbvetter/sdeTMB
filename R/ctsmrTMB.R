@@ -178,7 +178,7 @@ ctsmrTMB = R6::R6Class(
     ########################################################################
     ########################################################################
     #' @description Declare variables as data inputs
-    #'
+    #' 
     #' Declare whether a variable contained in system, observation or observation variance equations 
     #' is an input variable. If e.g. the system equation contains an input variable \code{u} then it
     #' is declared using \code{add_inputs(u)}. The input data \code{u} must be contained in the 
@@ -221,75 +221,9 @@ ctsmrTMB = R6::R6Class(
     #' @param parameter.matrix matrix of 3 columns where rows correspond to variables. The variable
     #' names must be provided as rownames to the matrix. The columns are initial value, lower and 
     #' upper bound respectively.
-    add_parameters2 = function(...,parameter.matrix=NULL) {
-      # single parameters
-      parameter.forms = list(...)
-      if(length(parameter.forms)>0){
-        lapply(parameter.forms, function(parameter.form) {
-          check_parameter(parameter.form)
-          parname = deparse1(parameter.form[[2]])
-          par.val.lb.ub = eval(parameter.form[[3]])
-          check_name(parname, "pars", self, private)
-          private$trigger = is_this_a_new_name(parname, private$parameter.names)
-          private$parameters[[parname]] = list(init=par.val.lb.ub[1],
-                                               lb=par.val.lb.ub[2],
-                                               ub=par.val.lb.ub[3])
-          # fixed parameters
-          if(is.na(par.val.lb.ub[2]) & is.na(par.val.lb.ub[3])){
-            private$fixed.pars[[parname]] = factor(NA)
-          }
-        })
-        private$parameter.names = names(private$parameters)
-      }
-      # parameter matrix
-      if(!is.null(parameter.matrix)){
-        check_parameter_matrix(parameter.matrix, self, private)
-        parnames = rownames(parameter.matrix)
-        lapply( 1:nrow(parameter.matrix), function(i) {
-          parname = parnames[i]
-          par.val.lb.ub = parameter.matrix[i,]
-          check_name(parname, "pars", self, private)
-          private$trigger = is_this_a_new_name(parname, private$parameter.names)
-          private$parameters[[parname]] = list(init=par.val.lb.ub[1],
-                                               lb=par.val.lb.ub[2],
-                                               ub=par.val.lb.ub[3])
-          # fixed parameters
-          if(is.na(par.val.lb.ub[2]) & is.na(par.val.lb.ub[3])){
-            private$fixed.pars[[parname]] = factor(NA)
-          }
-        })
-        private$parameter.names = names(private$parameters)
-      }
-      # if model was already built set compile flag
-      if (private$trigger) {
-        was_model_already_built(self, private)
-      }
-      # return
-      return(invisible(self))
-    },
-    ########################################################################
-    ########################################################################
-    #' @description Declare variables as fixed effects and specify their initial value, lower and
-    #' upper bound used when calling the maximum likelihood optimization.
-    #' 
-    #' There are two ways to declare parameters. You can declare parameters using formulas i.e.
-    #' \code{add_parameters( theta ~ c(1,0,10), mu ~ c(0,-10,10) )}, where the values are initial,
-    #' lower and upper bound respectively. Alternatively you can provide a 3-column matrix where
-    #' rows corresponds to different parameters, and the parameter names are provided as rownames
-    #' of the matrix.
-    #'
-    #' @param ... formula whose left-hand side is the parameter name, and right hand side is a vector
-    #' of length 3 with inital value, lower and upper bound respectively. You can provide multiple
-    #' parameters at once by seperating formulas with comma.
-    #' @param parameter.matrix matrix of 3 columns where rows correspond to variables. The variable
-    #' names must be provided as rownames to the matrix. The columns are initial value, lower and 
-    #' upper bound respectively.
     add_parameters = function(...) {
       
-      if(nargs()==0L){ stop("No arguments received. You can specific initial value, and lower/upper
-                            bound of the parameters in the optimization either as individual vectors
-                            of length 3, or provide many parameters simultaneously in a matrix with
-                            3 columns and parameter names provided as rownames to the matrix.")}
+      if(nargs()==0L){stop("No arguments received")}
       
       arglist = list(...)
       argnames = names(arglist)
@@ -562,6 +496,29 @@ ctsmrTMB = R6::R6Class(
       }
       private$map = list(mean=mean,cov=cov)
       return(invisible(self))
+    },
+    ########################################################################
+    ########################################################################
+    #' @description Get initial and estimated parameters.
+    get_parameters = function() {
+      
+      .df = data.frame(matrix(NA,nrow=length(private$parameters),ncol=5))
+      names(.df) = c("Type","Estimate", "Initial","Lower Bound","Upper Bound")
+      rownames(.df) = private$parameter.names
+      for(i in 1:nrow(.df)){
+        .df[i,3:5] = unlist(private$parameters[[i]])
+      }
+      .df$Type = "free"
+      .df[names(private$fixed.pars),"Type"] = "fixed"
+      .df$Estimate = .df$Initial
+      
+      if(is.null(private$fit)){
+        .df = .df[,-(1:ncol(.df))[names(.df) %in% remove.names]]
+      } else {
+        .df[names(private$free.pars),"Estimate"] = private$fit$par.fixed[names(private$free.pars)]
+      }
+      
+      return(.df)
     },
     ########################################################################
     ########################################################################
