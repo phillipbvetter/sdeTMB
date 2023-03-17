@@ -513,6 +513,7 @@ ctsmrTMB = R6::R6Class(
       .df$Estimate = .df$Initial
       
       if(is.null(private$fit)){
+        remove.names = "Estimate"
         .df = .df[,-(1:ncol(.df))[names(.df) %in% remove.names]]
       } else {
         .df[names(private$free.pars),"Estimate"] = private$fit$par.fixed[names(private$free.pars)]

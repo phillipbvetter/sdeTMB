@@ -103,6 +103,36 @@ getggplot2colors = function(n) {
 # Plot - S3 Method
 #######################################################
 
+#' Basic summary of objects of class 'ctsmrTMB.pred' from predict
+#' @param extended logical. if TRUE additional information is printed
+#' @returns A huge amount of information
+#' @export
+plot.ctsmrTMB.pred = function(pred.data,
+                              k.step.ahead=0,
+                              state.name=NULL,
+                              ...) {
+  
+  # check k.step.ahead
+  if(!any(k.step.ahead %in% unique(pred$k.step.ahead))){
+    stop("k.step.ahead not found in the prediction data frame")
+  }
+  
+  # set state name to plot
+  if(is.null(state.name)){
+    state.name = colnames(pred)[6]
+  }
+  
+  # filter and plot
+  bool = pred$k.step.ahead==k.step.ahead
+  x = pred[bool,"t_{k+i}"]
+  y = pred[bool,state.name]
+  plot(x=x, y=y, type="l",...)
+  
+  
+  return(invisible(NULL))
+}
+
+
 #' Basic summary of objects of class 'ctsmrTMB'
 #' @param extended logical. if TRUE additional information is printed
 #' @returns A huge amount of information
