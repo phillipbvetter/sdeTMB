@@ -234,7 +234,6 @@ check_inputs <- function(input, self, private) {
 
 check_parameter = function(form, self, private) {
 
-
   # is formula class?
   if (!(inherits(form,"formula"))) {
     stop("You must supply a formula")
@@ -253,17 +252,44 @@ check_parameter = function(form, self, private) {
     stop("The parameter names are not allowed to start with dt or dw")
   }
 
+}
 
-
+check_parameter_vector = function(par, parname, self, private) {
+  
+  # is numeric
+  if(!is.numeric(par)){
+    stop(sprintf("Error in %s, the parameter values must be numerical",parname))
+  }
+  
+  # has length 3 or 1
+  if(!(length(par) == 3 | length(par)==1)){
+    stop(sprintf("Error in %s, the parameter must be length 3 or 1",parname))
+  }
+  
+  # nlminb can handle non-ascending bounds, but should we tell the user?
+  
+  # the parameter name strings must start with a character
+  bool = stringr::str_detect(parname,"^[[:alpha:]][[:alnum:]_-]*$")
+  if(!bool){
+    stop("The parameter name ",parname, " is not valid. The name must begin with a letter, 
+         and can only contain numerals, letters, underscore (_) and dash (-).")
+  }
+  
+  # parameter name can't begin with dw or dt
+  bool = stringr::str_detect(parname,"^(?!d[tw])[[:alnum:]]*")
+  if(!bool){
+    stop("The parameter names are not allowed to start with dt or dw")
+  }
+  
 }
 
 check_parameter_matrix <- function(parmat, self, private) {
 
-  # is matrix class?
-  if (!(inherits(parmat,"matrix"))) {
-    stop("You must supply a parameter matrix.")
+  # is numerics?
+  if(!is.numeric(parmat)){
+    stop("The parameter matrix values must be numerics")
   }
-
+  
   # has 3 columns?
   if (!ncol(parmat)==3 & !nrow(parmat)==0 ) {
     stop("The parameter matrix must have 3 columns corresponding to initial value, lower boundary and upper boundary,

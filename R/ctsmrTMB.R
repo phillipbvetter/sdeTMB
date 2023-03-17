@@ -9,7 +9,7 @@ ctsmrTMB = R6::R6Class(
   public = list(
     #' @description Construct new ctsmrTMB model object
     initialize = function() {
-      message("Created New ctsmrTMB Object")
+      # message("New ctsmrTMB object created")
       # public fields
       #
       # modelname
@@ -221,7 +221,7 @@ ctsmrTMB = R6::R6Class(
     #' @param parameter.matrix matrix of 3 columns where rows correspond to variables. The variable
     #' names must be provided as rownames to the matrix. The columns are initial value, lower and 
     #' upper bound respectively.
-    add_parameters = function(...,parameter.matrix=NULL) {
+    add_parameters2 = function(...,parameter.matrix=NULL) {
       # single parameters
       parameter.forms = list(...)
       if(length(parameter.forms)>0){
@@ -264,6 +264,96 @@ ctsmrTMB = R6::R6Class(
       if (private$trigger) {
         was_model_already_built(self, private)
       }
+      # return
+      return(invisible(self))
+    },
+    ########################################################################
+    ########################################################################
+    #' @description Declare variables as fixed effects and specify their initial value, lower and
+    #' upper bound used when calling the maximum likelihood optimization.
+    #' 
+    #' There are two ways to declare parameters. You can declare parameters using formulas i.e.
+    #' \code{add_parameters( theta ~ c(1,0,10), mu ~ c(0,-10,10) )}, where the values are initial,
+    #' lower and upper bound respectively. Alternatively you can provide a 3-column matrix where
+    #' rows corresponds to different parameters, and the parameter names are provided as rownames
+    #' of the matrix.
+    #'
+    #' @param ... formula whose left-hand side is the parameter name, and right hand side is a vector
+    #' of length 3 with inital value, lower and upper bound respectively. You can provide multiple
+    #' parameters at once by seperating formulas with comma.
+    #' @param parameter.matrix matrix of 3 columns where rows correspond to variables. The variable
+    #' names must be provided as rownames to the matrix. The columns are initial value, lower and 
+    #' upper bound respectively.
+    add_parameters = function(...) {
+      
+      if(nargs()==0L){ stop("No arguments received. You can specific initial value, and lower/upper
+                            bound of the parameters in the optimization either as individual vectors
+                            of length 3, or provide many parameters simultaneously in a matrix with
+                            3 columns and parameter names provided as rownames to the matrix.")}
+      
+      arglist = list(...)
+      argnames = names(arglist)
+      
+      
+      # run over each parameter argument either a vector or a matrix
+      lapply(seq_along(arglist), function(i) {
+        
+        par.entry = arglist[[i]]
+        par.name = names(arglist)[i]
+        
+        #### for vector inputs ####
+        if(is.vector(par.entry)){
+          check_parameter_vector(par.entry, par.name)
+          check_name(par.name, "pars", self, private)
+          private$trigger = is_this_a_new_name(par.name, private$parameter.names)
+          private$parameters[[par.name]] = list(init=par.entry[1], lb=par.entry[2], ub=par.entry[3])
+          
+          # set or remove a fixed parameter (NA-bounds)
+          if(all(is.na(par.entry[c(2,3)]))){
+            private$fixed.pars[[par.name]] = factor(NA)
+          } else {
+            private$fixed.pars[[par.name]] = NULL
+          }
+          
+          # update parameter names
+          private$parameter.names = names(private$parameters)
+        }
+        
+        #### for matrix inputs ####
+        if(is.matrix(par.entry)){
+          check_parameter_matrix(par.entry)
+          parnames = rownames(par.entry)
+          
+          # lapply over all matrix rows
+          lapply( 1:nrow(par.entry), function(i) {
+            parname = parnames[i]
+            check_name(parname, "pars", self, private)
+            private$trigger = is_this_a_new_name(parname, private$parameter.names)
+            private$parameters[[parname]] = list(init=par.entry[i,1], lb=par.entry[i,2], ub=par.entry[i,3])
+            
+            # set or remove a fixed parameter (NA-bounds)
+            if(all(is.na(par.entry[i,2:3]))){
+              private$fixed.pars[[parname]] = factor(NA)
+            } else {
+              private$fixed.pars[[par.name]] = NULL
+            }
+            
+            # update parameter names
+            private$parameter.names = names(private$parameters)
+          })
+        }
+        
+        if( !(is.matrix(par.entry) | is.vector(par.entry)) ){
+          stop("You can only supply parameter vectors or matrices")
+        }
+        
+      })
+      
+      # if model was already built set compile flag
+      if (private$trigger) {
+        was_model_already_built(self, private)
+      }
+      
       # return
       return(invisible(self))
     },
@@ -682,11 +772,13 @@ ctsmrTMB = R6::R6Class(
     },
     ########################################################################
     ########################################################################
-    #' @description Estimate the fixed effects parameters in the specified model.
+    #' @description Perform prediction/filtration to obtain state mean and covariance estimates.
     #' 
     #' @param data data.frame containing time-vector 't', observations and inputs. The observations
     #' can take \code{NA}-values.
-    #' @param pars fixed parameter vector parsed to the objective function for prediction/filtration.
+    #' @param pars fixed parameter vector parsed to the objective function for prediction/filtration. The default
+    #' parameter values used are the initial parameters provided through \code{add_parameters}, unless the \code{estimate}
+    #' function has been run, then the default values will be those at the found optimum.
     #' @param k.step.ahead integer specifying the desired number of time-steps (as determined by the provided
     #' data time-vector) for which predictions are made (integrating the moment ODEs forward in time without 
     #' data updates).
@@ -755,12 +847,13 @@ ctsmrTMB = R6::R6Class(
       # check data
       if(is.null(data)){
         if(is.null(private$fit)){
-          stop("You must either supply new data, or run 'estimate' on the object first")
+          stop("Please supply data to perform prediction.")
         } else {
+          message("No data provided. Reusing the data provided in the lastest call to 'estimate'")
           data = private$fit$data
         }
       }
-    
+      
       # set initial values
       if(!is.null(x0) & !is.null(p0)){
         private$set_pred_initial_state(x0,p0)

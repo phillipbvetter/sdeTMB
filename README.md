@@ -65,7 +65,7 @@ obj = ctsmrTMB$new()
 obj$set_modelname("ornstein_uhlenbeck")
 
 # Set location where generated C++ files are stored
-obj$set_cppfile_directory("ctsmrTMB_cppfiles")
+obj$set_cppfile_directory("cppfiles")
 
 # Add system equations
 obj$add_systems(
@@ -100,10 +100,10 @@ obj$add_algebraics(
 
 # Specify parameter initial values and lower/upper bounds in estimation
 obj$add_parameters(
-  logtheta ~ log(c(init = 1, lower=1e-5, upper=50)),
-  mu ~ c(init=1.5, lower=0, upper=5),
-  logsigma_x ~ log(c(init= 1e-1, lower=1e-10, upper=10)),
-  logsigma_y ~ log(c(init=1e-1, lower=1e-10, upper=10))
+  logtheta = log(c(init = 1, lower=1e-5, upper=50)),
+  mu = c(init=1.5, lower=0, upper=5),
+  logsigma_x = log(c(init= 1e-1, lower=1e-10, upper=10)),
+  logsigma_y = log(c(init=1e-1, lower=1e-10, upper=10))
 )
 
 # Set initial state mean and covariance
@@ -153,8 +153,11 @@ ggplot() +
 # Check one-step-ahead residuals
 plot(fit, use.ggplot=T)
 
-# Use prediction function to get 10-step-ahead state predictions
-pred = predict(fit, n.step.ahead=10)
+# Predict to obtain k-step-ahead predictions to see model forecasting ability
+# The predict function will use the optimized parameters if obj$estimate was
+# called before calling predict, otherwise it will use the initial values
+# specified when calling add_parameters
+pred = obj$predict(data=.data, k.step.ahead=10)
 ```
 
 

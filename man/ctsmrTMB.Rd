@@ -41,6 +41,7 @@ add_observations(y ~ exp(x1) + exp(x2))
 \item \href{#method-ctsmrTMB-add_observations}{\code{ctsmrTMB$add_observations()}}
 \item \href{#method-ctsmrTMB-add_observation_variances}{\code{ctsmrTMB$add_observation_variances()}}
 \item \href{#method-ctsmrTMB-add_inputs}{\code{ctsmrTMB$add_inputs()}}
+\item \href{#method-ctsmrTMB-add_parameters2}{\code{ctsmrTMB$add_parameters2()}}
 \item \href{#method-ctsmrTMB-add_parameters}{\code{ctsmrTMB$add_parameters()}}
 \item \href{#method-ctsmrTMB-add_algebraics}{\code{ctsmrTMB$add_algebraics()}}
 \item \href{#method-ctsmrTMB-add_constants}{\code{ctsmrTMB$add_constants()}}
@@ -193,6 +194,36 @@ data.frame \code{data} when calling \code{estimate(data)} for parameter estimati
 }
 }
 \if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-ctsmrTMB-add_parameters2"></a>}}
+\if{latex}{\out{\hypertarget{method-ctsmrTMB-add_parameters2}{}}}
+\subsection{Method \code{add_parameters2()}}{
+Declare variables as fixed effects and specify their initial value, lower and
+upper bound used when calling the maximum likelihood optimization.
+
+There are two ways to declare parameters. You can declare parameters using formulas i.e.
+\code{add_parameters( theta ~ c(1,0,10), mu ~ c(0,-10,10) )}, where the values are initial,
+lower and upper bound respectively. Alternatively you can provide a 3-column matrix where
+rows corresponds to different parameters, and the parameter names are provided as rownames
+of the matrix.
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{ctsmrTMB$add_parameters2(..., parameter.matrix = NULL)}\if{html}{\out{</div>}}
+}
+
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{...}}{formula whose left-hand side is the parameter name, and right hand side is a vector
+of length 3 with inital value, lower and upper bound respectively. You can provide multiple
+parameters at once by seperating formulas with comma.}
+
+\item{\code{parameter.matrix}}{matrix of 3 columns where rows correspond to variables. The variable
+names must be provided as rownames to the matrix. The columns are initial value, lower and
+upper bound respectively.}
+}
+\if{html}{\out{</div>}}
+}
+}
+\if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-ctsmrTMB-add_parameters"></a>}}
 \if{latex}{\out{\hypertarget{method-ctsmrTMB-add_parameters}{}}}
 \subsection{Method \code{add_parameters()}}{
@@ -205,7 +236,7 @@ lower and upper bound respectively. Alternatively you can provide a 3-column mat
 rows corresponds to different parameters, and the parameter names are provided as rownames
 of the matrix.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{ctsmrTMB$add_parameters(..., parameter.matrix = NULL)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{ctsmrTMB$add_parameters(...)}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{
@@ -586,7 +617,7 @@ See \code{?stats::nlminb} for more information}
 \if{html}{\out{<a id="method-ctsmrTMB-predict"></a>}}
 \if{latex}{\out{\hypertarget{method-ctsmrTMB-predict}{}}}
 \subsection{Method \code{predict()}}{
-Estimate the fixed effects parameters in the specified model.
+Perform prediction/filtration to obtain state mean and covariance estimates.
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{ctsmrTMB$predict(
   data = NULL,
@@ -607,7 +638,9 @@ Estimate the fixed effects parameters in the specified model.
 \item{\code{data}}{data.frame containing time-vector 't', observations and inputs. The observations
 can take \code{NA}-values.}
 
-\item{\code{pars}}{fixed parameter vector parsed to the objective function for prediction/filtration.}
+\item{\code{pars}}{fixed parameter vector parsed to the objective function for prediction/filtration. The default
+parameter values used are the initial parameters provided through \code{add_parameters}, unless the \code{estimate}
+function has been run, then the default values will be those at the found optimum.}
 
 \item{\code{k.step.ahead}}{integer specifying the desired number of time-steps (as determined by the provided
 data time-vector) for which predictions are made (integrating the moment ODEs forward in time without
