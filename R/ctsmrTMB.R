@@ -497,7 +497,7 @@ ctsmrTMB = R6::R6Class(
     },
     ########################################################################
     ########################################################################
-    #' @description Get initial and estimated parameters.
+    #' @description Get initial (and estimated) parameters.
     get_parameters = function() {
       
       .df = data.frame(matrix(NA,nrow=length(private$parameters),ncol=5))
