@@ -285,6 +285,9 @@ check_parameter_vector = function(par, parname, self, private) {
 
 check_parameter_matrix <- function(parmat, self, private) {
 
+  # extract relevant columns
+  parmat = as.matrix(parmat[,c("init","lb","ub")])
+  
   # is numerics?
   if(!is.numeric(parmat)){
     stop("The parameter matrix values must be numerics")
@@ -300,6 +303,15 @@ check_parameter_matrix <- function(parmat, self, private) {
   parnames = rownames(parmat)
   if (is.null(parnames)) {
     stop("You have not supplied any parameter names. Use rownames")
+  }
+  
+  # are column names initial, lower and upper present?
+  col.names = colnames(parmat)
+  expected.names = c("init","lb","ub")
+  bool = expected.names %in% col.names
+  if(!all(bool)){
+    stop(sprintf("The following column names are missing from parameter matrix: %s", 
+                 paste(expected.names[!bool],collapse=", ")))
   }
 
   # the parameter name strings must start with a character

@@ -251,34 +251,32 @@ ctsmrTMB = R6::R6Class(
           
           # update parameter names
           private$parameter.names = names(private$parameters)
-        }
         
-        #### for matrix inputs ####
-        if(is.matrix(par.entry)){
+          #### for matrix inputs ####  
+        } else if (is.matrix(par.entry) | is.data.frame(par.entry)){
           check_parameter_matrix(par.entry)
           parnames = rownames(par.entry)
+          par.entry = par.entry[,c("init","lb","ub")]
           
           # lapply over all matrix rows
           lapply( 1:nrow(par.entry), function(i) {
             parname = parnames[i]
             check_name(parname, "pars", self, private)
             private$trigger = is_this_a_new_name(parname, private$parameter.names)
-            private$parameters[[parname]] = list(init=par.entry[i,1], lb=par.entry[i,2], ub=par.entry[i,3])
+            private$parameters[[parname]] = list(init=par.entry[i,"init"], lb=par.entry[i,"lb"], ub=par.entry[i,"ub"])
             
             # set or remove a fixed parameter (NA-bounds)
-            if(all(is.na(par.entry[i,2:3]))){
+            if(all(is.na(par.entry[i,c("lb","ub")]))){
               private$fixed.pars[[parname]] = factor(NA)
             } else {
-              private$fixed.pars[[par.name]] = NULL
+              private$fixed.pars[[parname]] = NULL
             }
             
             # update parameter names
             private$parameter.names = names(private$parameters)
           })
-        }
-        
-        if( !(is.matrix(par.entry) | is.vector(par.entry)) ){
-          stop("You can only supply parameter vectors or matrices")
+        } else {
+          stop("You can only supply parameter vectors or matrices/data.frames")
         }
         
       })
@@ -503,20 +501,20 @@ ctsmrTMB = R6::R6Class(
     get_parameters = function() {
       
       .df = data.frame(matrix(NA,nrow=length(private$parameters),ncol=5))
-      names(.df) = c("Type","Estimate", "Initial","Lower Bound","Upper Bound")
+      names(.df) = c("type","estimate", "init","lb","ub")
       rownames(.df) = private$parameter.names
       for(i in 1:nrow(.df)){
         .df[i,3:5] = unlist(private$parameters[[i]])
       }
-      .df$Type = "free"
-      .df[names(private$fixed.pars),"Type"] = "fixed"
-      .df$Estimate = .df$Initial
+      .df[,"type"] = "free"
+      .df[names(private$fixed.pars),"type"] = "fixed"
+      .df[,"estimate"] = .df[,"init"]
       
       if(is.null(private$fit)){
-        remove.names = "Estimate"
+        remove.names = "estimate"
         .df = .df[,-(1:ncol(.df))[names(.df) %in% remove.names]]
       } else {
-        .df[names(private$free.pars),"Estimate"] = private$fit$par.fixed[names(private$free.pars)]
+        .df[names(private$free.pars),"estimate"] = private$fit$par.fixed[names(private$free.pars)]
       }
       
       return(.df)
