@@ -232,27 +232,27 @@ check_inputs <- function(input, self, private) {
 # CHECK PARAMETERS
 #######################################################
 
-check_parameter = function(form, self, private) {
-
-  # is formula class?
-  if (!(inherits(form,"formula"))) {
-    stop("You must supply a formula")
-  }
-
-  # the parameter name strings must start with a character
-  parname = deparse1(form[[2]])
-  bool = stringr::str_detect(parname,"^[[:alpha:]][[:alnum:]_-]*$")
-  if(!bool){
-    stop("The parameter name ",parname, " is not valid. The name must begin with a letter, and can only contain numerals, letters, underscore (_) and dash (-).")
-  }
-
-  # parameter name can't begin with dw or dt
-  bool = stringr::str_detect(parname,"^(?!d[tw])[[:alnum:]]*")
-  if(!bool){
-    stop("The parameter names are not allowed to start with dt or dw")
-  }
-
-}
+# check_parameter = function(form, self, private) {
+# 
+#   # is formula class?
+#   if (!(inherits(form,"formula"))) {
+#     stop("You must supply a formula")
+#   }
+# 
+#   # the parameter name strings must start with a character
+#   parname = deparse1(form[[2]])
+#   bool = stringr::str_detect(parname,"^[[:alpha:]][[:alnum:]_-]*$")
+#   if(!bool){
+#     stop("The parameter name ",parname, " is not valid. The name must begin with a letter, and can only contain numerals, letters, underscore (_) and dash (-).")
+#   }
+# 
+#   # parameter name can't begin with dw or dt
+#   bool = stringr::str_detect(parname,"^(?!d[tw])[[:alnum:]]*")
+#   if(!bool){
+#     stop("The parameter names are not allowed to start with dt or dw")
+#   }
+# 
+# }
 
 check_parameter_vector = function(par, parname, self, private) {
   
@@ -262,8 +262,10 @@ check_parameter_vector = function(par, parname, self, private) {
   }
   
   # has length 3 or 1
-  if(!(length(par) == 3 | length(par)==1)){
-    stop(sprintf("Error in %s, the parameter must be length 3 or 1",parname))
+  name.bool = all(c("initial","lower","upper") %in% names(par))
+  if(!(name.bool | length(par) == 3 | length(par)==1)){
+    stop(sprintf("Error in %s, the parameter must be either length 3 or 1, or contain the
+                 names 'initial', 'lower' and 'upper'",parname))
   }
   
   # nlminb can handle non-ascending bounds, but should we tell the user?
@@ -286,7 +288,7 @@ check_parameter_vector = function(par, parname, self, private) {
 check_parameter_matrix <- function(parmat, self, private) {
 
   # extract relevant columns
-  parmat = as.matrix(parmat[,c("init","lb","ub")])
+  parmat = as.matrix(parmat[,c("initial","lower","upper")])
   
   # is numerics?
   if(!is.numeric(parmat)){
@@ -307,7 +309,7 @@ check_parameter_matrix <- function(parmat, self, private) {
   
   # are column names initial, lower and upper present?
   col.names = colnames(parmat)
-  expected.names = c("init","lb","ub")
+  expected.names = c("initial","lower","upper")
   bool = expected.names %in% col.names
   if(!all(bool)){
     stop(sprintf("The following column names are missing from parameter matrix: %s", 

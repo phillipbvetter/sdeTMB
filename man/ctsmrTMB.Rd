@@ -388,7 +388,7 @@ with \code{mean} and \code{covariance} as provided.
 \if{html}{\out{<a id="method-ctsmrTMB-get_parameters"></a>}}
 \if{latex}{\out{\hypertarget{method-ctsmrTMB-get_parameters}{}}}
 \subsection{Method \code{get_parameters()}}{
-Get initial and estimated parameters.
+Get initial (and estimated) parameters.
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{ctsmrTMB$get_parameters()}\if{html}{\out{</div>}}
 }
@@ -603,6 +603,7 @@ Perform prediction/filtration to obtain state mean and covariance estimates.
   data = NULL,
   pars = NULL,
   k.step.ahead = 1,
+  return.k.step.ahead = NULL,
   ode.timestep = NULL,
   compile = FALSE,
   method = "ekf",
@@ -625,6 +626,9 @@ function has been run, then the default values will be those at the found optimu
 \item{\code{k.step.ahead}}{integer specifying the desired number of time-steps (as determined by the provided
 data time-vector) for which predictions are made (integrating the moment ODEs forward in time without
 data updates).}
+
+\item{\code{return.k.step.ahead}}{numeric vector of integers specifying which k.step.ahead predictions to that
+should be returned.}
 
 \item{\code{ode.timestep}}{numeric value. Sets the time step-size in numerical filtering schemes.
 The defined step-size is used to calculate the number of steps between observation time-points as

@@ -193,8 +193,8 @@ construct_nll = function(self, private){
 
 optimise_nll = function(self, private) {
   
-  lb = unlist(lapply(private$free.pars, function(x) x$lb))
-  ub = unlist(lapply(private$free.pars, function(x) x$ub))
+  lb = unlist(lapply(private$free.pars, function(par) par$lower))
+  ub = unlist(lapply(private$free.pars, function(par) par$upper))
   
   # IF METHOD IS KALMAN FILTER
   if (any(private$method==c("ekf","ukf"))) {

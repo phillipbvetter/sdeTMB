@@ -233,14 +233,14 @@ ctsmrTMB = R6::R6Class(
       lapply(seq_along(arglist), function(i) {
         
         par.entry = arglist[[i]]
-        par.name = names(arglist)[i]
+        par.name = argnames[i]
         
         #### for vector inputs ####
         if(is.vector(par.entry)){
           check_parameter_vector(par.entry, par.name)
           check_name(par.name, "pars", self, private)
           private$trigger = is_this_a_new_name(par.name, private$parameter.names)
-          private$parameters[[par.name]] = list(init=par.entry[1], lb=par.entry[2], ub=par.entry[3])
+          private$parameters[[par.name]] = list(initial=par.entry[1], lower=par.entry[2], upper=par.entry[3])
           
           # set or remove a fixed parameter (NA-bounds)
           if(all(is.na(par.entry[c(2,3)]))){
@@ -256,17 +256,17 @@ ctsmrTMB = R6::R6Class(
         } else if (is.matrix(par.entry) | is.data.frame(par.entry)){
           check_parameter_matrix(par.entry)
           parnames = rownames(par.entry)
-          par.entry = par.entry[,c("init","lb","ub")]
+          par.entry = par.entry[,c("initial","lower","upper")]
           
           # lapply over all matrix rows
           lapply( 1:nrow(par.entry), function(i) {
             parname = parnames[i]
             check_name(parname, "pars", self, private)
             private$trigger = is_this_a_new_name(parname, private$parameter.names)
-            private$parameters[[parname]] = list(init=par.entry[i,"init"], lb=par.entry[i,"lb"], ub=par.entry[i,"ub"])
+            private$parameters[[parname]] = list(initial=par.entry[i,"initial"], lower=par.entry[i,"lower"], upper=par.entry[i,"upper"])
             
             # set or remove a fixed parameter (NA-bounds)
-            if(all(is.na(par.entry[i,c("lb","ub")]))){
+            if(all(is.na(par.entry[i,c("lower","upper")]))){
               private$fixed.pars[[parname]] = factor(NA)
             } else {
               private$fixed.pars[[parname]] = NULL
@@ -501,14 +501,14 @@ ctsmrTMB = R6::R6Class(
     get_parameters = function() {
       
       .df = data.frame(matrix(NA,nrow=length(private$parameters),ncol=5))
-      names(.df) = c("type","estimate", "init","lb","ub")
+      names(.df) = c("type","estimate", "initial","lower","upper")
       rownames(.df) = private$parameter.names
       for(i in 1:nrow(.df)){
         .df[i,3:5] = unlist(private$parameters[[i]])
       }
       .df[,"type"] = "free"
       .df[names(private$fixed.pars),"type"] = "fixed"
-      .df[,"estimate"] = .df[,"init"]
+      .df[,"estimate"] = .df[,"initial"]
       
       if(is.null(private$fit)){
         remove.names = "estimate"
@@ -738,6 +738,8 @@ ctsmrTMB = R6::R6Class(
     #' @param k.step.ahead integer specifying the desired number of time-steps (as determined by the provided
     #' data time-vector) for which predictions are made (integrating the moment ODEs forward in time without 
     #' data updates).
+    #' @param return.k.step.ahead numeric vector of integers specifying which k.step.ahead predictions to that
+    #' should be returned.
     #' @param return.covariance booelan value to indicate whether the covariance (instead of the correlation) 
     #' should be returned.
     #' @param x0 numeric vector containing the initial expected state values 
@@ -788,6 +790,7 @@ ctsmrTMB = R6::R6Class(
     predict = function(data=NULL,
                        pars=NULL,
                        k.step.ahead=1,
+                       return.k.step.ahead = NULL,
                        ode.timestep=NULL, 
                        compile=FALSE,
                        method="ekf",
@@ -799,7 +802,7 @@ ctsmrTMB = R6::R6Class(
       private$set_compile(compile)
       if(method!="ekf"){ stop("The predict function is currently only implemented for method = 'ekf'.") }
       private$set_method(method)
-      
+    
       # check data
       if(is.null(data)){
         if(is.null(private$fit)){
@@ -828,6 +831,9 @@ ctsmrTMB = R6::R6Class(
       # set flags
       private$set_k_step_ahead_and_last_pred_index(data, k.step.ahead)
       private$pred.bool = 1
+      if(is.null(return.k.step.ahead)){
+        return.k.step.ahead = 0:k.step.ahead
+      }
       
       # construct neg. log-likelihood function (stored in private$nll)
       message("Constructing objective function...")
@@ -868,6 +874,9 @@ ctsmrTMB = R6::R6Class(
         diag.ids = seq(from=1,to=private$n^2,by=private$n+1)
         df.out[,disp_names[diag.ids]] = do.call(rbind,rep$pk__)[,diag.ids]
       }
+      # return only specific k.step.aheads
+      df.out = df.out[df.out$k.step.ahead %in% return.k.step.ahead,]
+      
       class(df.out) = c("ctsmrTMB.pred", "data.frame")
       
       # return
