@@ -237,7 +237,7 @@ ctsmrTMB = R6::R6Class(
         
         #### for vector inputs ####
         if(is.vector(par.entry)){
-          check_parameter_vector(par.entry, par.name)
+          check_parameter_vector(par.entry, par.name, self, private)
           check_name(par.name, "pars", self, private)
           private$trigger = is_this_a_new_name(par.name, private$parameter.names)
           private$parameters[[par.name]] = list(initial=par.entry[1], lower=par.entry[2], upper=par.entry[3])
@@ -254,7 +254,7 @@ ctsmrTMB = R6::R6Class(
         
           #### for matrix inputs ####  
         } else if (is.matrix(par.entry) | is.data.frame(par.entry)){
-          check_parameter_matrix(par.entry)
+          check_parameter_matrix(par.entry, self, private)
           parnames = rownames(par.entry)
           par.entry = par.entry[,c("initial","lower","upper")]
           
