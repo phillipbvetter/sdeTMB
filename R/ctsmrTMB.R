@@ -239,8 +239,20 @@ ctsmrTMB = R6::R6Class(
         if(is.vector(par.entry)){
           check_parameter_vector(par.entry, par.name, self, private)
           check_name(par.name, "pars", self, private)
+          # 
+          entry.names = c("initial","lower","upper")
+          if(length(par.entry)==3){
+            bool = all(entry.names %in% names(par.entry))
+            if(!bool){
+              names(par.entry) = c("initial","lower","upper")
+            }
+          } else if (length(par.entry)==1) {
+            length(par.entry) = 3
+            names(par.entry) = c("initial","lower","upper")
+          }
+          # 
           private$trigger = is_this_a_new_name(par.name, private$parameter.names)
-          private$parameters[[par.name]] = list(initial=par.entry[1], lower=par.entry[2], upper=par.entry[3])
+          private$parameters[[par.name]] = list(initial=par.entry["initial"], lower=par.entry["lower"], upper=par.entry["upper"])
           
           # set or remove a fixed parameter (NA-bounds)
           if(all(is.na(par.entry[c(2,3)]))){
@@ -251,7 +263,7 @@ ctsmrTMB = R6::R6Class(
           
           # update parameter names
           private$parameter.names = names(private$parameters)
-        
+          
           #### for matrix inputs ####  
         } else if (is.matrix(par.entry) | is.data.frame(par.entry)){
           check_parameter_matrix(par.entry, self, private)
@@ -802,7 +814,7 @@ ctsmrTMB = R6::R6Class(
       private$set_compile(compile)
       if(method!="ekf"){ stop("The predict function is currently only implemented for method = 'ekf'.") }
       private$set_method(method)
-    
+      
       # check data
       if(is.null(data)){
         if(is.null(private$fit)){
@@ -852,19 +864,19 @@ ctsmrTMB = R6::R6Class(
       message("Constructing return data.frame...")
       df.out = data.frame(matrix(nrow=private$last.pred.index*(private$k.step.ahead+1), ncol=5+private$n+private$n^2))
       # 
-      disp_names = sprintf(rep("cor[%s,%s]",private$n^2),rep(private$state.names,each=private$n),rep(private$state.names,private$n))
-      disp_names[seq.int(1,private$n^2,by=private$n+1)] = sprintf(rep("var[%s]",private$n),private$state.names)
+      disp_names = sprintf(rep("cor_%s_%s",private$n^2),rep(private$state.names,each=private$n),rep(private$state.names,private$n))
+      disp_names[seq.int(1,private$n^2,by=private$n+1)] = sprintf(rep("var_%s",private$n),private$state.names)
       var_bool = !stringr::str_detect(disp_names,"cor")
       if(return.covariance){
-        disp_names = sprintf(rep("cov[%s,%s]",private$n^2),rep(private$state.names,each=private$n),rep(private$state.names,private$n))
-        disp_names[seq.int(1,private$n^2,by=private$n+1)] = sprintf(rep("var[%s]",private$n),private$state.names)
+        disp_names = sprintf(rep("cov_%s_%s",private$n^2),rep(private$state.names,each=private$n),rep(private$state.names,private$n))
+        disp_names[seq.int(1,private$n^2,by=private$n+1)] = sprintf(rep("var_%s",private$n),private$state.names)
       }
-      names(df.out) = c("k","k+i","t_{k}","t_{k+i}","k.step.ahead",private$state.names,disp_names)
+      names(df.out) = c("i","ik","t_i","t_ik","k.step.ahead",private$state.names,disp_names)
       ran = 0:(private$last.pred.index-1)
-      df.out["k"] = rep(ran,each=private$k.step.ahead+1)
-      df.out["k+i"] = df.out["k"] + rep(0:private$k.step.ahead,private$last.pred.index)
-      df.out["t_{k}"] = rep(data$t[ran+1],each=private$k.step.ahead+1)
-      df.out["t_{k+i}"] = data$t[df.out[,"k"]+1+rep(0:private$k.step.ahead,private$last.pred.index)]
+      df.out["i"] = rep(ran,each=private$k.step.ahead+1)
+      df.out["ik"] = df.out["i"] + rep(0:private$k.step.ahead,private$last.pred.index)
+      df.out["t_i"] = rep(data$t[ran+1],each=private$k.step.ahead+1)
+      df.out["t_ik"] = data$t[df.out[,"i"]+1+rep(0:private$k.step.ahead,private$last.pred.index)]
       df.out["k.step.ahead"] = rep(0:private$k.step.ahead,private$last.pred.index)
       df.out[,private$state.names] = do.call(rbind,rep$xk__)
       if(return.covariance){

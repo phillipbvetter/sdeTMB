@@ -321,14 +321,13 @@ create_return_fit = function(self, private) {
                                      warning=function(w) NA
     )
     
-    # Prior States
+    # Extract reported items from nll
     rep = private$nll$report()
-    temp.states = c()
-    temp.sd = c()
-    for (i in 1:length(private$data$t)) {
-      temp.states = rbind(temp.states, rep$xPrior[[i]])
-      temp.sd = rbind(temp.sd, diag(rep$pPrior[[i]]))
-    }
+    
+    # Prior States
+    temp.states = do.call(rbind,rep$xPrior)
+    temp.sd = sqrt(do.call(rbind,lapply(rep$pPrior,diag)))
+    
     temp.states = cbind(private$data$t, temp.states)
     temp.sd = cbind(private$data$t, temp.sd)
     colnames(temp.states) = c("t",private$state.names)
@@ -337,12 +336,9 @@ create_return_fit = function(self, private) {
     private$fit$states$sd$prior = as.data.frame(temp.sd)
     
     # Posterior States
-    temp.states = c()
-    temp.sd = c()
-    for (i in 1:length(private$data$t)) {
-      temp.states = rbind(temp.states, rep$xPost[[i]])
-      temp.sd = rbind(temp.sd, diag(rep$pPost[[i]]))
-    }
+    temp.states = do.call(rbind,rep$xPost)
+    temp.sd = sqrt(do.call(rbind,lapply(rep$pPost,diag)))
+    
     temp.states = cbind(private$data$t, temp.states)
     temp.sd = cbind(private$data$t, temp.sd)
     colnames(temp.states) = c("t",private$state.names)
@@ -366,15 +362,18 @@ create_return_fit = function(self, private) {
     innovation.cov[[1]] = NULL
     
     temp.res = matrix(nrow=length(private$data$t)-1,ncol=private$m)
-    temp.sd =  matrix(nrow=length(private$data$t)-1,ncol=private$m)
+    temp.var =  matrix(nrow=length(private$data$t)-1,ncol=private$m)
+    
+    # do.call(rbind,lapply(rep$Innovation, "length<-", private$m))
+    
     for (i in 1:(length(private$data$t)-1)) {
       if (sumrowNAs[i] > 0) {
         temp.res[i,rowNAs[i,]] = innovation[[i]]
-        temp.sd[i,rowNAs[i,]] = diag(innovation.cov[[i]])
+        temp.var[i,rowNAs[i,]] = diag(innovation.cov[[i]])
       }
     }
     temp.res = cbind(private$data$t[-1],temp.res)
-    temp.sd = cbind(private$data$t[-1],temp.sd)
+    temp.sd = cbind(private$data$t[-1], sqrt(temp.var))
     
     names(innovation.cov) = paste("t=",private$data$t[-1],sep="")
     
