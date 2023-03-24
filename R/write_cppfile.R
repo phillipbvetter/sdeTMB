@@ -182,6 +182,7 @@ matrix<Type> Phi__(matrix<Type> M){
     fvars1 = "Type a"
     fvars2 = "Type(0.0)"
     fvars2.tmb = "Type(0.0)"
+    fvars2.pred = "Type(0.0)"
     fvars1_sigma = "Type a"
     fvars2_sigma = "Type(0.0)"
     fvars2_sigma2 = "Type(0.0)"
