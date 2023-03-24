@@ -157,7 +157,7 @@ plot(fit, use.ggplot=T)
 # The predict function will use the optimized parameters if obj$estimate was
 # called before calling predict, otherwise it will use the initial values
 # specified when calling add_parameters
-pred = obj$predict(data=.data, k.step.ahead=10)
+pred = obj$predict(data=.data, n.ahead=10)
 ```
 
 

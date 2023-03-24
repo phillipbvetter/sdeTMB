@@ -8,7 +8,7 @@
   object,
   data,
   pars = NULL,
-  k.step.ahead = 1,
+  n.ahead = 1,
   ode.timestep = NULL,
   compile = FALSE,
   method = "ekf",
@@ -21,7 +21,7 @@ can take \code{NA}-values.}
 
 \item{pars}{fixed parameter vector parsed to the objective function for prediction/filtration.}
 
-\item{k.step.ahead}{integer specifying the desired number of time-steps (as determined by the provided
+\item{n.ahead}{integer specifying the desired number of time-steps (as determined by the provided
 data time-vector) for which predictions are made (integrating the moment ODEs forward in time without
 data updates).}
 

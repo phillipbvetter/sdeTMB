@@ -602,8 +602,8 @@ Perform prediction/filtration to obtain state mean and covariance estimates.
 \if{html}{\out{<div class="r">}}\preformatted{ctsmrTMB$predict(
   data = NULL,
   pars = NULL,
-  k.step.ahead = 1,
-  return.k.step.ahead = NULL,
+  n.ahead = 1,
+  return.n.ahead = NULL,
   ode.timestep = NULL,
   compile = FALSE,
   method = "ekf",
@@ -623,11 +623,11 @@ can take \code{NA}-values.}
 parameter values used are the initial parameters provided through \code{add_parameters}, unless the \code{estimate}
 function has been run, then the default values will be those at the found optimum.}
 
-\item{\code{k.step.ahead}}{integer specifying the desired number of time-steps (as determined by the provided
+\item{\code{n.ahead}}{integer specifying the desired number of time-steps (as determined by the provided
 data time-vector) for which predictions are made (integrating the moment ODEs forward in time without
 data updates).}
 
-\item{\code{return.k.step.ahead}}{numeric vector of integers specifying which k.step.ahead predictions to that
+\item{\code{return.n.ahead}}{numeric vector of integers specifying which n.ahead predictions to that
 should be returned.}
 
 \item{\code{ode.timestep}}{numeric value. Sets the time step-size in numerical filtering schemes.

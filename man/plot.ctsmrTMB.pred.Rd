@@ -4,10 +4,7 @@
 \alias{plot.ctsmrTMB.pred}
 \title{Basic summary of objects of class 'ctsmrTMB.pred' from predict}
 \usage{
-\method{plot}{ctsmrTMB.pred}(pred.data, k.step.ahead = 0, state.name = NULL, ...)
-}
-\arguments{
-\item{extended}{logical. if TRUE additional information is printed}
+\method{plot}{ctsmrTMB.pred}(pred.data, n.ahead = 0, state.name = NULL, ...)
 }
 \value{
 A huge amount of information

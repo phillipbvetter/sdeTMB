@@ -104,17 +104,16 @@ getggplot2colors = function(n) {
 #######################################################
 
 #' Basic summary of objects of class 'ctsmrTMB.pred' from predict
-#' @param extended logical. if TRUE additional information is printed
 #' @returns A huge amount of information
 #' @export
 plot.ctsmrTMB.pred = function(pred.data,
-                              k.step.ahead=0,
+                              n.ahead=0,
                               state.name=NULL,
                               ...) {
   
-  # check k.step.ahead
-  if(!any(k.step.ahead %in% unique(pred$k.step.ahead))){
-    stop("k.step.ahead not found in the prediction data frame")
+  # check n.ahead
+  if(!any(n.ahead %in% unique(pred$n.ahead))){
+    stop("n.ahead not found in the prediction data frame")
   }
   
   # set state name to plot
@@ -123,7 +122,7 @@ plot.ctsmrTMB.pred = function(pred.data,
   }
   
   # filter and plot
-  bool = pred$k.step.ahead==k.step.ahead
+  bool = pred$n.ahead==n.ahead
   x = pred[bool,"t_{k+i}"]
   y = pred[bool,state.name]
   plot(x=x, y=y, type="l",...)
@@ -340,7 +339,7 @@ plot.ctsmrTMB.fit = function(fit,
 #' @param data data.frame containing time-vector 't', observations and inputs. The observations
 #' can take \code{NA}-values.  
 #' @param pars fixed parameter vector parsed to the objective function for prediction/filtration.
-#' @param k.step.ahead integer specifying the desired number of time-steps (as determined by the provided
+#' @param n.ahead integer specifying the desired number of time-steps (as determined by the provided
 #' data time-vector) for which predictions are made (integrating the moment ODEs forward in time without 
 #' data updates).
 #' @param return.covariance booelan value to indicate whether the covariance (instead of the correlation) 
@@ -392,7 +391,7 @@ plot.ctsmrTMB.fit = function(fit,
 predict.ctsmrTMB = function(object,
                             data,
                             pars=NULL,
-                            k.step.ahead=1,
+                            n.ahead=1,
                             ode.timestep=NULL, 
                             compile=FALSE,
                             method="ekf",
@@ -402,7 +401,7 @@ predict.ctsmrTMB = function(object,
   # Call predict method function
   df.out = object$predict(data=data, 
                           pars=pars, 
-                          k.step.ahead=k.step.ahead,
+                          n.ahead=n.ahead,
                           ode.timestep=ode.timestep,
                           compile=compile,
                           method=method,

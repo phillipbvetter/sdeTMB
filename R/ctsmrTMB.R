@@ -74,7 +74,7 @@ ctsmrTMB = R6::R6Class(
       private$fit = NULL
       # predict
       private$pred.bool = 0
-      private$k.step.ahead = 0
+      private$n.ahead = 0
       private$last.pred.index = 0
     },
     ########################################################################
@@ -745,10 +745,10 @@ ctsmrTMB = R6::R6Class(
     #' @param pars fixed parameter vector parsed to the objective function for prediction/filtration. The default
     #' parameter values used are the initial parameters provided through \code{add_parameters}, unless the \code{estimate}
     #' function has been run, then the default values will be those at the found optimum.
-    #' @param k.step.ahead integer specifying the desired number of time-steps (as determined by the provided
+    #' @param n.ahead integer specifying the desired number of time-steps (as determined by the provided
     #' data time-vector) for which predictions are made (integrating the moment ODEs forward in time without 
     #' data updates).
-    #' @param return.k.step.ahead numeric vector of integers specifying which k.step.ahead predictions to that
+    #' @param return.n.ahead numeric vector of integers specifying which n.ahead predictions to that
     #' should be returned.
     #' @param return.covariance booelan value to indicate whether the covariance (instead of the correlation) 
     #' should be returned.
@@ -799,8 +799,8 @@ ctsmrTMB = R6::R6Class(
     #' 
     predict = function(data=NULL,
                        pars=NULL,
-                       k.step.ahead=1,
-                       return.k.step.ahead = NULL,
+                       n.ahead=1,
+                       return.n.ahead = NULL,
                        ode.timestep=NULL, 
                        compile=FALSE,
                        method="ekf",
@@ -840,10 +840,10 @@ ctsmrTMB = R6::R6Class(
       check_and_set_data(data, self, private)
       
       # set flags
-      private$set_k_step_ahead_and_last_pred_index(data, k.step.ahead)
+      private$set_n_ahead_and_last_pred_index(data, n.ahead)
       private$pred.bool = 1
-      if(is.null(return.k.step.ahead)){
-        return.k.step.ahead = 0:k.step.ahead
+      if(is.null(return.n.ahead)){
+        return.n.ahead = 0:n.ahead
       }
       
       # construct neg. log-likelihood function (stored in private$nll)
@@ -861,7 +861,7 @@ ctsmrTMB = R6::R6Class(
       
       # construct return data.frame
       message("Constructing return data.frame...")
-      df.out = data.frame(matrix(nrow=private$last.pred.index*(private$k.step.ahead+1), ncol=5+private$n+private$n^2))
+      df.out = data.frame(matrix(nrow=private$last.pred.index*(private$n.ahead+1), ncol=5+private$n+private$n^2))
       # 
       disp_names = sprintf(rep("cor.%s.%s",private$n^2),rep(private$state.names,each=private$n),rep(private$state.names,private$n))
       disp_names[seq.int(1,private$n^2,by=private$n+1)] = sprintf(rep("var.%s",private$n),private$state.names)
@@ -872,11 +872,11 @@ ctsmrTMB = R6::R6Class(
       }
       names(df.out) = c("i","k","t.i","t.k","n.ahead",private$state.names,disp_names)
       ran = 0:(private$last.pred.index-1)
-      df.out["i"] = rep(ran,each=private$k.step.ahead+1)
-      df.out["k"] = df.out["i"] + rep(0:private$k.step.ahead,private$last.pred.index)
-      df.out["t.i"] = rep(data$t[ran+1],each=private$k.step.ahead+1)
-      df.out["t.k"] = data$t[df.out[,"i"]+1+rep(0:private$k.step.ahead,private$last.pred.index)]
-      df.out["n.ahead"] = rep(0:private$k.step.ahead,private$last.pred.index)
+      df.out["i"] = rep(ran,each=private$n.ahead+1)
+      df.out["k"] = df.out["i"] + rep(0:private$n.ahead,private$last.pred.index)
+      df.out["t.i"] = rep(data$t[ran+1],each=private$n.ahead+1)
+      df.out["t.k"] = data$t[df.out[,"i"]+1+rep(0:private$n.ahead,private$last.pred.index)]
+      df.out["n.ahead"] = rep(0:private$n.ahead,private$last.pred.index)
       df.out[,private$state.names] = do.call(rbind,rep$xk__)
       if(return.covariance){
         df.out[,disp_names] = do.call(rbind,rep$pk__)
@@ -885,8 +885,8 @@ ctsmrTMB = R6::R6Class(
         diag.ids = seq(from=1,to=private$n^2,by=private$n+1)
         df.out[,disp_names[diag.ids]] = do.call(rbind,rep$pk__)[,diag.ids]
       }
-      # return only specific k.step.aheads
-      df.out = df.out[df.out[,"n.ahead"] %in% return.k.step.ahead,]
+      # return only specific n.ahead
+      df.out = df.out[df.out[,"n.ahead"] %in% return.n.ahead,]
       
       class(df.out) = c("ctsmrTMB.pred", "data.frame")
       
@@ -1078,7 +1078,7 @@ ctsmrTMB = R6::R6Class(
     fit = NULL,
     # predict
     pred.bool = NULL,
-    k.step.ahead = NULL,
+    n.ahead = NULL,
     last.pred.index = NULL,
     ########################################################################
     ########################################################################
@@ -1293,21 +1293,19 @@ ctsmrTMB = R6::R6Class(
     ########################################################################
     ########################################################################
     # SET k step ahead and last pred index for obj$predict
-    set_k_step_ahead_and_last_pred_index = function(data, k.step.ahead) {
+    set_n_ahead_and_last_pred_index = function(data, n.ahead) {
       # is integer numeric?
-      if (!(is.numeric(k.step.ahead)) & !(length(k.step.ahead==1)) & k.step.ahead >= 1) {
-        stop("k.step.ahead must be a non-negative numeric integer")
+      if (!(is.numeric(n.ahead)) & !(length(n.ahead==1)) & n.ahead >= 1) {
+        stop("n.ahead must be a non-negative numeric integer")
       }
-      last.pred.index = nrow(data) - k.step.ahead
+      last.pred.index = nrow(data) - n.ahead
       if(last.pred.index < 1){
-        stop("The provided k.step.ahead exceeds the possible maximum (nrow(data)-1)")
-        # message(sprintf("The argument k.step.ahead = %s can't be larger than the number of rows in the data minus one:\n\t Reducing to k.step.ahead = %i.",k.step.ahead, nrow(data)-1))
-        # k.step.ahead = nrow(data) - 1
+        stop("The provided n.ahead exceeds the possible maximum (nrow(data)-1)")
       }
       
       # return values
-      private$k.step.ahead = k.step.ahead
-      private$last.pred.index = nrow(data) - k.step.ahead
+      private$n.ahead = n.ahead
+      private$last.pred.index = nrow(data) - n.ahead
       return(invisible(self))
     }
   )

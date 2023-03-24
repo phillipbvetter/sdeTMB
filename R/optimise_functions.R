@@ -116,7 +116,7 @@ construct_nll = function(self, private){
     estMethod__ = estMethod__,
     pred__ = private$pred.bool,
     last_pred_index = private$last.pred.index,
-    k_step_ahead = private$k.step.ahead,
+    k_step_ahead = private$n.ahead,
     # initial
     X0__ = initial.state.mean,
     P0__ = initial.state.cov,
