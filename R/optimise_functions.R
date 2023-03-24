@@ -7,8 +7,8 @@ check_and_set_data = function(data, self, private) {
   # RELATED TO ALL METHODS #
   
   # is data a list or data.frame
-  if (!is.list(data) & !is.data.frame(data)) {
-    stop("The data should be a list or a data.frame")
+  if (!is.list(data) & !is.data.frame(data) & !is.matrix(data)) {
+    stop("The data should be a list, data.frame or matrix")
   }
   
   # convert to data.frame
@@ -75,8 +75,8 @@ check_and_set_data = function(data, self, private) {
     names(private$tmb.initial.state.for.parameters) = private$state.names
   }
   
-  # ADD DATA TO PRIVATE #
-  private$data = data
+  # add date to private without unused columns
+  private$data = data[,required.names]
   
   # Return
   return(invisible(self))
@@ -198,6 +198,7 @@ optimise_nll = function(self, private) {
   
   # IF METHOD IS KALMAN FILTER
   if (any(private$method==c("ekf","ukf"))) {
+    
     # use function, gradient and hessian
     if (private$use.hessian) {
       comptime = system.time(
@@ -221,6 +222,7 @@ optimise_nll = function(self, private) {
       )
     }
   }
+  
   # IF METHOD IS TMB
   if (private$method =="tmb") {
     comptime = system.time(
@@ -236,13 +238,11 @@ optimise_nll = function(self, private) {
   # Check for error in the optimization
   if (inherits(opt,"try-error")) {
     message("The optimisation failed due to the following error: \n\n\t",opt)
-  }
-  
-  # If optimization failed return NULL
-  if (is.null(opt$convergence)) {
     private$opt = NULL
     return(invisible(self))
   }
+  
+  # store optimization object
   private$opt = opt
   
   # mgc and computation time
@@ -259,7 +259,7 @@ optimise_nll = function(self, private) {
             Evaluations: Fun: ",opt$evaluations["function"]," Grad: ",opt$evaluations[["gradient"]]
   )
   
-  # For TMB method: computes various stats
+  # For TMB method: run sdreport
   if (private$method=="tmb") {
     private$sdr = TMB::sdreport(private$nll)
   }
@@ -291,22 +291,44 @@ create_return_fit = function(self, private) {
   if (private$method == "ekf" | private$method == "ukf") {
     
     
-    # Objective and Gradient
+    # Objective value
     private$fit$nll.value = private$opt$objective
-    private$fit$nll.gradient = tryCatch( as.vector(private$nll$gr(private$opt$par)),
-                                         error=function(e) NA,
-                                         warning=function(w) NA
+    
+    # Gradient
+    # private$fit$nll.gradient = tryCatch( as.vector(private$nll$gr(private$opt$par)),
+    #                                      error=function(e) NA,
+    #                                      warning=function(w) NA
+    # )
+    # names(private$fit$nll.gradient) = names(private$free.pars)
+    private$fit$nll.gradient = try_withWarningRecovery(
+      {
+        nll.grad = as.vector(private$nll$gr(private$opt$par))
+        names(nll.grad) = names(private$free.pars)
+        nll.grad
+      }
     )
-    names(private$fit$nll.gradient) = names(private$free.pars)
+    if (inherits(private$fit$nll.gradient,"try-error")) {
+      private$fit$nll.gradient = NA
+    }
     
     # Hessian
-    private$fit$nll.hessian = tryCatch(private$nll$he(private$opt$par),
-                                       error=function(e) NA,
-                                       warning=function(w) NA
+    # private$fit$nll.hessian = tryCatch(private$nll$he(private$opt$par),
+    #                                    error=function(e) NA,
+    #                                    warning=function(w) NA
+    # )
+    # rownames(private$fit$nll.hessian) = names(private$free.pars)
+    # colnames(private$fit$nll.hessian) = names(private$free.pars)
+    private$fit$nll.hessian = try_withWarningRecovery(
+      {
+        nll.hess = private$nll$he(private$opt$par)
+        rownames(nll.hess) = names(private$free.pars)
+        colnames(nll.hess) = names(private$free.pars)
+        nll.hess
+      }
     )
-    rownames(private$fit$nll.hessian) = names(private$free.pars)
-    colnames(private$fit$nll.hessian) = names(private$free.pars)
-    
+    if (inherits(private$fit$nll.hessian,"try-error")) {
+      private$fit$nll.hessian = NA
+    }
     
     # Parameter Estimate
     private$fit$par.fixed = private$opt$par

@@ -259,28 +259,10 @@ lastcheck_before_compile = function(self, private) {
 
 compile_cppfile = function(self, private) {
   
-  modelpath.cpp = paste(private$cppfile.path.with.method,".cpp",sep="")
-  modelname.cpp = paste(private$modelname.with.method,".cpp",sep="")
-  
-  # if compile=TRUE
-  # if (private$compile) {
-  #   switch(private$method,
-  #          tmb = write_tmb_cppfile(self, private),
-  #          ekf = write_ekf_cppfile(self, private),
-  #          ukf = write_ukf_cppfile(self, private),
-  #          all = write_cppfile(self, private)
-  #   )
-  #   TMB::compile(paste(private$cppfile.path.with.method,".cpp",sep=""))
-  # 
-  #   #reload the shared dll libraries (fix for arm mac problems)
-  #   try(dyn.unload(TMB::dynlib(private$cppfile.path.with.method)),silent=T)
-  #   try(dyn.load(TMB::dynlib(private$cppfile.path.with.method)),silent=T)
-  # }
   if(private$compile){
     write_cppfile(self, private)
     TMB::compile(paste(private$cppfile.path,".cpp",sep=""))
-    
-    # reload the shared dll libraries (fix for arm mac problems)
+    # reload shared libraries
     try(dyn.unload(TMB::dynlib(private$cppfile.path)),silent=T)
     try(dyn.load(TMB::dynlib(private$cppfile.path)),silent=T)
   }
@@ -288,9 +270,8 @@ compile_cppfile = function(self, private) {
   # If compile=FALSE then the shared library must exist
   if (!private$compile) {
     
-    # for mac and linux
+    # mac : check that files exist
     if (.Platform$OS.type=="unix") {
-      # modelpath.so = paste(private$cppfile.path.with.method,".so",sep="")
       modelpath.so = paste(private$cppfile.path,".so",sep="")
       if (!file.exists(modelpath.so)) {
         message("Compiling model...")
@@ -298,9 +279,9 @@ compile_cppfile = function(self, private) {
         compile_cppfile(self, private)
       }
     }
-    # for windows
+    
+    #windows: check that files exist
     if (.Platform$OS.type=="windows") {
-      # modelpath.dll = paste(private$cppfile.path.with.method,".dll",sep="")
       modelpath.dll = paste(private$cppfile.path,".dll",sep="")
       if (!file.exists(modelpath.dll)) {
         message("Compiling model...")
@@ -308,17 +289,14 @@ compile_cppfile = function(self, private) {
         compile_cppfile(self, private)
       }
     }
-  }
-  
-  # load the library (if dll arents loaded but cpp is already compiled)
-  if (!private$compile) {
+    
+    # reload libraries
     message("Loading pre-compiled model...")
-    # try(dyn.load(TMB::dynlib(private$cppfile.path.with.method)),silent=T)
+    try(dyn.unload(TMB::dynlib(private$cppfile.path)),silent=T)
     try(dyn.load(TMB::dynlib(private$cppfile.path)),silent=T)
+    
+    
   }
-  
-  # change compile flag
-  private$compile = FALSE
   
   return(invisible(self))
 }

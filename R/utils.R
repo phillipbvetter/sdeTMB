@@ -47,7 +47,7 @@ hat2pow <- function(e) {
 # TRY THAT SUPPRESSES AND RECOVERS ANSWER DESPITE WARNINGS
 ###########################################################
 
-try_withWarningRecovery = function(expr,silent=TRUE){
+try_withWarningRecovery = function(expr, silent=TRUE){
   output = try(withCallingHandlers(
     {
       expr
@@ -56,5 +56,6 @@ try_withWarningRecovery = function(expr,silent=TRUE){
       invokeRestart("muffleWarning")
     }
   ),silent=silent)
+  
   return(output)
 }

@@ -713,8 +713,6 @@ ctsmrTMB = R6::R6Class(
       private$set_method(method)
       private$set_loss(loss,loss_c)
       private$set_control(control)
-      private$pred.bool = 0
-      
       
       # build model
       message("Building model...")
@@ -817,11 +815,12 @@ ctsmrTMB = R6::R6Class(
       
       # check data
       if(is.null(data)){
-        if(is.null(private$fit)){
+        if(is.null(private$data)){
           stop("Please supply data to perform prediction.")
         } else {
-          message("No data provided. Reusing the data provided in the lastest call to 'estimate'")
-          data = private$fit$data
+          message("No data provided. Reusing the data provided in the lastest call to 'estimate' or 'construct_nll")
+          # data = private$fit$data
+          data = private$data
         }
       }
       
@@ -864,20 +863,20 @@ ctsmrTMB = R6::R6Class(
       message("Constructing return data.frame...")
       df.out = data.frame(matrix(nrow=private$last.pred.index*(private$k.step.ahead+1), ncol=5+private$n+private$n^2))
       # 
-      disp_names = sprintf(rep("cor_%s_%s",private$n^2),rep(private$state.names,each=private$n),rep(private$state.names,private$n))
-      disp_names[seq.int(1,private$n^2,by=private$n+1)] = sprintf(rep("var_%s",private$n),private$state.names)
+      disp_names = sprintf(rep("cor.%s.%s",private$n^2),rep(private$state.names,each=private$n),rep(private$state.names,private$n))
+      disp_names[seq.int(1,private$n^2,by=private$n+1)] = sprintf(rep("var.%s",private$n),private$state.names)
       var_bool = !stringr::str_detect(disp_names,"cor")
       if(return.covariance){
-        disp_names = sprintf(rep("cov_%s_%s",private$n^2),rep(private$state.names,each=private$n),rep(private$state.names,private$n))
-        disp_names[seq.int(1,private$n^2,by=private$n+1)] = sprintf(rep("var_%s",private$n),private$state.names)
+        disp_names = sprintf(rep("cov.%s.%s",private$n^2),rep(private$state.names,each=private$n),rep(private$state.names,private$n))
+        disp_names[seq.int(1,private$n^2,by=private$n+1)] = sprintf(rep("var.%s",private$n),private$state.names)
       }
-      names(df.out) = c("i","ik","t_i","t_ik","k.step.ahead",private$state.names,disp_names)
+      names(df.out) = c("i","k","t.i","t.k","n.ahead",private$state.names,disp_names)
       ran = 0:(private$last.pred.index-1)
       df.out["i"] = rep(ran,each=private$k.step.ahead+1)
-      df.out["ik"] = df.out["i"] + rep(0:private$k.step.ahead,private$last.pred.index)
-      df.out["t_i"] = rep(data$t[ran+1],each=private$k.step.ahead+1)
-      df.out["t_ik"] = data$t[df.out[,"i"]+1+rep(0:private$k.step.ahead,private$last.pred.index)]
-      df.out["k.step.ahead"] = rep(0:private$k.step.ahead,private$last.pred.index)
+      df.out["k"] = df.out["i"] + rep(0:private$k.step.ahead,private$last.pred.index)
+      df.out["t.i"] = rep(data$t[ran+1],each=private$k.step.ahead+1)
+      df.out["t.k"] = data$t[df.out[,"i"]+1+rep(0:private$k.step.ahead,private$last.pred.index)]
+      df.out["n.ahead"] = rep(0:private$k.step.ahead,private$last.pred.index)
       df.out[,private$state.names] = do.call(rbind,rep$xk__)
       if(return.covariance){
         df.out[,disp_names] = do.call(rbind,rep$pk__)
@@ -887,9 +886,12 @@ ctsmrTMB = R6::R6Class(
         df.out[,disp_names[diag.ids]] = do.call(rbind,rep$pk__)[,diag.ids]
       }
       # return only specific k.step.aheads
-      df.out = df.out[df.out$k.step.ahead %in% return.k.step.ahead,]
+      df.out = df.out[df.out[,"n.ahead"] %in% return.k.step.ahead,]
       
       class(df.out) = c("ctsmrTMB.pred", "data.frame")
+      
+      # reset prediction variable such that estimate and nll works fine
+      private$pred.bool = 0
       
       # return
       message("Succesfully returned predictions")
