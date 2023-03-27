@@ -178,7 +178,6 @@ construct_nll = function(self, private){
                        parameters = parameters,
                        map = private$fixed.pars,
                        DLL = private$modelname,
-                       # DLL = private$modelname.with.method,
                        silent = private$silent,
                        random = .random)
   
