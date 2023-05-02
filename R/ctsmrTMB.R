@@ -713,6 +713,7 @@ ctsmrTMB = R6::R6Class(
       private$set_method(method)
       private$set_loss(loss,loss_c)
       private$set_control(control)
+      # private$pred.bool = 0
       
       # build model
       message("Building model...")

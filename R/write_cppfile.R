@@ -183,8 +183,9 @@ matrix<Type> Phi__(matrix<Type> M){
     fvars2 = "Type(0.0)"
     fvars2.tmb = "Type(0.0)"
     fvars2.pred = "Type(0.0)"
+  }
+  if(length(fvars2_sigma2)<1){
     fvars1_sigma = "Type a"
-    fvars2_sigma = "Type(0.0)"
     fvars2_sigma2 = "Type(0.0)"
   }
   
