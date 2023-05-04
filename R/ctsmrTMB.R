@@ -713,7 +713,7 @@ ctsmrTMB = R6::R6Class(
       private$set_method(method)
       private$set_loss(loss,loss_c)
       private$set_control(control)
-      # private$pred.bool = 0
+      private$pred.bool = 0
       
       # build model
       message("Building model...")
@@ -746,10 +746,10 @@ ctsmrTMB = R6::R6Class(
     #' @param pars fixed parameter vector parsed to the objective function for prediction/filtration. The default
     #' parameter values used are the initial parameters provided through \code{add_parameters}, unless the \code{estimate}
     #' function has been run, then the default values will be those at the found optimum.
-    #' @param n.ahead integer specifying the desired number of time-steps (as determined by the provided
+    #' @param k.ahead integer specifying the desired number of time-steps (as determined by the provided
     #' data time-vector) for which predictions are made (integrating the moment ODEs forward in time without 
     #' data updates).
-    #' @param return.n.ahead numeric vector of integers specifying which n.ahead predictions to that
+    #' @param return.k.ahead numeric vector of integers specifying which n.ahead predictions to that
     #' should be returned.
     #' @param return.covariance booelan value to indicate whether the covariance (instead of the correlation) 
     #' should be returned.
@@ -800,8 +800,8 @@ ctsmrTMB = R6::R6Class(
     #' 
     predict = function(data=NULL,
                        pars=NULL,
-                       n.ahead=1,
-                       return.n.ahead = NULL,
+                       k.ahead=1,
+                       return.k.ahead = NULL,
                        ode.timestep=NULL, 
                        compile=FALSE,
                        method="ekf",
@@ -841,10 +841,10 @@ ctsmrTMB = R6::R6Class(
       check_and_set_data(data, self, private)
       
       # set flags
-      private$set_n_ahead_and_last_pred_index(data, n.ahead)
+      private$set_n_ahead_and_last_pred_index(data, k.ahead)
       private$pred.bool = 1
-      if(is.null(return.n.ahead)){
-        return.n.ahead = 0:n.ahead
+      if(is.null(return.k.ahead)){
+        return.k.ahead = 0:k.ahead
       }
       
       # construct neg. log-likelihood function (stored in private$nll)
@@ -871,13 +871,17 @@ ctsmrTMB = R6::R6Class(
         disp_names = sprintf(rep("cov.%s.%s",private$n^2),rep(private$state.names,each=private$n),rep(private$state.names,private$n))
         disp_names[seq.int(1,private$n^2,by=private$n+1)] = sprintf(rep("var.%s",private$n),private$state.names)
       }
-      names(df.out) = c("i","k","t.i","t.k","n.ahead",private$state.names,disp_names)
+      # names(df.out) = c("i","k","t.i","t.k","n.ahead",private$state.names,disp_names)
+      names(df.out) = c("i","j","t.i","t.j","k.ahead",private$state.names,disp_names)
       ran = 0:(private$last.pred.index-1)
       df.out["i"] = rep(ran,each=private$n.ahead+1)
-      df.out["k"] = df.out["i"] + rep(0:private$n.ahead,private$last.pred.index)
+      df.out["j"] = df.out["i"] + rep(0:private$n.ahead,private$last.pred.index)
+      # df.out["k"] = df.out["i"] + rep(0:private$n.ahead,private$last.pred.index)
       df.out["t.i"] = rep(data$t[ran+1],each=private$n.ahead+1)
-      df.out["t.k"] = data$t[df.out[,"i"]+1+rep(0:private$n.ahead,private$last.pred.index)]
-      df.out["n.ahead"] = rep(0:private$n.ahead,private$last.pred.index)
+      df.out["t.j"] = data$t[df.out[,"i"]+1+rep(0:private$n.ahead,private$last.pred.index)]
+      # df.out["t.k"] = data$t[df.out[,"i"]+1+rep(0:private$n.ahead,private$last.pred.index)]
+      # df.out["n.ahead"] = rep(0:private$n.ahead,private$last.pred.index)
+      df.out["k.ahead"] = rep(0:private$n.ahead,private$last.pred.index)
       df.out[,private$state.names] = do.call(rbind,rep$xk__)
       if(return.covariance){
         df.out[,disp_names] = do.call(rbind,rep$pk__)
@@ -887,7 +891,8 @@ ctsmrTMB = R6::R6Class(
         df.out[,disp_names[diag.ids]] = do.call(rbind,rep$pk__)[,diag.ids]
       }
       # return only specific n.ahead
-      df.out = df.out[df.out[,"n.ahead"] %in% return.n.ahead,]
+      df.out = df.out[df.out[,"k.ahead"] %in% return.k.ahead,]
+      # df.out = df.out[df.out[,"n.ahead"] %in% return.n.ahead,]
       
       class(df.out) = c("ctsmrTMB.pred", "data.frame")
       
@@ -1010,304 +1015,305 @@ ctsmrTMB = R6::R6Class(
                       extended=extended, ggtheme=ggtheme)
       return(invisible(plotlist))
     }
-  ),
-  # private fields
-  private = list(
-    # modelname
-    modelname = character(0),
-    cppfile.directory = NULL,
-    cppfile.path = character(0),
-    cppfile.path.with.method = NULL,
-    modelname.with.method = NULL,
-    # model equations
-    sys.eqs = NULL,
-    obs.eqs = NULL,
-    obs.var = NULL,
-    alg.eqs = NULL,
-    inputs = NULL,
-    constants = NULL,
-    parameters = NULL,
-    initial.state = NULL,
-    pred.initial.state = NULL,
-    tmb.initial.state.for.parameters = NULL,
-    iobs = NULL,
-    # after algebraics
-    sys.eqs.trans = NULL,
-    obs.eqs.trans = NULL,
-    obs.var.trans = NULL,
-    # names
-    state.names = NULL,
-    obs.names = NULL,
-    obsvar.names = NULL,
-    input.names = NULL,
-    parameter.names = NULL,
-    constant.names = NULL,
-    # options
-    method = NULL,
-    use.hessian = NULL,
-    state.dep.diff = NULL,
-    lamperti = NULL,
-    compile = NULL,
-    loss = NULL,
-    tukey.pars = NULL,
-    silent = NULL,
-    map = NULL,
-    ode.timestep = NULL,
-    ode.dt = NULL,
-    ode.N = NULL,
-    ode.Ncumsum = NULL,
-    control.nlminb = NULL,
-    # hidden
-    linear = NULL,
-    fixed.pars = NULL,
-    free.pars = NULL,
-    trigger = NULL,
-    # lengths
-    n = NULL,
-    m = NULL,
-    ng = NULL,
-    # differentials
-    diff.processes = NULL,
-    diff.terms = NULL,
-    # build flag
-    build = NULL,
-    # data, nll, opt
-    data = NULL,
-    nll = NULL,
-    opt = NULL,
-    sdr = NULL,
-    fit = NULL,
-    # predict
-    pred.bool = NULL,
-    n.ahead = NULL,
-    last.pred.index = NULL,
-    ########################################################################
-    ########################################################################
-    # lamperti transform functions
-    add_trans_systems = function(form) {
-      res = check_system_eqs(form, self, private, silent=T)
-      private$sys.eqs.trans[[names(res)]] = res[[1]]
-      return(invisible(self))
-    },
-    ########################################################################
-    ########################################################################
-    # lamperti transform functions
-    add_trans_observations = function(form) {
-      res = check_observation_eqs(form, self, private, silent=T)
-      private$obs.eqs.trans[[names(res)]] = res[[1]]
-      return(invisible(self))
-    },
-    ########################################################################
-    ########################################################################
-    # lamperti transform functions
-    add_trans_observation_variances = function(form) {
-      res = check_observation_variance_eqs(form, self, private, silent=T)
-      private$obs.var.trans[[names(res)]] = res[[1]]
-      return(invisible(self))
-    },
-    ########################################################################
-    ########################################################################
-    # build function
-    build_model = function() {
-      # basic checks for model, add class n, ng, m, diff procs
-      init_build(self, private)
-      
-      # apply algebraics
-      check_algebraics_before_applying(self, private)
-      apply_algebraics(self, private)
-      
-      # update diff.terms and apply lamperti
-      update_diffterms(self, private)
-      apply_lamperti(self, private)
-      update_diffterms(self, private)
-      
-      # check if model is ok
-      lastcheck_before_compile(self, private)
-      
-      # compile cpp file
-      compile_cppfile(self, private)
-      
-      # set build
-      private$build = TRUE
-      
-      return(invisible(self))
-    },
-    ########################################################################
-    ########################################################################
-    # compile function
-    set_compile = function(bool) {
-      # is bool logical
-      if (!is.logical(bool)) {
-        stop("You must pass a logical value")
-      }
-      private$compile = bool
-      return(invisible(self))
-    },
-    ########################################################################
-    ########################################################################
-    # silent function
-    set_silence = function(bool) {
-      # is bool logical
-      if (!is.logical(bool)) {
-        stop("You must pass a logical value")
-      }
-      private$silent = bool
-      return(invisible(self))
-    },
-    ########################################################################
-    ########################################################################
-    # set method
-    set_method = function(method) {
-      # is the method a string?
-      if (!(is.character(method))) {
-        stop("You must pass a string")
-      }
-      # choose one of the available methods
-      available_methods = c("ekf","ukf","tmb")
-      if (!(method %in% available_methods)) {
-        stop("That method is not available. Please choose one of the following instead: \n
+    ),
+      # private fields
+      private = list(
+        # modelname
+        modelname = character(0),
+        cppfile.directory = NULL,
+        cppfile.path = character(0),
+        cppfile.path.with.method = NULL,
+        modelname.with.method = NULL,
+        # model equations
+        sys.eqs = NULL,
+        obs.eqs = NULL,
+        obs.var = NULL,
+        alg.eqs = NULL,
+        inputs = NULL,
+        constants = NULL,
+        parameters = NULL,
+        initial.state = NULL,
+        pred.initial.state = NULL,
+        tmb.initial.state.for.parameters = NULL,
+        iobs = NULL,
+        # after algebraics
+        sys.eqs.trans = NULL,
+        obs.eqs.trans = NULL,
+        obs.var.trans = NULL,
+        # names
+        state.names = NULL,
+        obs.names = NULL,
+        obsvar.names = NULL,
+        input.names = NULL,
+        parameter.names = NULL,
+        constant.names = NULL,
+        # options
+        method = NULL,
+        use.hessian = NULL,
+        state.dep.diff = NULL,
+        lamperti = NULL,
+        compile = NULL,
+        loss = NULL,
+        tukey.pars = NULL,
+        silent = NULL,
+        map = NULL,
+        ode.timestep = NULL,
+        ode.dt = NULL,
+        ode.N = NULL,
+        ode.Ncumsum = NULL,
+        control.nlminb = NULL,
+        # hidden
+        linear = NULL,
+        fixed.pars = NULL,
+        free.pars = NULL,
+        trigger = NULL,
+        # lengths
+        n = NULL,
+        m = NULL,
+        ng = NULL,
+        # differentials
+        diff.processes = NULL,
+        diff.terms = NULL,
+        # build flag
+        build = NULL,
+        # data, nll, opt
+        data = NULL,
+        nll = NULL,
+        opt = NULL,
+        sdr = NULL,
+        fit = NULL,
+        # predict
+        pred.bool = NULL,
+        n.ahead = NULL,
+        last.pred.index = NULL,
+        ########################################################################
+        ########################################################################
+        # lamperti transform functions
+        add_trans_systems = function(form) {
+          res = check_system_eqs(form, self, private, silent=T)
+          private$sys.eqs.trans[[names(res)]] = res[[1]]
+          return(invisible(self))
+        },
+        ########################################################################
+        ########################################################################
+        # lamperti transform functions
+        add_trans_observations = function(form) {
+          res = check_observation_eqs(form, self, private, silent=T)
+          private$obs.eqs.trans[[names(res)]] = res[[1]]
+          return(invisible(self))
+        },
+        ########################################################################
+        ########################################################################
+        # lamperti transform functions
+        add_trans_observation_variances = function(form) {
+          res = check_observation_variance_eqs(form, self, private, silent=T)
+          private$obs.var.trans[[names(res)]] = res[[1]]
+          return(invisible(self))
+        },
+        ########################################################################
+        ########################################################################
+        # build function
+        build_model = function() {
+          # basic checks for model, add class n, ng, m, diff procs
+          init_build(self, private)
+          
+          # apply algebraics
+          check_algebraics_before_applying(self, private)
+          apply_algebraics(self, private)
+          
+          # update diff.terms and apply lamperti
+          update_diffterms(self, private)
+          apply_lamperti(self, private)
+          update_diffterms(self, private)
+          
+          # check if model is ok
+          lastcheck_before_compile(self, private)
+          
+          # compile cpp file
+          compile_cppfile(self, private)
+          
+          # set build
+          private$build = TRUE
+          
+          return(invisible(self))
+        },
+        ########################################################################
+        ########################################################################
+        # compile function
+        set_compile = function(bool) {
+          # is bool logical
+          if (!is.logical(bool)) {
+            stop("You must pass a logical value")
+          }
+          private$compile = bool
+          return(invisible(self))
+        },
+        ########################################################################
+        ########################################################################
+        # silent function
+        set_silence = function(bool) {
+          # is bool logical
+          if (!is.logical(bool)) {
+            stop("You must pass a logical value")
+          }
+          private$silent = bool
+          return(invisible(self))
+        },
+        ########################################################################
+        ########################################################################
+        # set method
+        set_method = function(method) {
+          # is the method a string?
+          if (!(is.character(method))) {
+            stop("You must pass a string")
+          }
+          # choose one of the available methods
+          available_methods = c("ekf","ukf","tmb")
+          if (!(method %in% available_methods)) {
+            stop("That method is not available. Please choose one of the following instead: \n
                   1. Extended Kalman Filter - method = 'ekf'
                   2. Unscented Kalman Filter - method = 'ukf'
                   3. Laplace Approx using Random Effects - method = 'tmb'")
-      }
-      private$method = method
-      return(invisible(self))
-    },
-    ########################################################################
-    ########################################################################
-    # set time-step
-    set_timestep = function(dt) {
-      # OK if NULL
-      if(is.null(dt)){
-        private$ode.timestep = dt
-        return(invisible(NULL))
-      }
-      # must be numeric
-      if (!is.numeric(dt)) {
-        stop("The timestep should be a numeric value.")
-      }
-      # must have length 1
-      if (length(dt)!=1) {
-        stop("Timestep must have length 1.")
-      }
-      private$ode.timestep = dt
-    },
-    ########################################################################
-    ########################################################################
-    # USE HESSIAN FUNCTION
-    use_hessian = function(bool) {
-      if (!is.logical(bool)) {
-        stop("This must be a logical")
-      }
-      private$use.hessian = bool
-    },
-    ########################################################################
-    ########################################################################
-    # SET PRED INITIAL STATE
-    set_pred_initial_state = function(mean,cov) {
-      if (is.null(private$sys.eqs)) {
-        stop("Please specify system equations first")
-      }
-      if (!is.numeric(mean)) {
-        stop("The mean vector is not a numeric")
-      }
-      if (any(is.na(mean))) {
-        stop("The mean vector contains NAs.")
-      }
-      if (length(mean)!=length(private$sys.eqs)) {
-        stop("The initial state vector should have length ",length(private$sys.eqs))
-      }
-      if (!all(dim(cov)==c(length(private$sys.eqs),length(private$sys.eqs)))) {
-        stop("The covariance matrix should be square with dimension ", length(private$sys.eqs))
-      }
-      # convert scalar to matrix
-      if(!is.matrix(cov) & is.numeric(cov) & length(cov)==1){
-        cov = cov*diag(1)
-      }
-      if (!is.numeric(cov)) {
-        stop("The covariance matrix is not a numeric")
-      }
-      if (any(is.na(cov))) {
-        stop("The covariance matrix contains NAs")
-      }
-      if (any(eigen(cov)$values < 0)){
-        stop("The covariance matrix is not positive semi-definite")
-      }
-      if (!isSymmetric.matrix(cov)){
-        stop("The covariance matrix is symmetric")
-      }
-      private$pred.initial.state = list(mean=mean,cov=as.matrix(cov))
-      return(invisible(self))
-    },
-    ########################################################################
-    ########################################################################
-    # SET LOSS FUNCTION
-    set_loss = function(loss,c=3) {
-      # is the method a string?
-      if (!(is.character(loss))) {
-        stop("You must pass a string")
-      }
-      # choose one of the available methods
-      available_losses = c("quadratic","huber","tukey")
-      if (!(loss %in% available_losses)) {
-        stop("That method is not available. Please choose one of the following instead: \n
+          }
+          private$method = method
+          return(invisible(self))
+        },
+        ########################################################################
+        ########################################################################
+        # set time-step
+        set_timestep = function(dt) {
+          # OK if NULL
+          if(is.null(dt)){
+            private$ode.timestep = dt
+            return(invisible(NULL))
+          }
+          # must be numeric
+          if (!is.numeric(dt)) {
+            stop("The timestep should be a numeric value.")
+          }
+          # must have length 1
+          if (length(dt)!=1) {
+            stop("Timestep must have length 1.")
+          }
+          private$ode.timestep = dt
+        },
+        ########################################################################
+        ########################################################################
+        # USE HESSIAN FUNCTION
+        use_hessian = function(bool) {
+          if (!is.logical(bool)) {
+            stop("This must be a logical")
+          }
+          private$use.hessian = bool
+        },
+        ########################################################################
+        ########################################################################
+        # SET PRED INITIAL STATE
+        set_pred_initial_state = function(mean,cov) {
+          if (is.null(private$sys.eqs)) {
+            stop("Please specify system equations first")
+          }
+          if (!is.numeric(mean)) {
+            stop("The mean vector is not a numeric")
+          }
+          if (any(is.na(mean))) {
+            stop("The mean vector contains NAs.")
+          }
+          if (length(mean)!=length(private$sys.eqs)) {
+            stop("The initial state vector should have length ",length(private$sys.eqs))
+          }
+          if (!all(dim(cov)==c(length(private$sys.eqs),length(private$sys.eqs)))) {
+            stop("The covariance matrix should be square with dimension ", length(private$sys.eqs))
+          }
+          # convert scalar to matrix
+          if(!is.matrix(cov) & is.numeric(cov) & length(cov)==1){
+            cov = cov*diag(1)
+          }
+          if (!is.numeric(cov)) {
+            stop("The covariance matrix is not a numeric")
+          }
+          if (any(is.na(cov))) {
+            stop("The covariance matrix contains NAs")
+          }
+          if (any(eigen(cov)$values < 0)){
+            stop("The covariance matrix is not positive semi-definite")
+          }
+          if (!isSymmetric.matrix(cov)){
+            stop("The covariance matrix is symmetric")
+          }
+          private$pred.initial.state = list(mean=mean,cov=as.matrix(cov))
+          return(invisible(self))
+        },
+        ########################################################################
+        ########################################################################
+        # SET LOSS FUNCTION
+        set_loss = function(loss,c=3) {
+          # is the method a string?
+          if (!(is.character(loss))) {
+            stop("You must pass a string")
+          }
+          # choose one of the available methods
+          available_losses = c("quadratic","huber","tukey")
+          if (!(loss %in% available_losses)) {
+            stop("That method is not available. Please choose one of the following instead: \n
                   1. Quadratic loss = 'quadratic'
                   2. Quadratic-Linear loss = 'huber'
                   3. Quadratic-Constant loss = 'tukey'")
-      }
-      if (loss=="tukey") {
-        l = 1L
-        # compute tukey approx coefficients
-        rtukey = seq(0,100,by=1e-2)
-        ctukey = c
-        funtukey = function(r){
-          ifelse(r^2 <= ctukey^2,
-                 ctukey^2/6 * (1-(1-(r/ctukey)^2)^3),
-                 ctukey^2/6
-          )
+          }
+          if (loss=="tukey") {
+            l = 1L
+            # compute tukey approx coefficients
+            rtukey = seq(0,100,by=1e-2)
+            ctukey = c
+            funtukey = function(r){
+              ifelse(r^2 <= ctukey^2,
+                     ctukey^2/6 * (1-(1-(r/ctukey)^2)^3),
+                     ctukey^2/6
+              )
+            }
+            tukeyloss = function(.pars){
+              # res = sum((funtukey(rtukey) - .pars[4]*(sigmoid(rtukey,a=.pars[1],b=.pars[2])+.pars[3]))^2)
+              res = sum((funtukey(rtukey) - .pars[4]*(invlogit2(rtukey,a=.pars[1],b=.pars[2])+.pars[3]))^2)
+            }
+            tukeyopt = nlminb(start=rep(1,4),objective=tukeyloss)
+            private$tukey.pars = tukeyopt$par
+          } else if (loss=="huber") {
+            l = 2L
+          } else {
+            l = 0L
+          }
+          private$loss = list(loss=l,c=c)
+          return(invisible(self))
+        },
+        ########################################################################
+        ########################################################################
+        # SET CONTROL FOR NLMINB
+        set_control = function(control) {
+          # is the control a list?
+          if (!(is.list(control))) {
+            stop("The control argument must be a list")
+          }
+          private$control.nlminb = control
+          return(invisible(self))
+        },
+        ########################################################################
+        ########################################################################
+        # SET k step ahead and last pred index for obj$predict
+        set_n_ahead_and_last_pred_index = function(data, n.ahead) {
+          # is integer numeric?
+          if (!(is.numeric(n.ahead)) & !(length(n.ahead==1)) & n.ahead >= 1) {
+            stop("n.ahead must be a non-negative numeric integer")
+          }
+          last.pred.index = nrow(data) - n.ahead
+          if(last.pred.index < 1){
+            stop("The provided n.ahead exceeds the possible maximum (nrow(data)-1)")
+          }
+          
+          # return values
+          private$n.ahead = n.ahead
+          private$last.pred.index = nrow(data) - n.ahead
+          return(invisible(self))
         }
-        tukeyloss = function(.pars){
-          # res = sum((funtukey(rtukey) - .pars[4]*(sigmoid(rtukey,a=.pars[1],b=.pars[2])+.pars[3]))^2)
-          res = sum((funtukey(rtukey) - .pars[4]*(invlogit2(rtukey,a=.pars[1],b=.pars[2])+.pars[3]))^2)
-        }
-        tukeyopt = nlminb(start=rep(1,4),objective=tukeyloss)
-        private$tukey.pars = tukeyopt$par
-      } else if (loss=="huber") {
-        l = 2L
-      } else {
-        l = 0L
-      }
-      private$loss = list(loss=l,c=c)
-      return(invisible(self))
-    },
-    ########################################################################
-    ########################################################################
-    # SET CONTROL FOR NLMINB
-    set_control = function(control) {
-      # is the control a list?
-      if (!(is.list(control))) {
-        stop("The control argument must be a list")
-      }
-      private$control.nlminb = control
-      return(invisible(self))
-    },
-    ########################################################################
-    ########################################################################
-    # SET k step ahead and last pred index for obj$predict
-    set_n_ahead_and_last_pred_index = function(data, n.ahead) {
-      # is integer numeric?
-      if (!(is.numeric(n.ahead)) & !(length(n.ahead==1)) & n.ahead >= 1) {
-        stop("n.ahead must be a non-negative numeric integer")
-      }
-      last.pred.index = nrow(data) - n.ahead
-      if(last.pred.index < 1){
-        stop("The provided n.ahead exceeds the possible maximum (nrow(data)-1)")
-      }
-      
-      # return values
-      private$n.ahead = n.ahead
-      private$last.pred.index = nrow(data) - n.ahead
-      return(invisible(self))
-    }
+      )
   )
-)
+  

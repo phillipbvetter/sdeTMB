@@ -234,8 +234,8 @@ lastcheck_before_compile = function(self, private) {
   vars[[3]] = unlist(lapply(private$obs.var.trans, function(x) x$allvars))
   rhs.vars = unique(unlist(vars))
   
-  given.vars = c( private$parameter.names, private$input.names[-1], private$state.names,
-                  private$constant.names)
+  # given.vars = c( private$parameter.names, private$input.names[-1], private$state.names, private$constant.names)
+  given.vars = c( private$parameter.names, private$input.names, private$state.names, private$constant.names)
   bool = rhs.vars %in% given.vars
   if (any(!bool)) {
     stop("The following variables(s) are unaccounted for: \n\t ",
