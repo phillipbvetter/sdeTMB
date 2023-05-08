@@ -117,6 +117,7 @@ construct_nll = function(self, private){
     pred__ = private$pred.bool,
     last_pred_index = private$last.pred.index,
     k_step_ahead = private$n.ahead,
+    algo__ = private$algo,
     # initial
     X0__ = initial.state.mean,
     P0__ = initial.state.cov,
@@ -138,13 +139,13 @@ construct_nll = function(self, private){
   if (!is.null(private$map)) {
     .data2 = list(
       map_bool__ = 1,
-      map_mean__ = private$map$mean,
-      map_cov__ = private$map$cov,
+      map_mean__ = private$map$mean[!bool],
+      map_cov__ = private$map$cov[!bool,!bool],
       map_ints__ = as.numeric(!bool),
       sum_map_ints__ = sum(as.numeric(!bool))
     )
-    private$map$mean = private$map$mean[!bool]
-    private$map$cov = private$map$cov[!bool,!bool]
+    # private$map$mean = private$map$mean[!bool]
+    # private$map$cov = private$map$cov[!bool,!bool]
   } else {
     .data2 = list(
       map_bool__ = 0

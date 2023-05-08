@@ -49,6 +49,10 @@ add_observations(y ~ exp(x1) + exp(x2))
 \item \href{#method-ctsmrTMB-set_modelname}{\code{ctsmrTMB$set_modelname()}}
 \item \href{#method-ctsmrTMB-set_cppfile_directory}{\code{ctsmrTMB$set_cppfile_directory()}}
 \item \href{#method-ctsmrTMB-set_map}{\code{ctsmrTMB$set_map()}}
+\item \href{#method-ctsmrTMB-get_systems}{\code{ctsmrTMB$get_systems()}}
+\item \href{#method-ctsmrTMB-get_observations}{\code{ctsmrTMB$get_observations()}}
+\item \href{#method-ctsmrTMB-get_observation_variances}{\code{ctsmrTMB$get_observation_variances()}}
+\item \href{#method-ctsmrTMB-get_algebraics}{\code{ctsmrTMB$get_algebraics()}}
 \item \href{#method-ctsmrTMB-get_parameters}{\code{ctsmrTMB$get_parameters()}}
 \item \href{#method-ctsmrTMB-construct_nll}{\code{ctsmrTMB$construct_nll()}}
 \item \href{#method-ctsmrTMB-estimate}{\code{ctsmrTMB$estimate()}}
@@ -277,7 +281,7 @@ is its numeric value.}
 \subsection{Method \code{set_initial_state()}}{
 Declare the initial state values i.e. mean and covariance for the system states.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{ctsmrTMB$set_initial_state(mean, cov)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{ctsmrTMB$set_initial_state(mean, cov, estimate = FALSE)}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{
@@ -286,6 +290,10 @@ Declare the initial state values i.e. mean and covariance for the system states.
 \item{\code{mean}}{numeric vector of size equal to \code{n} (number of system states)}
 
 \item{\code{cov}}{matrix (symmetric positive semi-definite) of dimensions \code{n^2}.}
+
+\item{\code{estimate}}{boolean value which indicates whether or not the initial conditions
+shall be estimated as fixed effects parameters. The provided mean and covariance are then
+used as initial guesses}
 }
 \if{html}{\out{</div>}}
 }
@@ -383,6 +391,46 @@ with \code{mean} and \code{covariance} as provided.
 }
 \if{html}{\out{</div>}}
 }
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-ctsmrTMB-get_systems"></a>}}
+\if{latex}{\out{\hypertarget{method-ctsmrTMB-get_systems}{}}}
+\subsection{Method \code{get_systems()}}{
+Retrieve system equations.
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{ctsmrTMB$get_systems()}\if{html}{\out{</div>}}
+}
+
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-ctsmrTMB-get_observations"></a>}}
+\if{latex}{\out{\hypertarget{method-ctsmrTMB-get_observations}{}}}
+\subsection{Method \code{get_observations()}}{
+Retrieve observation equations.
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{ctsmrTMB$get_observations()}\if{html}{\out{</div>}}
+}
+
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-ctsmrTMB-get_observation_variances"></a>}}
+\if{latex}{\out{\hypertarget{method-ctsmrTMB-get_observation_variances}{}}}
+\subsection{Method \code{get_observation_variances()}}{
+Retrieve observation variances
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{ctsmrTMB$get_observation_variances()}\if{html}{\out{</div>}}
+}
+
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-ctsmrTMB-get_algebraics"></a>}}
+\if{latex}{\out{\hypertarget{method-ctsmrTMB-get_algebraics}{}}}
+\subsection{Method \code{get_algebraics()}}{
+Retrieve algebraic relations
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{ctsmrTMB$get_algebraics()}\if{html}{\out{</div>}}
+}
+
 }
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-ctsmrTMB-get_parameters"></a>}}
@@ -499,11 +547,11 @@ Estimate the fixed effects parameters in the specified model.
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{ctsmrTMB$estimate(
   data,
-  use.hessian = FALSE,
-  ode.timestep = NULL,
-  silence = TRUE,
   compile = FALSE,
   method = "ekf",
+  ode.timestep = NULL,
+  ode.solver = "euler",
+  use.hessian = FALSE,
   loss = "quadratic",
   loss_c = 3,
   control = list(trace = 1)
@@ -515,30 +563,6 @@ Estimate the fixed effects parameters in the specified model.
 \describe{
 \item{\code{data}}{data.frame containing time-vector 't', observations and inputs. The observations
 can take \code{NA}-values.}
-
-\item{\code{use.hessian}}{boolean value. The default (\code{TRUE}) causes the optimization algorithm
-\code{stats::nlminb} to use the fixed effects hessian of the (negative log) likelihood when
-performing the optimization. This feature is only available for the kalman filter methods
-without any random effects.}
-
-\item{\code{ode.timestep}}{numeric value. Sets the time step-size in numerical filtering schemes.
-The defined step-size is used to calculate the number of steps between observation time-points as
-defined by the provided \code{data}. If the calculated number of steps is larger than N.01 where N
-is an integer, then the time-step is reduced such that exactly N+1 steps is taken between observations
-The step-size is used in the two following ways depending on the
-chosen method:
-\enumerate{
-\item Kalman filters: The time-step is used as the step-size in the
-numerical Forward-Euler scheme to compute the prior state mean and
-covariance estimate as the final time solution to the first and second
-order moment differential equations.
-\item TMB method: The time-step is used as the step-size in the Euler-Maruyama
-scheme for simulating a sample path of the stochastic differential equation,
-which serves to link together the latent (random effects) states.
-}}
-
-\item{\code{silence}}{boolean value. Sets the tracing information for \code{TMB::MakeADFun} in the
-argument \code{silent} which disables outputs from the optimization algoritm during runtime.}
 
 \item{\code{compile}}{boolean value. The default (\code{FALSE}) is to not compile the C++ objective
 function but assume it is already compiled and corresponds to the specified model object. It is
@@ -570,6 +594,31 @@ with these methods (use the \code{predict} S3 method), and stochastic simulation
 in the cases where long prediction horizons are sought, where the normality assumption will be
 inaccurate.}
 
+\item{\code{ode.timestep}}{numeric value. Sets the time step-size in numerical filtering schemes.
+The defined step-size is used to calculate the number of steps between observation time-points as
+defined by the provided \code{data}. If the calculated number of steps is larger than N.01 where N
+is an integer, then the time-step is reduced such that exactly N+1 steps is taken between observations
+The step-size is used in the two following ways depending on the
+chosen method:
+\enumerate{
+\item Kalman filters: The time-step is used as the step-size in the
+numerical Forward-Euler scheme to compute the prior state mean and
+covariance estimate as the final time solution to the first and second
+order moment differential equations.
+\item TMB method: The time-step is used as the step-size in the Euler-Maruyama
+scheme for simulating a sample path of the stochastic differential equation,
+which serves to link together the latent (random effects) states.
+}}
+
+\item{\code{ode.solver}}{Sets the ODE solver used in the Kalman Filter methods for solving the moment
+differential equations. The default "euler" is the Forward Euler method, alternatively the classical
+4th order Runge Kutta method is available via "rk4".}
+
+\item{\code{use.hessian}}{boolean value. The default (\code{TRUE}) causes the optimization algorithm
+\code{stats::nlminb} to use the fixed effects hessian of the (negative log) likelihood when
+performing the optimization. This feature is only available for the kalman filter methods
+without any random effects.}
+
 \item{\code{loss}}{character vector. Sets the loss function type (only implemented for the kalman filter
 methods). The loss function is per default quadratic in the one-step residauls as is natural
 when the Gaussian (negative log) likelihood is evaluated, but if the tails of the
@@ -597,7 +646,9 @@ See \code{?stats::nlminb} for more information}
 \if{html}{\out{<a id="method-ctsmrTMB-predict"></a>}}
 \if{latex}{\out{\hypertarget{method-ctsmrTMB-predict}{}}}
 \subsection{Method \code{predict()}}{
-Perform prediction/filtration to obtain state mean and covariance estimates.
+Perform prediction/filtration to obtain state mean and covariance estimates. The predictions are
+obtained by solving the moment equations \code{n.ahead} steps forward in time when using the current step posterior
+state estimate as the initial condition.
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{ctsmrTMB$predict(
   data = NULL,
@@ -605,6 +656,7 @@ Perform prediction/filtration to obtain state mean and covariance estimates.
   k.ahead = 1,
   return.k.ahead = NULL,
   ode.timestep = NULL,
+  ode.solver = "euler",
   compile = FALSE,
   method = "ekf",
   x0 = NULL,
@@ -646,6 +698,10 @@ scheme for simulating a sample path of the stochastic differential equation,
 which serves to link together the latent (random effects) states.
 }}
 
+\item{\code{ode.solver}}{Sets the ODE solver used in the Kalman Filter methods for solving the moment
+differential equations. The default "euler" is the Forward Euler method, alternatively the classical
+4th order Runge Kutta method is available via "rk4".}
+
 \item{\code{compile}}{boolean value. The default (\code{FALSE}) is to not compile the C++ objective
 function but assume it is already compiled and corresponds to the specified model object. It is
 the user's responsibility to ensure correspondence between the specified model and the precompiled
@@ -686,6 +742,11 @@ inaccurate.}
 should be returned.}
 }
 \if{html}{\out{</div>}}
+}
+\subsection{Returns}{
+A data.frame that contains for each time step the posterior state estimate at that time.step (\code{k = 0}), and the
+prior state predictions (\code{k = 1,...,n.ahead}). If \code{return.covariance = TRUE} then the state covariance/correlation
+matrix is returned, otherwise only the marginal variances are returned.
 }
 }
 \if{html}{\out{<hr>}}

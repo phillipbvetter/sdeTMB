@@ -454,18 +454,3 @@ check_constants = function(form, self, private) {
   return(result)
   
 }
-
-#######################################################
-# CHECK MODEL CHANGES
-#######################################################
-
-was_model_already_built = function(self, private) {
-  
-  if (private$build) {
-    message("You changed the model. I will recompile on next call to $estimate. Use $set_compile(FALSE) to avoid.")
-    private$compile = TRUE
-    private$build = FALSE
-  }
-  
-  return(invisible(self))
-}
