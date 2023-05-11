@@ -67,7 +67,7 @@ add_observations(y ~ exp(x1) + exp(x2))
 \if{html}{\out{<a id="method-ctsmrTMB-new"></a>}}
 \if{latex}{\out{\hypertarget{method-ctsmrTMB-new}{}}}
 \subsection{Method \code{new()}}{
-Construct new ctsmrTMB model object
+Construct a new ctsmrTMB model object.
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{ctsmrTMB$new()}\if{html}{\out{</div>}}
 }
@@ -261,16 +261,16 @@ for \code{logtheta} now instead of \code{theta} when declaring parameters throug
 \subsection{Method \code{add_constants()}}{
 Declare variables as scalar constants.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{ctsmrTMB$add_constants(form, ...)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{ctsmrTMB$add_constants(...)}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
+\item{\code{...}}{additional formulas similar to \code{form} for specifying multiple constants at once.}
+
 \item{\code{form}}{formula whose left-hand side is the constant variable name, and the right-hand side
 is its numeric value.}
-
-\item{\code{...}}{additional formulas similar to \code{form} for specifying multiple constants at once.}
 }
 \if{html}{\out{</div>}}
 }

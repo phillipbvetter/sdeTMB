@@ -425,6 +425,7 @@ paste(hvars2,collapse=",")
       allvars2_nostate_notime = sub(pattern=sprintf("^%s$",private$input.names[i]), replacement=sprintf("%s(i)",private$input.names[i]), x=allvars2_nostate_notime)
     }
   }
+  fvars2_new = stringr::str_replace(fvars2_sigma,"x0","x0__")
   dfdxvars2_new = stringr::str_replace(stringr::str_replace(dfdxvars2,"\\(i\\)",""),"x0__","x0")
   gvars2_new = stringr::str_replace(stringr::str_replace(gvars2,"\\(i\\)",""),"x0__","x0")
   allvars2_nostate_notime_pred = stringr::str_replace(allvars2_nostate_notime,"\\(i\\)","\\(i+k\\)") 
@@ -434,54 +435,54 @@ paste(hvars2,collapse=",")
 struct ode_integration {
 	vector<Type> X_next;
 	matrix<Type> P_next;
-	ode_integration(vector<Type> x0, matrix<Type> p0, Type t, Type dt, int algo, %s){
-		if(algo==1){
+	ode_integration(vector<Type> x0__, matrix<Type> p0__, Type t, Type dt__, int algo__, %s){
+		if(algo__==1){
 			/*Forward Euler*/
-			X_next = x0 + f__(%s) * dt;
-			P_next = p0 + (dfdx__(%s)*p0 + p0*dfdx__(%s).transpose() + g__(%s)*g__(%s).transpose()) * dt;
-		} else if (algo==2){
+			X_next = x0__ + f__(%s) * dt__;
+			P_next = p0__ + (dfdx__(%s)*p0__ + p0__*dfdx__(%s).transpose() + g__(%s)*g__(%s).transpose()) * dt__;
+		} else if (algo__==2){
 			/*4th Order Runge-Kutta 4th*/
-			vector<Type> X0 = x0;
-			matrix<Type> P0 = p0;
+			vector<Type> X0__ = x0__;
+			matrix<Type> P0__ = p0__;
 			/**/
-			vector<Type> k1,k2,k3,k4;
-			matrix<Type> a1,a2,a3,a4;
+			vector<Type> k1__,k2__,k3__,k4__;
+			matrix<Type> a1__,a2__,a3__,a4__;
 			/*SOLVE ODE*/
 			/*step 0*/
-			k1 = dt * f__(%s);
-			a1 = dt * (dfdx__(%s)*P0 + P0*dfdx__(%s).transpose() + g__(%s)*g__(%s).transpose());
+			k1__ = f__(%s);
+			a1__ = dfdx__(%s)*P0__ + P0__*dfdx__(%s).transpose() + g__(%s)*g__(%s).transpose();
 			/*step 1*/
-			t = t + dt/2;
-			x0 = X0 + k1;
-			p0 = P0 + a1;
-      k2 = dt * f__(%s);
-      a2 = dt * (dfdx__(%s)*P0 + P0*dfdx__(%s).transpose() + g__(%s)*g__(%s).transpose());
+			t = t + dt__/2;
+			x0__ = X0__ + k1__;
+			p0__ = P0__ + a1__;
+      k2__ = f__(%s);
+      a2__ = dfdx__(%s)*P0__ + P0__*dfdx__(%s).transpose() + g__(%s)*g__(%s).transpose();
 			/*step 2*/
-			x0 = X0 + k2;
-			p0 = P0 + a2;
-      k3 = dt * f__(%s);
-      a3 = dt * (dfdx__(%s)*P0 + P0*dfdx__(%s).transpose() + g__(%s)*g__(%s).transpose());
+			x0__ = X0__ + k2__;
+			p0__ = P0__ + a2__;
+      k3__ = f__(%s);
+      a3__ = dfdx__(%s)*P0__ + P0__*dfdx__(%s).transpose() + g__(%s)*g__(%s).transpose();
 			/*step 3*/
-			t = t + dt/2;
-			x0 = X0 + k3;
-			p0 = P0 + a3;
-      k4 = dt * f__(%s);
-      a4 = dt * (dfdx__(%s)*P0 + P0*dfdx__(%s).transpose() + g__(%s)*g__(%s).transpose());
+			t = t + dt__/2;
+			x0__ = X0__ + k3__;
+			p0__ = P0__ + a3__;
+      k4__ = f__(%s);
+      a4__ = dfdx__(%s)*P0__ + P0__*dfdx__(%s).transpose() + g__(%s)*g__(%s).transpose();
 
 			/*ODE UPDATE*/
-			X_next = X0 + (k1 + 2.0*k2 + 2.0*k3 + k4)/6.0;
-			P_next = P0 + (a1 + 2.0*a2 + 2.0*a3 + a4)/6.0;
+			X_next = X0__ + dt__ * (k1__ + 2.0*k2__ + 2.0*k3__ + k4__)/6.0;
+			P_next = P0__ + dt__ * (a1__ + 2.0*a2__ + 2.0*a3__ + a4__)/6.0;
 		} else {
 			/*nothing*/
 		}
 	}
 };",
 allvars1_nostate_notime,
-paste(fvars2_sigma,collapse=", "), paste(dfdxvars2_new,collapse=", "), paste(dfdxvars2_new,collapse=", "), paste(gvars2_new,collapse=", "), paste(gvars2_new,collapse=", "),
-paste(fvars2_sigma,collapse=", "), paste(dfdxvars2_new,collapse=", "), paste(dfdxvars2_new,collapse=", "), paste(gvars2_new,collapse=", "), paste(gvars2_new,collapse=", "),
-paste(fvars2_sigma,collapse=", "), paste(dfdxvars2_new,collapse=", "), paste(dfdxvars2_new,collapse=", "), paste(gvars2_new,collapse=", "), paste(gvars2_new,collapse=", "),
-paste(fvars2_sigma,collapse=", "), paste(dfdxvars2_new,collapse=", "), paste(dfdxvars2_new,collapse=", "), paste(gvars2_new,collapse=", "), paste(gvars2_new,collapse=", "),
-paste(fvars2_sigma,collapse=", "), paste(dfdxvars2_new,collapse=", "), paste(dfdxvars2_new,collapse=", "), paste(gvars2_new,collapse=", "), paste(gvars2_new,collapse=", ")
+paste(fvars2_new,collapse=", "), paste(dfdxvars2_new,collapse=", "), paste(dfdxvars2_new,collapse=", "), paste(gvars2_new,collapse=", "), paste(gvars2_new,collapse=", "),
+paste(fvars2_new,collapse=", "), paste(dfdxvars2_new,collapse=", "), paste(dfdxvars2_new,collapse=", "), paste(gvars2_new,collapse=", "), paste(gvars2_new,collapse=", "),
+paste(fvars2_new,collapse=", "), paste(dfdxvars2_new,collapse=", "), paste(dfdxvars2_new,collapse=", "), paste(gvars2_new,collapse=", "), paste(gvars2_new,collapse=", "),
+paste(fvars2_new,collapse=", "), paste(dfdxvars2_new,collapse=", "), paste(dfdxvars2_new,collapse=", "), paste(gvars2_new,collapse=", "), paste(gvars2_new,collapse=", "),
+paste(fvars2_new,collapse=", "), paste(dfdxvars2_new,collapse=", "), paste(dfdxvars2_new,collapse=", "), paste(gvars2_new,collapse=", "), paste(gvars2_new,collapse=", ")
 ))
   
   txt = c(txt, temptxt)

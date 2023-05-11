@@ -317,17 +317,35 @@ ctsmrTMB = R6::R6Class(
     #' @param form formula whose left-hand side is the constant variable name, and the right-hand side
     #' is its numeric value.
     #' @param ... additional formulas similar to \code{form} for specifying multiple constants at once.
-    add_constants = function(form,...) {
-      lapply(c(form,...), function(form) {
+    # add_constants = function(form,...) {
+    #   lapply(c(form,...), function(form) {
+    #     # Function Body
+    #     res = check_constants(form, self, private)
+    #     check_name(names(res), "constants", self, private)
+    #     private$trigger = is_this_a_new_name(names(res),private$constant.names)
+    #     private$constants[[names(res)]] = res[[1]]
+    #     private$constant.names = names(private$constants)
+    #     # Function Body
+    #   })
+    #   #
+    #   return(invisible(self))
+    # },
+    add_constants = function(...) {
+      if(nargs()==0L){stop("No arguments received")}
+      # 
+      arglist = list(...)
+      argnames = names(arglist)
+      lapply(seq_along(arglist), function(i) {
+        par.entry = arglist[[i]]
+        par.name = argnames[i]
         # Function Body
-        res = check_constants(form, self, private)
-        check_name(names(res), "constants", self, private)
-        private$trigger = is_this_a_new_name(names(res),private$constant.names)
-        private$constants[[names(res)]] = res[[1]]
+        check_constants(par.entry, self, private)
+        check_name(par.name, "constants", self, private)
+        # private$trigger = is_this_a_new_name(par.name, private$constant.names)
+        private$constants[[par.name]] = par.entry
         private$constant.names = names(private$constants)
         # Function Body
       })
-      #
       return(invisible(self))
     },
     ########################################################################
@@ -886,8 +904,7 @@ ctsmrTMB = R6::R6Class(
       
       # get predictions
       message("Predicting...")
-      private$nll$fn(pars)
-      rep = private$nll$rep()
+      rep = private$nll$rep(pars)
       
       # construct return data.frame
       message("Constructing return data.frame...")

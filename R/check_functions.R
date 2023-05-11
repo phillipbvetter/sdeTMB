@@ -427,30 +427,11 @@ check_algebraics = function(form, self, private) {
 # CHECK CONSTANTS
 #######################################################
 
-check_constants = function(form, self, private) {
+check_constants = function(constant, self, private) {
   
-  if(!inherits(form,"formula")){
-    stop("The algebraic relation should be a formula e.g. 'theta ~ 2")
-  }
-  #
-  lhs = form[[2]]
-  rhs = form[[3]]
-  # Only single terms on LHS
-  if (!(length(lhs) == 1)) {
-    stop("You have multiple terms on the left-hand side")
+  if(!is.numeric(constant)){
+    stop("The constant provided is not a numeric value")
   }
   
-  if (!is.numeric(rhs)) {
-    stop("The right-hand side must be a numeric value")
-  }
-  
-  # Is there already a constant for this variable?
-  if (deparse(lhs) %in% names(private$alg.eqs)) {
-    # warning("Overwriting constant ", deparse(lhs))
-  }
-  
-  result = list(list(form=form,rhs=rhs))
-  names(result) = deparse(lhs)
-  return(result)
-  
+  return(invisible(self))
 }
