@@ -740,6 +740,9 @@ ctsmrTMB = R6::R6Class(
                         control=list(trace=1)) {
       
       # set flags
+      if(method=="ukf"){
+        stop("The Unscented Kalman Filter method is currently disabled. Please try 'ekf' or 'tmb'")
+      }
       private$use_hessian(use.hessian)
       private$set_timestep(ode.timestep)
       private$set_silence(TRUE)
