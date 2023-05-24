@@ -588,6 +588,9 @@ ctsmrTMB = R6::R6Class(
     #' 2. TMB method: The time-step is used as the step-size in the Euler-Maruyama
     #' scheme for simulating a sample path of the stochastic differential equation,
     #' which serves to link together the latent (random effects) states.
+    #' @param ode.solver Sets the ODE solver used in the Kalman Filter methods for solving the moment 
+    #' differential equations. The default "euler" is the Forward Euler method, alternatively the classical
+    #' 4th order Runge Kutta method is available via "rk4".
     #' @param silence boolean value. Sets the tracing information for \code{TMB::MakeADFun} in the
     #' argument \code{silent} which disables outputs from the optimization algoritm during runtime.
     #' @param compile boolean value. The default (\code{FALSE}) is to not compile the C++ objective
@@ -631,7 +634,8 @@ ctsmrTMB = R6::R6Class(
     #' approxmation respectively) for smooth derivatives.
     #' @param loss_c cutoff value for huber and tukey loss functions. Defaults to \code{c=3}
     construct_nll = function(data,
-                             ode.timestep=NULL, 
+                             ode.timestep=NULL,
+                             ode.solver="euler",
                              silence=FALSE, 
                              compile=FALSE,
                              method="ekf",

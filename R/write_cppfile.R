@@ -426,8 +426,8 @@ paste(hvars2,collapse=",")
     }
   }
   fvars2_new = stringr::str_replace(fvars2_sigma,"x0","x0__")
-  dfdxvars2_new = stringr::str_replace(stringr::str_replace(dfdxvars2,"\\(i\\)",""),"x0__","x0")
-  gvars2_new = stringr::str_replace(stringr::str_replace(gvars2,"\\(i\\)",""),"x0__","x0")
+  dfdxvars2_new = stringr::str_replace(dfdxvars2,"\\(i\\)","")
+  gvars2_new = stringr::str_replace(gvars2,"\\(i\\)","")
   allvars2_nostate_notime_pred = stringr::str_replace(allvars2_nostate_notime,"\\(i\\)","\\(i+k\\)") 
 
   

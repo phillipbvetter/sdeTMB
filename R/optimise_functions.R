@@ -38,7 +38,8 @@ check_and_set_data = function(data, self, private) {
   if (is.null(private$ode.timestep)) {
     private$ode.timestep = min(diff(data$t))
   }
-  if (private$ode.timestep > min(diff(data$t))) {
+  # if (private$ode.timestep > min(diff(data$t))) {
+  if (private$ode.timestep - min(diff(data$t)) > 1e-10) {
     private$ode.timestep = min(diff(data$t))
     message(sprintf("The parsed 'ode.timestep' is larger than the minimum time difference. Reducing to min(diff(data$t)) = %s...", format(private$ode.timestep,digits=10,scientific=T)))
   }

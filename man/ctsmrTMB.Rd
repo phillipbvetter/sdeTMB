@@ -456,6 +456,7 @@ for estimation.
 \if{html}{\out{<div class="r">}}\preformatted{ctsmrTMB$construct_nll(
   data,
   ode.timestep = NULL,
+  ode.solver = "euler",
   silence = FALSE,
   compile = FALSE,
   method = "ekf",
@@ -485,6 +486,10 @@ order moment differential equations.
 scheme for simulating a sample path of the stochastic differential equation,
 which serves to link together the latent (random effects) states.
 }}
+
+\item{\code{ode.solver}}{Sets the ODE solver used in the Kalman Filter methods for solving the moment
+differential equations. The default "euler" is the Forward Euler method, alternatively the classical
+4th order Runge Kutta method is available via "rk4".}
 
 \item{\code{silence}}{boolean value. Sets the tracing information for \code{TMB::MakeADFun} in the
 argument \code{silent} which disables outputs from the optimization algoritm during runtime.}
