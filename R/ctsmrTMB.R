@@ -648,6 +648,7 @@ ctsmrTMB = R6::R6Class(
       private$set_compile(compile)
       private$set_method(method)
       private$set_loss(loss,loss_c)
+      private$set_algo(ode.solver)
       
       # build model
       message("Building model...")
