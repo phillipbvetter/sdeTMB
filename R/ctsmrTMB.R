@@ -634,7 +634,7 @@ ctsmrTMB = R6::R6Class(
     #' approxmation respectively) for smooth derivatives.
     #' @param loss_c cutoff value for huber and tukey loss functions. Defaults to \code{c=3}
     construct_nll = function(data,
-                             ode.timestep=NULL,
+                             ode.timestep=min(diff(data$t)),
                              ode.solver="euler",
                              silence=FALSE, 
                              compile=FALSE,
@@ -737,7 +737,7 @@ ctsmrTMB = R6::R6Class(
     estimate = function(data, 
                         compile=FALSE,
                         method="ekf",
-                        ode.timestep=NULL,
+                        ode.timestep=min(diff(data$t)),
                         ode.solver="euler",
                         use.hessian=FALSE,
                         loss="quadratic",
@@ -855,7 +855,7 @@ ctsmrTMB = R6::R6Class(
                        pars = NULL,
                        k.ahead = 1,
                        return.k.ahead = NULL,
-                       ode.timestep = NULL,
+                       ode.timestep = min(diff(data$t)),
                        ode.solver = "euler",
                        compile = FALSE,
                        method = "ekf",
@@ -907,8 +907,12 @@ ctsmrTMB = R6::R6Class(
       construct_nll(self, private)
       
       # check parameters
-      if(is.null(pars)){ pars=private$nll$par }
-      if(!is.null(private$fit)){ pars=private$fit$par.fixed }
+      if(is.null(pars)){
+        pars = private$nll$par
+        if(!is.null(private$fit)){
+          pars = private$fit$par.fixed
+        }
+      }
       
       # get predictions
       message("Predicting...")

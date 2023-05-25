@@ -16,8 +16,7 @@ check_and_set_data = function(data, self, private) {
   
   # check that all inputs and observations are provided in the data
   required.names = c(private$input.names,private$obs.names)
-  given.names = names(data)
-  bool = required.names %in% given.names
+  bool = required.names %in% names(data)
   if (any(!bool)){
     stop("Please provide the following inputs in the given data: \n\t",
          paste(required.names[!bool],collapse=", "))
@@ -35,10 +34,6 @@ check_and_set_data = function(data, self, private) {
   }
   
   # ODE time-steps
-  if (is.null(private$ode.timestep)) {
-    private$ode.timestep = min(diff(data$t))
-  }
-  # if (private$ode.timestep > min(diff(data$t))) {
   if (private$ode.timestep - min(diff(data$t)) > 1e-10) {
     private$ode.timestep = min(diff(data$t))
     message(sprintf("The parsed 'ode.timestep' is larger than the minimum time difference. Reducing to min(diff(data$t)) = %s...", format(private$ode.timestep,digits=10,scientific=T)))

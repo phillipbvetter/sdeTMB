@@ -455,7 +455,7 @@ for estimation.
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{ctsmrTMB$construct_nll(
   data,
-  ode.timestep = NULL,
+  ode.timestep = min(diff(data$t)),
   ode.solver = "euler",
   silence = FALSE,
   compile = FALSE,
@@ -554,7 +554,7 @@ Estimate the fixed effects parameters in the specified model.
   data,
   compile = FALSE,
   method = "ekf",
-  ode.timestep = NULL,
+  ode.timestep = min(diff(data$t)),
   ode.solver = "euler",
   use.hessian = FALSE,
   loss = "quadratic",
@@ -660,7 +660,7 @@ state estimate as the initial condition.
   pars = NULL,
   k.ahead = 1,
   return.k.ahead = NULL,
-  ode.timestep = NULL,
+  ode.timestep = min(diff(data$t)),
   ode.solver = "euler",
   compile = FALSE,
   method = "ekf",
