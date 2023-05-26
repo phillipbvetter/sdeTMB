@@ -455,13 +455,12 @@ for estimation.
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{ctsmrTMB$construct_nll(
   data,
-  ode.timestep = min(diff(data$t)),
-  ode.solver = "euler",
-  silence = FALSE,
-  compile = FALSE,
   method = "ekf",
+  ode.solver = "euler",
+  ode.timestep = min(diff(data$t)),
   loss = "quadratic",
-  loss_c = 3
+  loss_c = 3,
+  compile = FALSE
 )}\if{html}{\out{</div>}}
 }
 
@@ -470,37 +469,6 @@ for estimation.
 \describe{
 \item{\code{data}}{data.frame containing time-vector 't', observations and inputs. The observations
 can take \code{NA}-values.}
-
-\item{\code{ode.timestep}}{numeric value. Sets the time step-size in numerical filtering schemes.
-The defined step-size is used to calculate the number of steps between observation time-points as
-defined by the provided \code{data}. If the calculated number of steps is larger than N.01 where N
-is an integer, then the time-step is reduced such that exactly N+1 steps is taken between observations
-The step-size is used in the two following ways depending on the
-chosen method:
-\enumerate{
-\item Kalman filters: The time-step is used as the step-size in the
-numerical Forward-Euler scheme to compute the prior state mean and
-covariance estimate as the final time solution to the first and second
-order moment differential equations.
-\item TMB method: The time-step is used as the step-size in the Euler-Maruyama
-scheme for simulating a sample path of the stochastic differential equation,
-which serves to link together the latent (random effects) states.
-}}
-
-\item{\code{ode.solver}}{Sets the ODE solver used in the Kalman Filter methods for solving the moment
-differential equations. The default "euler" is the Forward Euler method, alternatively the classical
-4th order Runge Kutta method is available via "rk4".}
-
-\item{\code{silence}}{boolean value. Sets the tracing information for \code{TMB::MakeADFun} in the
-argument \code{silent} which disables outputs from the optimization algoritm during runtime.}
-
-\item{\code{compile}}{boolean value. The default (\code{FALSE}) is to not compile the C++ objective
-function but assume it is already compiled and corresponds to the specified model object. It is
-the user's responsibility to ensure correspondence between the specified model and the precompiled
-C++ object. If a precompiled C++ object is not found in the specified directory i.e.
-in \code{<cppfile_directory>/<modelname>/(dll/so)} then the compile flag is set to \code{TRUE}.
-If the user makes changes to system equations, observation equations, observation variances,
-algebraic relations or lamperi transformations then the C++ object should be recompiled.}
 
 \item{\code{method}}{character vector - one of either "ekf", "ukf" or "tmb". Sets the estimation
 method. The package has three available methods implemented:
@@ -524,6 +492,26 @@ with these methods (use the \code{predict} S3 method), and stochastic simulation
 in the cases where long prediction horizons are sought, where the normality assumption will be
 inaccurate.}
 
+\item{\code{ode.solver}}{Sets the ODE solver used in the Kalman Filter methods for solving the moment
+differential equations. The default "euler" is the Forward Euler method, alternatively the classical
+4th order Runge Kutta method is available via "rk4".}
+
+\item{\code{ode.timestep}}{numeric value. Sets the time step-size in numerical filtering schemes.
+The defined step-size is used to calculate the number of steps between observation time-points as
+defined by the provided \code{data}. If the calculated number of steps is larger than N.01 where N
+is an integer, then the time-step is reduced such that exactly N+1 steps is taken between observations
+The step-size is used in the two following ways depending on the
+chosen method:
+\enumerate{
+\item Kalman filters: The time-step is used as the step-size in the
+numerical Forward-Euler scheme to compute the prior state mean and
+covariance estimate as the final time solution to the first and second
+order moment differential equations.
+\item TMB method: The time-step is used as the step-size in the Euler-Maruyama
+scheme for simulating a sample path of the stochastic differential equation,
+which serves to link together the latent (random effects) states.
+}}
+
 \item{\code{loss}}{character vector. Sets the loss function type (only implemented for the kalman filter
 methods). The loss function is per default quadratic in the one-step residauls as is natural
 when the Gaussian (negative log) likelihood is evaluated, but if the tails of the
@@ -540,6 +528,14 @@ parameter \code{loss_c}. The implementations of these losses are approximations 
 approxmation respectively) for smooth derivatives.}
 
 \item{\code{loss_c}}{cutoff value for huber and tukey loss functions. Defaults to \code{c=3}}
+
+\item{\code{compile}}{boolean value. The default (\code{FALSE}) is to not compile the C++ objective
+function but assume it is already compiled and corresponds to the specified model object. It is
+the user's responsibility to ensure correspondence between the specified model and the precompiled
+C++ object. If a precompiled C++ object is not found in the specified directory i.e.
+in \code{<cppfile_directory>/<modelname>/(dll/so)} then the compile flag is set to \code{TRUE}.
+If the user makes changes to system equations, observation equations, observation variances,
+algebraic relations or lamperi transformations then the C++ object should be recompiled.}
 }
 \if{html}{\out{</div>}}
 }
@@ -552,13 +548,13 @@ Estimate the fixed effects parameters in the specified model.
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{ctsmrTMB$estimate(
   data,
-  compile = FALSE,
   method = "ekf",
-  ode.timestep = min(diff(data$t)),
   ode.solver = "euler",
-  use.hessian = FALSE,
+  ode.timestep = min(diff(data$t)),
   loss = "quadratic",
   loss_c = 3,
+  use.hessian = FALSE,
+  compile = FALSE,
   control = list(trace = 1)
 )}\if{html}{\out{</div>}}
 }
@@ -568,14 +564,6 @@ Estimate the fixed effects parameters in the specified model.
 \describe{
 \item{\code{data}}{data.frame containing time-vector 't', observations and inputs. The observations
 can take \code{NA}-values.}
-
-\item{\code{compile}}{boolean value. The default (\code{FALSE}) is to not compile the C++ objective
-function but assume it is already compiled and corresponds to the specified model object. It is
-the user's responsibility to ensure correspondence between the specified model and the precompiled
-C++ object. If a precompiled C++ object is not found in the specified directory i.e.
-in \code{<cppfile_directory>/<modelname>/(dll/so)} then the compile flag is set to \code{TRUE}.
-If the user makes changes to system equations, observation equations, observation variances,
-algebraic relations or lamperi transformations then the C++ object should be recompiled.}
 
 \item{\code{method}}{character vector - one of either "ekf", "ukf" or "tmb". Sets the estimation
 method. The package has three available methods implemented:
@@ -599,6 +587,10 @@ with these methods (use the \code{predict} S3 method), and stochastic simulation
 in the cases where long prediction horizons are sought, where the normality assumption will be
 inaccurate.}
 
+\item{\code{ode.solver}}{Sets the ODE solver used in the Kalman Filter methods for solving the moment
+differential equations. The default "euler" is the Forward Euler method, alternatively the classical
+4th order Runge Kutta method is available via "rk4".}
+
 \item{\code{ode.timestep}}{numeric value. Sets the time step-size in numerical filtering schemes.
 The defined step-size is used to calculate the number of steps between observation time-points as
 defined by the provided \code{data}. If the calculated number of steps is larger than N.01 where N
@@ -614,15 +606,6 @@ order moment differential equations.
 scheme for simulating a sample path of the stochastic differential equation,
 which serves to link together the latent (random effects) states.
 }}
-
-\item{\code{ode.solver}}{Sets the ODE solver used in the Kalman Filter methods for solving the moment
-differential equations. The default "euler" is the Forward Euler method, alternatively the classical
-4th order Runge Kutta method is available via "rk4".}
-
-\item{\code{use.hessian}}{boolean value. The default (\code{TRUE}) causes the optimization algorithm
-\code{stats::nlminb} to use the fixed effects hessian of the (negative log) likelihood when
-performing the optimization. This feature is only available for the kalman filter methods
-without any random effects.}
 
 \item{\code{loss}}{character vector. Sets the loss function type (only implemented for the kalman filter
 methods). The loss function is per default quadratic in the one-step residauls as is natural
@@ -640,6 +623,19 @@ parameter \code{loss_c}. The implementations of these losses are approximations 
 approxmation respectively) for smooth derivatives.}
 
 \item{\code{loss_c}}{cutoff value for huber and tukey loss functions. Defaults to \code{c=3}}
+
+\item{\code{use.hessian}}{boolean value. The default (\code{TRUE}) causes the optimization algorithm
+\code{stats::nlminb} to use the fixed effects hessian of the (negative log) likelihood when
+performing the optimization. This feature is only available for the kalman filter methods
+without any random effects.}
+
+\item{\code{compile}}{boolean value. The default (\code{FALSE}) is to not compile the C++ objective
+function but assume it is already compiled and corresponds to the specified model object. It is
+the user's responsibility to ensure correspondence between the specified model and the precompiled
+C++ object. If a precompiled C++ object is not found in the specified directory i.e.
+in \code{<cppfile_directory>/<modelname>/(dll/so)} then the compile flag is set to \code{TRUE}.
+If the user makes changes to system equations, observation equations, observation variances,
+algebraic relations or lamperi transformations then the C++ object should be recompiled.}
 
 \item{\code{control}}{list of control parameters parsed to \code{nlminb} as its \code{control} argument.
 See \code{?stats::nlminb} for more information}
@@ -660,13 +656,13 @@ state estimate as the initial condition.
   pars = NULL,
   k.ahead = 1,
   return.k.ahead = NULL,
+  method = "ekf",
   ode.timestep = min(diff(data$t)),
   ode.solver = "euler",
-  compile = FALSE,
-  method = "ekf",
   x0 = NULL,
   p0 = NULL,
-  return.covariance = TRUE
+  return.covariance = TRUE,
+  compile = FALSE
 )}\if{html}{\out{</div>}}
 }
 
@@ -686,34 +682,6 @@ data updates).}
 
 \item{\code{return.k.ahead}}{numeric vector of integers specifying which n.ahead predictions to that
 should be returned.}
-
-\item{\code{ode.timestep}}{numeric value. Sets the time step-size in numerical filtering schemes.
-The defined step-size is used to calculate the number of steps between observation time-points as
-defined by the provided \code{data}. If the calculated number of steps is larger than N.01 where N
-is an integer, then the time-step is reduced such that exactly N+1 steps is taken between observations
-The step-size is used in the two following ways depending on the
-chosen method:
-\enumerate{
-\item Kalman filters: The time-step is used as the step-size in the
-numerical Forward-Euler scheme to compute the prior state mean and
-covariance estimate as the final time solution to the first and second
-order moment differential equations.
-\item TMB method: The time-step is used as the step-size in the Euler-Maruyama
-scheme for simulating a sample path of the stochastic differential equation,
-which serves to link together the latent (random effects) states.
-}}
-
-\item{\code{ode.solver}}{Sets the ODE solver used in the Kalman Filter methods for solving the moment
-differential equations. The default "euler" is the Forward Euler method, alternatively the classical
-4th order Runge Kutta method is available via "rk4".}
-
-\item{\code{compile}}{boolean value. The default (\code{FALSE}) is to not compile the C++ objective
-function but assume it is already compiled and corresponds to the specified model object. It is
-the user's responsibility to ensure correspondence between the specified model and the precompiled
-C++ object. If a precompiled C++ object is not found in the specified directory i.e.
-in \code{<cppfile_directory>/<modelname>/(dll/so)} then the compile flag is set to \code{TRUE}.
-If the user makes changes to system equations, observation equations, observation variances,
-algebraic relations or lamperi transformations then the C++ object should be recompiled.}
 
 \item{\code{method}}{character vector - one of either "ekf", "ukf" or "tmb". Sets the estimation
 method. The package has three available methods implemented:
@@ -739,12 +707,40 @@ with these methods (use the \code{predict} S3 method), and stochastic simulation
 in the cases where long prediction horizons are sought, where the normality assumption will be
 inaccurate.}
 
+\item{\code{ode.timestep}}{numeric value. Sets the time step-size in numerical filtering schemes.
+The defined step-size is used to calculate the number of steps between observation time-points as
+defined by the provided \code{data}. If the calculated number of steps is larger than N.01 where N
+is an integer, then the time-step is reduced such that exactly N+1 steps is taken between observations
+The step-size is used in the two following ways depending on the
+chosen method:
+\enumerate{
+\item Kalman filters: The time-step is used as the step-size in the
+numerical Forward-Euler scheme to compute the prior state mean and
+covariance estimate as the final time solution to the first and second
+order moment differential equations.
+\item TMB method: The time-step is used as the step-size in the Euler-Maruyama
+scheme for simulating a sample path of the stochastic differential equation,
+which serves to link together the latent (random effects) states.
+}}
+
+\item{\code{ode.solver}}{Sets the ODE solver used in the Kalman Filter methods for solving the moment
+differential equations. The default "euler" is the Forward Euler method, alternatively the classical
+4th order Runge Kutta method is available via "rk4".}
+
 \item{\code{x0}}{numeric vector containing the initial expected state values}
 
 \item{\code{p0}}{numeric matrix contianing the initial state covariances}
 
 \item{\code{return.covariance}}{booelan value to indicate whether the covariance (instead of the correlation)
 should be returned.}
+
+\item{\code{compile}}{boolean value. The default (\code{FALSE}) is to not compile the C++ objective
+function but assume it is already compiled and corresponds to the specified model object. It is
+the user's responsibility to ensure correspondence between the specified model and the precompiled
+C++ object. If a precompiled C++ object is not found in the specified directory i.e.
+in \code{<cppfile_directory>/<modelname>/(dll/so)} then the compile flag is set to \code{TRUE}.
+If the user makes changes to system equations, observation equations, observation variances,
+algebraic relations or lamperi transformations then the C++ object should be recompiled.}
 }
 \if{html}{\out{</div>}}
 }

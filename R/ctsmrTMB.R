@@ -591,8 +591,6 @@ ctsmrTMB = R6::R6Class(
     #' @param ode.solver Sets the ODE solver used in the Kalman Filter methods for solving the moment 
     #' differential equations. The default "euler" is the Forward Euler method, alternatively the classical
     #' 4th order Runge Kutta method is available via "rk4".
-    #' @param silence boolean value. Sets the tracing information for \code{TMB::MakeADFun} in the
-    #' argument \code{silent} which disables outputs from the optimization algoritm during runtime.
     #' @param compile boolean value. The default (\code{FALSE}) is to not compile the C++ objective
     #' function but assume it is already compiled and corresponds to the specified model object. It is
     #' the user's responsibility to ensure correspondence between the specified model and the precompiled
@@ -634,17 +632,15 @@ ctsmrTMB = R6::R6Class(
     #' approxmation respectively) for smooth derivatives.
     #' @param loss_c cutoff value for huber and tukey loss functions. Defaults to \code{c=3}
     construct_nll = function(data,
-                             ode.timestep=min(diff(data$t)),
-                             ode.solver="euler",
-                             silence=FALSE, 
-                             compile=FALSE,
                              method="ekf",
+                             ode.solver="euler",
+                             ode.timestep=min(diff(data$t)),
                              loss="quadratic",
-                             loss_c=3) {
+                             loss_c=3,
+                             compile=FALSE){
       
       # set flags
       private$set_timestep(ode.timestep)
-      private$set_silence(silence)
       private$set_compile(compile)
       private$set_method(method)
       private$set_loss(loss,loss_c)
@@ -735,14 +731,14 @@ ctsmrTMB = R6::R6Class(
     #' @param control list of control parameters parsed to \code{nlminb} as its \code{control} argument. 
     #' See \code{?stats::nlminb} for more information
     estimate = function(data, 
-                        compile=FALSE,
                         method="ekf",
-                        ode.timestep=min(diff(data$t)),
                         ode.solver="euler",
-                        use.hessian=FALSE,
+                        ode.timestep=min(diff(data$t)),
                         loss="quadratic",
                         loss_c=3,
-                        control=list(trace=1)) {
+                        use.hessian=FALSE,
+                        compile=FALSE,
+                        control=list(trace=1)){
       
       # set flags
       if(method=="ukf"){
@@ -750,7 +746,6 @@ ctsmrTMB = R6::R6Class(
       }
       private$use_hessian(use.hessian)
       private$set_timestep(ode.timestep)
-      private$set_silence(TRUE)
       private$set_compile(compile)
       private$set_method(method)
       private$set_loss(loss,loss_c)
@@ -855,13 +850,13 @@ ctsmrTMB = R6::R6Class(
                        pars = NULL,
                        k.ahead = 1,
                        return.k.ahead = NULL,
+                       method = "ekf",
                        ode.timestep = min(diff(data$t)),
                        ode.solver = "euler",
-                       compile = FALSE,
-                       method = "ekf",
                        x0 = NULL,
                        p0 = NULL,
-                       return.covariance = TRUE) {
+                       return.covariance = TRUE,
+                       compile = FALSE){
       
       # set flags
       private$set_compile(compile)

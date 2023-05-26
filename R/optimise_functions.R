@@ -175,7 +175,8 @@ construct_nll = function(self, private){
                        parameters = parameters,
                        map = private$fixed.pars,
                        DLL = private$modelname,
-                       silent = private$silent,
+                       # silent = private$silent,
+                       silent = TRUE,
                        random = .random)
   
   # save objective function
@@ -196,26 +197,45 @@ optimise_nll = function(self, private) {
   if (any(private$method==c("ekf","ukf"))) {
     
     # use function, gradient and hessian
-    if (private$use.hessian) {
-      comptime = system.time(
-        opt <- try_withWarningRecovery(stats::nlminb(start = private$nll$par,
-                                                     objective = private$nll$fn,
-                                                     gradient = private$nll$gr,
-                                                     he = private$nll$he,
-                                                     lower = lb,
-                                                     upper = ub,
-                                                     control=private$control.nlminb))
-      )
-      # or just function and gradient
-    } else {
-      comptime = system.time(
-        opt <- try_withWarningRecovery(stats::nlminb(start = private$nll$par,
-                                                     objective = private$nll$fn,
-                                                     gradient = private$nll$gr,
-                                                     lower = lb,
-                                                     upper = ub,
-                                                     control=private$control.nlminb))
-      )
+    converged.flag = FALSE
+    while(!converged.flag){
+      if (private$use.hessian) {
+        comptime = system.time(
+          opt <- try_withWarningRecovery(stats::nlminb(start = private$nll$par,
+                                                       objective = private$nll$fn,
+                                                       gradient = private$nll$gr,
+                                                       he = private$nll$he,
+                                                       lower = lb,
+                                                       upper = ub,
+                                                       control=private$control.nlminb))
+        )
+        # or just function and gradient
+      } else {
+        comptime = system.time(
+          opt <- try_withWarningRecovery(stats::nlminb(start = private$nll$par,
+                                                       objective = private$nll$fn,
+                                                       gradient = private$nll$gr,
+                                                       lower = lb,
+                                                       upper = ub,
+                                                       control=private$control.nlminb))
+        )
+      }
+      
+      # Reduce step-size if the optimization failed.
+      if(inherits(opt,"try-error")){
+        message("The optimisation failed due to the following error: \n\n\t",opt)
+        message("Should I rerun the optimization reducing the step-size by a factor 2?")
+        message("The current step-size is ",private$ode.timestep)
+        answer = readline("Type anything to accept, or leave blank to abandon: ")
+        if(!answer==""){
+          private$set_timestep(private$ode.timestep/2)
+          check_and_set_data(private$data, self, private)
+        } else {
+          converged.flag=TRUE
+        }
+      } else {
+        converged.flag=TRUE
+      }
     }
   }
   
