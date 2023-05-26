@@ -228,8 +228,16 @@ optimise_nll = function(self, private) {
         message("The current step-size is ",private$ode.timestep)
         answer = readline("Type anything to accept, or leave blank to abandon: ")
         if(!answer==""){
+          # reduce timestep by factor 2
           private$set_timestep(private$ode.timestep/2)
+          
+          # Calculate new step numbers etc.
+          message("Setting new timestep...")
           check_and_set_data(private$data, self, private)
+          
+          # Reconstruct neg. log-likelihood function
+          message("Reconstructing objective function...")
+          construct_nll(self, private)
         } else {
           converged.flag=TRUE
         }
@@ -266,13 +274,18 @@ optimise_nll = function(self, private) {
   comp.time = format(round(as.numeric(comptime["elapsed"])*1e4)/1e4,digits=5,scientific=F)
   
   # print convergence and timing result
+  if(outer_mgc>1){
+    message("WARNING: THE MAXIMUM GRADIENT COMPONENT IS LARGE - FOUND OPTIMUM MIGHT BE INVALID.
+            CONSIDER CHANGING TOLERANCES.")
+  }
   message("\t Optimization finished!:
             Elapsed time: ", comp.time, " seconds.
             The objetive value is: ",format(opt$objective,scientific=T),"
             The maximum gradient component is: ",format(outer_mgc,digits=2,scientific=T),"
             The convergence message is: ", opt$message,"
             Iterations: ",opt$iterations,"
-            Evaluations: Fun: ",opt$evaluations["function"]," Grad: ",opt$evaluations[["gradient"]]
+            Evaluations: Fun: ",opt$evaluations["function"]," Grad: ",opt$evaluations[["gradient"]],"
+            See stats::nlminb for available tolerance/control arguments."
   )
   
   # For TMB method: run sdreport
