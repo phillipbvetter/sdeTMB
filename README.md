@@ -22,9 +22,10 @@ remotes::install_github(repo="phillipbvetter/ctsmrTMB", dependencies=TRUE)
 
 ## Example Usage
 
-``` r
+```r
 library(ctsmrTMB)
 library(ggplot2)
+library(patchwork)
 
 
 ############################################################
@@ -39,7 +40,7 @@ dt.sim = 1e-3
 t.sim = seq(0,1,by=dt.sim)
 dw = rnorm(length(t.sim)-1,sd=sqrt(dt.sim))
 x = 3
-for(i in 1:N.sim) {
+for(i in 1:(length(t.sim)-1)) {
   x[i+1] = x[i] + pars[1]*(pars[2]-x[i])*dt.sim + pars[3]*dw[i]
 }
 
@@ -111,28 +112,18 @@ obj$set_initial_state(x[1], 1e-1*diag(1))
 
 # If you want the objective function handlers (function, gradient and maybe hessian)
 # and choose you own optimizer then extract these by
-nll <- obj$construct_nll(.data, method="ekf")
-# then nll$fn(), nll$gr() and nll$he() evaluates the objective function, its gradient and hessian respectively.
-# the functions takes values of the fixed effects as argument (initial parameter values are found in nll$par)
+nll <- obj$construct_nll(data=.data, method="ekf", ode.solver="euler")
+# then nll$fn(), nll$gr() and nll$he() evaluates the objective function, its gradient and hessian respectively. The functions takes as argument a vector of the fixed effects. The provided initial values are stored in nll$par.
 
 # Carry out estimation using extended kalman filter method with in-built nlminb optimizer
-fit <- obj$estimate(.data, method="ekf")
+fit <- obj$estimate(data=.data, method="ekf", ode.solver="euler", use.hessian=TRUE, ode.timestep=min(diff(.data$t)))
 
 # See the full list of options and explanations for estimate in
 ?ctsmrTMB
 
-# Default options in estimate are
-fit <- obj$estimate(
-  data = .data,
-  use.hessian = FALSE,
-  ode.timestep = NULL,
-  silence = TRUE,
-  compile = FALSE,
-  method = "ekf", 
-  loss = "quadratic", 
-  loss_c = 3,
-  control = list(trace=1) 
-  )
+# NOTE: 
+# If you change the model but retain the model name you must recompile
+# the C++ function and should supply 'compile=TRUE' to estimate.
 
 # Check parameter estimates against truth
 pars2real = function(x) c(exp(x[1]),x[2],exp(x[3]),exp(x[4]))
@@ -156,8 +147,8 @@ plot(fit, use.ggplot=T)
 # Predict to obtain k-step-ahead predictions to see model forecasting ability
 # The predict function will use the optimized parameters if obj$estimate was
 # called before calling predict, otherwise it will use the initial values
-# specified when calling add_parameters
-pred = obj$predict(data=.data, n.ahead=10)
+# that were provided upon calling obj$add_parameters.
+pred = obj$predict(data=.data, k.ahead=10, method="ekf", ode.solver="euler")
 ```
 
 
