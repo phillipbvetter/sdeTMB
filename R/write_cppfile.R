@@ -554,8 +554,8 @@ paste(fvars2_new,collapse=", "), paste(dfdxvars2_new,collapse=", "), paste(dfdxv
   V = obsvarFun__(%s);
   return V;
   }",
-  obsvars1.withoutStates,
-  obsvars2)
+  paste(obsvars1.withoutStates,collapse=", "),
+  paste(obsvars2,collapse=", "))
   txt = c(txt, temptxt)
   
   ##################################################
