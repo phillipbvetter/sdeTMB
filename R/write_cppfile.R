@@ -323,13 +323,13 @@ matrix<Type> construct_F__(matrix<Type> Xsp, %s){
   if(length(private$input.names)>0){
     for(i in 1:length(private$input.names)){
       hvars2 = sub(pattern=sprintf("^%s$",private$input.names[i]), replacement=sprintf("%s(i)",private$input.names[i]), x=hvars2)
-      hvars2.tmb = sub(pattern=sprintf("^%s$",private$input.names[i]), replacement=sprintf("%s(j)",private$input.names[i]), x=hvars2.tmb)
+      hvars2.tmb = sub(pattern=sprintf("^%s$",private$input.names[i]), replacement=sprintf("%s(i)",private$input.names[i]), x=hvars2.tmb)
       hvars2.withoutStates = sub(pattern=sprintf("^%s$",private$input.names[i]), replacement=sprintf("%s(i)",private$input.names[i]), x=hvars2.withoutStates)
     }
   }
   for(i in 1:private$n){
     hvars2 = sub(pattern=sprintf("^%s$",private$state.names[i]),replacement=sprintf("x0__(%s)",i-1),hvars2)
-    hvars2.tmb = sub(pattern=sprintf("^%s$",private$state.names[i]), replacement=sprintf("%s(Nc__(j))",private$state.names[i]), x=hvars2.tmb)
+    hvars2.tmb = sub(pattern=sprintf("^%s$",private$state.names[i]), replacement=sprintf("%s(Nc__(i))",private$state.names[i]), x=hvars2.tmb)
   }
   if(length(hvars0.withoutStates)<1){
     hvars1.withoutStates = "Type void_filler"
@@ -1186,20 +1186,24 @@ paste(fvars2_new,collapse=", "), paste(dfdxvars2_new,collapse=", "), paste(dfdxv
   #
   txt = c(txt, "\t }")
   
-  # Datta Update
+  # Data Update
   txt = c(txt, "\n\t\t //////////// DATA-UPDATE ///////////")
   #
   txt = c(txt, "\t matrix<Type> varDiag__(m__,t.size());")
+  txt = c(txt, "\t matrix<Type> varFun__(m__,t.size());")
   txt = c(txt, "\t for(int i=0 ; i<t.size() ; i++){")
   txt = c(txt, sprintf("\t\t varDiag__.col(i) = obsvarFun_tmb__(%s);",paste(obsvars2.tmb,collapse=", ")))
+  txt = c(txt, sprintf("\t\t varFun__.col(i) = h__(%s);",paste(hvars2.tmb,collapse=", ")))
   txt = c(txt, "\t }")
   #
   for(i in 1:private$m){
     nam = paste("iobs_",private$obs.names[i],sep="")
     txt = c(txt, sprintf("\t for(int i=0 ; i<%s.size() ; i++){",nam))
     txt = c(txt, sprintf("\t\t int j = %s(i);",nam))
-    txt = c(txt, sprintf("\t\t nll__ -= dnorm(%s,%s,sqrt(varDiag__.col(j)(%s)),true);",paste(private$obs.names[i],"(j)",sep=""),
-                         hvars2.tmb[i],i-1))
+    txt = c(txt, sprintf("\t\t nll__ -= dnorm(%s,varFun__.col(j)(%s),sqrt(varDiag__.col(j)(%s)),true);",
+                         paste(private$obs.names[i],"(j)",sep=""),
+                         i-1,
+                         i-1))
     txt = c(txt, "\t }")
   }
   

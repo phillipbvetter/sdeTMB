@@ -197,54 +197,28 @@ optimise_nll = function(self, private) {
   if (any(private$method==c("ekf","ukf"))) {
     
     # use function, gradient and hessian
-    converged.flag = FALSE
-    while(!converged.flag){
-      if (private$use.hessian) {
-        comptime = system.time(
-          opt <- try_withWarningRecovery(stats::nlminb(start = private$nll$par,
-                                                       objective = private$nll$fn,
-                                                       gradient = private$nll$gr,
-                                                       he = private$nll$he,
-                                                       lower = lb,
-                                                       upper = ub,
-                                                       control=private$control.nlminb))
-        )
-        # or just function and gradient
-      } else {
-        comptime = system.time(
-          opt <- try_withWarningRecovery(stats::nlminb(start = private$nll$par,
-                                                       objective = private$nll$fn,
-                                                       gradient = private$nll$gr,
-                                                       lower = lb,
-                                                       upper = ub,
-                                                       control=private$control.nlminb))
-        )
-      }
-      
-      # Reduce step-size if the optimization failed.
-      if(inherits(opt,"try-error")){
-        message("The optimisation failed due to the following error: \n\n\t",opt)
-        message("Should I rerun the optimization reducing the step-size by a factor 2?")
-        message("The current step-size is ",private$ode.timestep)
-        answer = readline("Type anything to accept, or leave blank to abandon: ")
-        if(!answer==""){
-          # reduce timestep by factor 2
-          private$set_timestep(private$ode.timestep/2)
-          
-          # Calculate new step numbers etc.
-          message("Setting new timestep...")
-          check_and_set_data(private$data, self, private)
-          
-          # Reconstruct neg. log-likelihood function
-          message("Reconstructing objective function...")
-          construct_nll(self, private)
-        } else {
-          converged.flag=TRUE
-        }
-      } else {
-        converged.flag=TRUE
-      }
+    if (private$use.hessian) {
+      comptime = system.time(
+        opt <- try_withWarningRecovery(stats::nlminb(start = private$nll$par,
+                                                     objective = private$nll$fn,
+                                                     gradient = private$nll$gr,
+                                                     he = private$nll$he,
+                                                     lower = lb,
+                                                     upper = ub,
+                                                     control=private$control.nlminb))
+      )
+      # or just function and gradient
+    } else {
+      comptime = system.time(
+        opt <- try_withWarningRecovery(stats::nlminb(start = private$nll$par,
+                                                     objective = private$nll$fn,
+                                                     gradient = private$nll$gr,
+                                                     lower = lb,
+                                                     upper = ub,
+                                                     control=private$control.nlminb))
+      )
     }
+    
   }
   
   # IF METHOD IS TMB
@@ -262,6 +236,13 @@ optimise_nll = function(self, private) {
   # Check for error in the optimization
   if (inherits(opt,"try-error")) {
     message("The optimisation failed due to the following error: \n\n\t",opt)
+    if(stringr::str_detect(opt,"NA/NaN")){
+      message("You should consider the following to circumvent the error:
+              1. Reduce the ODE step-size via argument 'ode.timestep'.
+              2. Run the optimization with / without the hessian via argument 'use.hessian'.
+              3. Play around with parameter initial values.
+              4. Try the different ODE integration schemes via argument 'ode.solver'.")
+    }
     private$opt = NULL
     return(invisible(self))
   }
@@ -275,8 +256,8 @@ optimise_nll = function(self, private) {
   
   # print convergence and timing result
   if(outer_mgc>1){
-    message("WARNING: THE MAXIMUM GRADIENT COMPONENT IS LARGE - FOUND OPTIMUM MIGHT BE INVALID.
-            CONSIDER CHANGING TOLERANCES.")
+    message("WARNING: THE MAXIMUM GRADIENT COMPONENT IS LARGE - FOUND OPTIMUM MIGHT BE INVALID.\n
+            YOU CAN CONSIDER CHANGING OPTIMIZER TOLERANCES.")
   }
   message("\t Optimization finished!:
             Elapsed time: ", comp.time, " seconds.
