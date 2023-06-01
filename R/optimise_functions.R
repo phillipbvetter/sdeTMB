@@ -255,9 +255,9 @@ optimise_nll = function(self, private) {
   comp.time = format(round(as.numeric(comptime["elapsed"])*1e4)/1e4,digits=5,scientific=F)
   
   # print convergence and timing result
-  if(outer_mgc>1){
-    message("WARNING: THE MAXIMUM GRADIENT COMPONENT IS LARGE - FOUND OPTIMUM MIGHT BE INVALID.\n
-            YOU CAN CONSIDER CHANGING OPTIMIZER TOLERANCES.")
+  if(outer_mgc>1e-1){
+    message("WARNING: THE MAXIMUM GRADIENT COMPONENT IS LARGE (>0.1) - FOUND OPTIMUM MIGHT BE INVALID.
+            CONSIDER CHANGING OPTIMIZER TOLERANCES.")
   }
   message("\t Optimization finished!:
             Elapsed time: ", comp.time, " seconds.
