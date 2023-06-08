@@ -283,27 +283,26 @@ optimise_nll = function(self, private) {
 #######################################################
 
 create_return_fit = function(self, private) {
-  
+
   if (is.null(private$opt)) {
     return(NULL)
   }
-  
+
   # store data in fit
   private$fit$data = private$data
-  
+
   private$fit$convergence = private$opt$convergence
   private$fit$.__object__ = self$clone()
-  
+
   ################################################
   # FOR KALMAN FILTERS
   ################################################
-  
+
   if (private$method == "ekf" | private$method == "ukf") {
-    
-    
+
     # Objective value
-    private$fit$nll.value = private$opt$objective
-    
+    private$fit$nll = private$opt$objective
+
     # Gradient
     # private$fit$nll.gradient = tryCatch( as.vector(private$nll$gr(private$opt$par)),
     #                                      error=function(e) NA,
@@ -320,7 +319,7 @@ create_return_fit = function(self, private) {
     if (inherits(private$fit$nll.gradient,"try-error")) {
       private$fit$nll.gradient = NA
     }
-    
+
     # Hessian
     # private$fit$nll.hessian = tryCatch(private$nll$he(private$opt$par),
     #                                    error=function(e) NA,
@@ -339,65 +338,65 @@ create_return_fit = function(self, private) {
     if (inherits(private$fit$nll.hessian,"try-error")) {
       private$fit$nll.hessian = NA
     }
-    
+
     # Parameter Estimate
     private$fit$par.fixed = private$opt$par
     private$fit$sd.fixed = tryCatch(sqrt(diag(solve(private$nll$he(private$opt$par)))),
                                     error=function(e) NA,
                                     warning=function(w) NA
     )
-    
+
     # Parameter Covariance
     private$fit$cov.fixed = tryCatch(solve(private$nll$he(private$opt$par)),
                                      error=function(e) NA,
                                      warning=function(w) NA
     )
-    
+
     # Extract reported items from nll
     rep = private$nll$report()
-    
+
     # Prior States
     temp.states = do.call(rbind,rep$xPrior)
     temp.sd = sqrt(do.call(rbind,lapply(rep$pPrior,diag)))
-    
+
     temp.states = cbind(private$data$t, temp.states)
     temp.sd = cbind(private$data$t, temp.sd)
     colnames(temp.states) = c("t",private$state.names)
     colnames(temp.sd) = c("t",private$state.names)
     private$fit$states$mean$prior = as.data.frame(temp.states)
     private$fit$states$sd$prior = as.data.frame(temp.sd)
-    
+
     # Posterior States
     temp.states = do.call(rbind,rep$xPost)
     temp.sd = sqrt(do.call(rbind,lapply(rep$pPost,diag)))
-    
+
     temp.states = cbind(private$data$t, temp.states)
     temp.sd = cbind(private$data$t, temp.sd)
     colnames(temp.states) = c("t",private$state.names)
     colnames(temp.sd) = c("t",private$state.names)
     private$fit$states$mean$posterior = as.data.frame(temp.states)
     private$fit$states$sd$posterior = as.data.frame(temp.sd)
-    
+
     # Full Covariance Matrix - Prior and Posterior States
     private$fit$states$cov$prior = rep$pPost
     private$fit$states$cov$posterior = rep$pPrior
     names(private$fit$states$cov$prior) = paste("t=",private$data$t,sep="")
     names(private$fit$states$cov$posterior) = paste("t=",private$data$t,sep="")
-    
+
     # Residuals
     rowNAs = as.matrix(!is.na(do.call(cbind,private$data[private$obs.names]))[-1,])
     sumrowNAs = rowSums(rowNAs)
-    
+
     innovation = rep$Innovation
     innovation[[1]] = NULL
     innovation.cov = rep$InnovationCovariance
     innovation.cov[[1]] = NULL
-    
+
     temp.res = matrix(nrow=length(private$data$t)-1,ncol=private$m)
     temp.var =  matrix(nrow=length(private$data$t)-1,ncol=private$m)
-    
+
     # do.call(rbind,lapply(rep$Innovation, "length<-", private$m))
-    
+
     for (i in 1:(length(private$data$t)-1)) {
       if (sumrowNAs[i] > 0) {
         temp.res[i,rowNAs[i,]] = innovation[[i]]
@@ -406,12 +405,12 @@ create_return_fit = function(self, private) {
     }
     temp.res = cbind(private$data$t[-1],temp.res)
     temp.sd = cbind(private$data$t[-1], sqrt(temp.var))
-    
+
     names(innovation.cov) = paste("t=",private$data$t[-1],sep="")
-    
+
     # should we remove the empty matrices?
     # innovation.cov = innovation.cov[sumrowNAs!=0]
-    
+
     colnames(temp.res) = c("t",private$obs.names)
     colnames(temp.sd) = c("t",private$obs.names)
     private$fit$residuals$mean = as.data.frame(temp.res)
@@ -419,35 +418,35 @@ create_return_fit = function(self, private) {
     private$fit$residuals$normalized = as.data.frame(temp.res)
     private$fit$residuals$normalized[,-1] = private$fit$residuals$normalized[,-1]/temp.sd[,-1]
     private$fit$residuals$cov = innovation.cov
-    
-    
+
+
     # Observations?
     # private$fit$observations$mean =
-    
+
     # t-values and Pr( t > t_test )
     private$fit$tvalue = private$fit$par.fixed / private$fit$sd.fixed
     private$fit$Pr.tvalue = 2*pt(q=abs(private$fit$tvalue),df=sum(sumrowNAs),lower.tail=FALSE)
-    
+
   }
-  
+
   ################################################
   # FOR TMB
   ################################################
-  
+
   if (private$method == "tmb") {
-    
+
     # Objective and Gradient
-    private$fit$nll.value = private$opt$objective
+    private$fit$nll = private$opt$objective
     private$fit$nll.gradient = private$sdr$gradient.fixed
     names(private$fit$nll.gradient) = names(private$free.pars)
-    
+
     # Parameter Estimate
     private$fit$par.fixed = private$opt$par
     private$fit$sd.fixed = diag(private$sdr$cov.fixed)
-    
+
     # Parameter Covariance
     private$fit$cov.fixed = private$sdr$cov.fixed
-    
+
     # Posterior States (Smoothed)
     states.at.timepoints = cumsum(c(1,private$ode.N))
     temp = cbind(
@@ -461,25 +460,25 @@ create_return_fit = function(self, private) {
     private$fit$states$sd$posterior = as.data.frame(temp.sd)
     colnames(private$fit$states$sd$posterior) = c("t",private$state.names)
     colnames(private$fit$states$mean$posterior) = c("t",private$state.names)
-    
+
     # Residuals
     rowNAs = as.matrix(!is.na(do.call(cbind,private$data[private$obs.names]))[-1,])
     sumrowNAs = rowSums(rowNAs)
-    
+
     # still need to figure out how to get residuals
     # TMB::oneStepPredict(private$nll,
     #                     observation.name=private$obs.names[1],
     #                     method="fullGaussian")
-    
+
     # t-values and Pr( t > t_test )
     private$fit$tvalue = private$fit$par.fixed / private$fit$sd.fixed
     private$fit$Pr.tvalue = 2*pt(q=abs(private$fit$tvalue),df=sum(sumrowNAs),lower.tail=FALSE)
-    
+
   }
-  
+
   # Set S3 class
   class(private$fit) = "ctsmrTMB.fit"
-  
+
   return(invisible(self))
 }
 

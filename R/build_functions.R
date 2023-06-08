@@ -82,7 +82,7 @@ apply_algebraics = function(self, private) {
   # if algs is empty just create a single fake entry to get model into
   if (is.null(algs)){
     algs = list(list(rhs=NULL))
-    names(algs) = "////....idontmatchanyvariable....////"
+    names(algs) = "////....i_dont_match_any_variable....////"
   }
   for (i in 1:length(algs)){
     temp_list = list()

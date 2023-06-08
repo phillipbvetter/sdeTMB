@@ -870,7 +870,6 @@ ctsmrTMB = R6::R6Class(
           stop("Please supply data to perform prediction.")
         } else {
           message("No data provided. Reusing the data provided in the lastest call to 'estimate' or 'construct_nll")
-          # data = private$fit$data
           data = private$data
         }
       }
@@ -916,7 +915,7 @@ ctsmrTMB = R6::R6Class(
       # construct return data.frame
       message("Constructing return data.frame...")
       df.out = data.frame(matrix(nrow=private$last.pred.index*(private$n.ahead+1), ncol=5+private$n+private$n^2))
-      # 
+      
       disp_names = sprintf(rep("cor.%s.%s",private$n^2),rep(private$state.names,each=private$n),rep(private$state.names,private$n))
       disp_names[seq.int(1,private$n^2,by=private$n+1)] = sprintf(rep("var.%s",private$n),private$state.names)
       var_bool = !stringr::str_detect(disp_names,"cor")
@@ -939,6 +938,15 @@ ctsmrTMB = R6::R6Class(
         diag.ids = seq(from=1,to=private$n^2,by=private$n+1)
         df.out[,disp_names[diag.ids]] = do.call(rbind,rep$pk__)[,diag.ids]
       }
+      
+      # adding observations to the output data e.g. for easy residual calculations by user
+      obs.df = c()
+      for(i in seq_along(private$obs.names)){
+        obs.df = cbind(obs.df, private$data[df.out[,"j"]+1,private$obs.names[i]])
+      }
+      obs.df = setNames(as.data.frame(obs.df),private$obs.names)
+      df.out = cbind(df.out, obs.df)
+      
       # return only specific n.ahead
       df.out = df.out[df.out[,"k.ahead"] %in% return.k.ahead,]
       class(df.out) = c("ctsmrTMB.pred", "data.frame")
