@@ -923,12 +923,12 @@ ctsmrTMB = R6::R6Class(
         disp_names = sprintf(rep("cov.%s.%s",private$n^2),rep(private$state.names,each=private$n),rep(private$state.names,private$n))
         disp_names[seq.int(1,private$n^2,by=private$n+1)] = sprintf(rep("var.%s",private$n),private$state.names)
       }
-      names(df.out) = c("i","j","t.i","t.j","k.ahead",private$state.names,disp_names)
+      names(df.out) = c("i.","j.","t.i","t.j","k.ahead",private$state.names,disp_names)
       ran = 0:(private$last.pred.index-1)
-      df.out["i"] = rep(ran,each=private$n.ahead+1)
-      df.out["j"] = df.out["i"] + rep(0:private$n.ahead,private$last.pred.index)
+      df.out["i."] = rep(ran,each=private$n.ahead+1)
+      df.out["j."] = df.out["i."] + rep(0:private$n.ahead,private$last.pred.index)
       df.out["t.i"] = rep(data$t[ran+1],each=private$n.ahead+1)
-      df.out["t.j"] = data$t[df.out[,"i"]+1+rep(0:private$n.ahead,private$last.pred.index)]
+      df.out["t.j"] = data$t[df.out[,"i."]+1+rep(0:private$n.ahead,private$last.pred.index)]
       df.out["k.ahead"] = rep(0:private$n.ahead,private$last.pred.index)
       df.out[,private$state.names] = do.call(rbind,rep$xk__)
       if(return.covariance){
@@ -942,7 +942,7 @@ ctsmrTMB = R6::R6Class(
       # adding observations to the output data e.g. for easy residual calculations by user
       obs.df = c()
       for(i in seq_along(private$obs.names)){
-        obs.df = cbind(obs.df, private$data[df.out[,"j"]+1,private$obs.names[i]])
+        obs.df = cbind(obs.df, private$data[df.out[,"j."]+1,private$obs.names[i]])
       }
       obs.df = setNames(as.data.frame(obs.df),private$obs.names)
       df.out = cbind(df.out, obs.df)

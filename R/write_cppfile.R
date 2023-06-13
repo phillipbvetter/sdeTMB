@@ -448,30 +448,29 @@ struct ode_integration {
 			vector<Type> k1__,k2__,k3__,k4__;
 			matrix<Type> a1__,a2__,a3__,a4__;
 			/*SOLVE ODE*/
-			/*step 0*/
-			k1__ = f__(%s);
-			a1__ = dfdx__(%s)*P0__ + P0__*dfdx__(%s).transpose() + g__(%s)*g__(%s).transpose();
 			/*step 1*/
-			t = t + dt__/2;
-			x0__ = X0__ + k1__;
-			p0__ = P0__ + a1__;
-      k2__ = f__(%s);
-      a2__ = dfdx__(%s)*P0__ + P0__*dfdx__(%s).transpose() + g__(%s)*g__(%s).transpose();
+			k1__ = dt__ * f__(%s);
+			a1__ = dt__ * (dfdx__(%s)*p0__ + p0__*dfdx__(%s).transpose() + g__(%s)*g__(%s).transpose());
 			/*step 2*/
-			x0__ = X0__ + k2__;
-			p0__ = P0__ + a2__;
-      k3__ = f__(%s);
-      a3__ = dfdx__(%s)*P0__ + P0__*dfdx__(%s).transpose() + g__(%s)*g__(%s).transpose();
+			t = t + 0.5 * dt__;
+			x0__ = X0__ + 0.5 * k1__;
+			p0__ = P0__ + 0.5 * a1__;
+      k2__ = dt__ * f__(%s);
+      a2__ = dt__ * (dfdx__(%s)*p0__ + p0__*dfdx__(%s).transpose() + g__(%s)*g__(%s).transpose());
 			/*step 3*/
-			t = t + dt__/2;
+			x0__ = X0__ + 0.5 * k2__;
+			p0__ = P0__ + 0.5 * a2__;
+      k3__ = dt__ * f__(%s);
+      a3__ = dt__ * (dfdx__(%s)*p0__ + p0__*dfdx__(%s).transpose() + g__(%s)*g__(%s).transpose());
+			/*step 4*/
+			t = t + 0.5 * dt__;
 			x0__ = X0__ + k3__;
 			p0__ = P0__ + a3__;
-      k4__ = f__(%s);
-      a4__ = dfdx__(%s)*P0__ + P0__*dfdx__(%s).transpose() + g__(%s)*g__(%s).transpose();
-
+      k4__ = dt__ * f__(%s);
+      a4__ = dt__ * (dfdx__(%s)*p0__ + p0__*dfdx__(%s).transpose() + g__(%s)*g__(%s).transpose());
 			/*ODE UPDATE*/
-			X_next = X0__ + dt__ * (k1__ + 2.0*k2__ + 2.0*k3__ + k4__)/6.0;
-			P_next = P0__ + dt__ * (a1__ + 2.0*a2__ + 2.0*a3__ + a4__)/6.0;
+			X_next = X0__ + (k1__ + 2.0*k2__ + 2.0*k3__ + k4__)/6.0;
+			P_next = P0__ + (a1__ + 2.0*a2__ + 2.0*a3__ + a4__)/6.0;
 		} else {
 			/*nothing*/
 		}
