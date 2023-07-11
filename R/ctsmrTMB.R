@@ -769,7 +769,10 @@ ctsmrTMB = R6::R6Class(
       # estimate
       message("Minimizing the negative log-likelihood...")
       optimise_nll(self, private)
-      
+      if(is.null(private$opt)){
+        return(invisible(NULL))
+      }
+        
       # create return fit
       create_return_fit(self, private)
       
@@ -858,11 +861,13 @@ ctsmrTMB = R6::R6Class(
                        return.covariance = TRUE,
                        compile = FALSE){
       
+      if(method!="ekf"){ stop("The predict function is currently only implemented for method = 'ekf'.") }
+      
       # set flags
       private$set_compile(compile)
-      if(method!="ekf"){ stop("The predict function is currently only implemented for method = 'ekf'.") }
       private$set_method(method)
       private$set_algo(ode.solver)
+      private$set_timestep(ode.timestep)
       
       # check data
       if(is.null(data)){
