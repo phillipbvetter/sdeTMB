@@ -16,8 +16,17 @@ The main advantage of the kalman filter implementations is a large increase in c
 
 ## Installation
 
+You can install the package by copying the command below into `R`.
 ``` r
 remotes::install_github(repo="phillipbvetter/ctsmrTMB", dependencies=TRUE)
+```
+
+Note that `ctsmrTMB` depends on the `TMB` package. Windows users must have Rtools intalled, and Mac users must have command line tools for C++ compilers etc. You can find the GitHub for TMB [here](https://github.com/kaskr/adcomp) and installation instructions [here](https://github.com/kaskr/adcomp/wiki/Download)
+
+## Help
+You can see the documentation for the methods available for a `ctsmrTMB` object via
+``` r
+?ctsmrTMB
 ```
 
 ## Example Usage
