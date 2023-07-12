@@ -3,6 +3,6 @@ pkgdown: 2.0.7
 pkgdown_sha: ~
 articles:
   construct_nll: construct_nll.html
-  gettingStarted: gettingStarted.html
-last_built: 2023-07-12T02:01Z
+  ctsmrTMB: ctsmrTMB.html
+last_built: 2023-07-12T05:53Z
 

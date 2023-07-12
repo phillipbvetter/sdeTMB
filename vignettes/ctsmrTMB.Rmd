@@ -1,0 +1,11 @@
+---
+title: "Getting Started"
+author: ""
+date: ""
+output: html_document
+---
+
+This is the beginning of the "Getting Started" document
+
+$$ \mathrm{d}X_{t} = \theta (\mu - X_{t}) \, \mathrm{d}t \, + \sigma_{X} \, \mathrm{d}B_{t} $$
+$$ f(X_{t}) = g(X_{t}) $$

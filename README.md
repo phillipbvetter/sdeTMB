@@ -30,13 +30,14 @@ remotes::install_github(repo="phillipbvetter/ctsmrTMB", dependencies=TRUE)
 Note that `ctsmrTMB` depends on the `TMB` package. Windows users must have Rtools intalled, and Mac users must have command line tools for C++ compilers etc. You can find the GitHub for TMB [here](https://github.com/kaskr/adcomp) and installation instructions [here](https://github.com/kaskr/adcomp/wiki/Download)
 
 ## How to get started
-You can visit the package [webpage](https://phillipbvetter.github.io/ctsmrTMB/index.html) and browse the vignettes for example uses, in particular see [Getting Started](https://phillipbvetter.github.io/ctsmrTMB/articles/gettingStarted.html).
+You can visit the package [webpage](https://phillipbvetter.github.io/ctsmrTMB/index.html) and browse the vignettes for example uses, in particular see [Getting Started](https://phillipbvetter.github.io/ctsmrTMB/articles/ctsmrTMB.html).
 
 ## Help
 You can access the documentation for the available methods via
 ``` r
 ?ctsmrTMB
 ```
+This methods documentation is also available on the [homepage](https://phillipbvetter.github.io/ctsmrTMB/reference/ctsmrTMB.html).
 
 ## Example Usage
 

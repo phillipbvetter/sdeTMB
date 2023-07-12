@@ -1,7 +1,7 @@
 ---
-title: "Choose your own optimizer - how to extract the function handlers"
-author: "Phillip Brinck Vetter"
-date: "2023-03-24"
+title: "How to choose your own optimizer"
+author: ""
+date: ""
 output: html_document
 ---
 
