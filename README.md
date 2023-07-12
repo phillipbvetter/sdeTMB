@@ -10,9 +10,15 @@ The package implements the following methods
 
 2. The (Continous-Discrete) Extended Kalman Filter 
 
+<!--
 3. The (Continous-Discrete) Unscented Kalman Filter
+-->
 
-The main advantage of the kalman filter implementations is a large increase in computational speed (x20), and access to the fixed effects hessian. In these cases TMB just acts as a convenient automatic-differentiator. A distinct advantage of the `TMB`-style implementation is that it allows for non-Gaussian observation noise, but this functionality is not yet implemented in the package.
+The main advantage of the Kalman Filter implementation is a large increase in the computation speed, and access to the fixed effects hessian for improved convergence of the optimization. In these cases TMB just provides automatic differentiation.
+
+A district advantage of the `TMB`-style implementation is its use of the Laplace approximation for likelihood calculations allows state space formulations where the density of the observation residuals are non-Gaussian. This feature is however not yet implemented.
+
+The package is currently mostly tailored towards the Kalman Filter, with features such as `predict` method for simulations and k-step-ahead predictions without data updates, but these features will eventually be available for the TMB estimation method as well.
 
 ## Installation
 
@@ -23,8 +29,11 @@ remotes::install_github(repo="phillipbvetter/ctsmrTMB", dependencies=TRUE)
 
 Note that `ctsmrTMB` depends on the `TMB` package. Windows users must have Rtools intalled, and Mac users must have command line tools for C++ compilers etc. You can find the GitHub for TMB [here](https://github.com/kaskr/adcomp) and installation instructions [here](https://github.com/kaskr/adcomp/wiki/Download)
 
+## How to get started
+You can visit the package [webpage](https://phillipbvetter.github.io/ctsmrTMB/index.html) and browse the vignettes for example uses, in particular see [Getting Started](https://phillipbvetter.github.io/ctsmrTMB/articles/gettingStarted.html).
+
 ## Help
-You can see the documentation for the methods available for a `ctsmrTMB` object via
+You can access the documentation for the available methods via
 ``` r
 ?ctsmrTMB
 ```
@@ -33,9 +42,6 @@ You can see the documentation for the methods available for a `ctsmrTMB` object 
 
 ```r
 library(ctsmrTMB)
-library(ggplot2)
-library(patchwork)
-
 
 ############################################################
 # Data simulation
@@ -74,7 +80,8 @@ obj = ctsmrTMB$new()
 # Set name of model (and the created .cpp file)
 obj$set_modelname("ornstein_uhlenbeck")
 
-# Set location where generated C++ files are stored
+# Set path where generated C++ files are saved.
+# This will create a cppfiles folder in your current working directory if it doesnt exist
 obj$set_cppfile_directory("cppfiles")
 
 # Add system equations
@@ -94,55 +101,33 @@ obj$add_observation_variances(
 
 # Specify algebraic relations
 obj$add_algebraics(
-  theta ~ exp(logtheta),
+  theta   ~ exp(logtheta),
   sigma_x ~ exp(logsigma_x),
   sigma_y ~ exp(logsigma_y)
 )
 
-# Perform a lamperti transformation (for state dependent diffusion)
-# This would be useful if we had sigma_x * x * dw in the diffusion term.
-# In this case the transformation z = log(x) would leave the transformed
-# process with state independent diffusion.
-# obj$set_lamperti("log")
-
-# Specify inputs (if there were any)
-# obj$add_inputs(input1, input2)
-
 # Specify parameter initial values and lower/upper bounds in estimation
 obj$add_parameters(
-  logtheta = log(c(init = 1, lower=1e-5, upper=50)),
-  mu = c(init=1.5, lower=0, upper=5),
-  logsigma_x = log(c(init= 1e-1, lower=1e-10, upper=10)),
-  logsigma_y = log(c(init=1e-1, lower=1e-10, upper=10))
+  logtheta    = log(c(init = 1, lower=1e-5, upper=50)),
+  mu          = c(init=1.5, lower=0, upper=5),
+  logsigma_x  = log(c(init= 1e-1, lower=1e-10, upper=10)),
+  logsigma_y  = log(c(init=1e-1, lower=1e-10, upper=10))
 )
 
 # Set initial state mean and covariance
 obj$set_initial_state(x[1], 1e-1*diag(1))
 
-# If you want the objective function handlers (function, gradient and maybe hessian)
-# and choose you own optimizer then extract these by
-nll <- obj$construct_nll(data=.data, method="ekf", ode.solver="euler")
-# then nll$fn(), nll$gr() and nll$he() evaluates the objective function, its gradient and hessian respectively. The functions takes as argument a vector of the fixed effects. The provided initial values are stored in nll$par.
-
 # Carry out estimation using extended kalman filter method with in-built nlminb optimizer
-fit <- obj$estimate(data=.data, method="ekf", ode.solver="euler", use.hessian=TRUE, ode.timestep=min(diff(.data$t)))
-
-# See the full list of options and explanations for estimate in
-?ctsmrTMB
-
-# NOTE: 
-# If you change the model but retain the model name you must recompile
-# the C++ function and should supply 'compile=TRUE' to estimate.
+fit <- obj$estimate(data=.data, method="ekf", ode.solver="rk4", use.hessian=TRUE)
 
 # Check parameter estimates against truth
-pars2real = function(x) c(exp(x[1]),x[2],exp(x[3]),exp(x[4]))
-cbind( pars2real(fit$par.fixed), pars )
+cbind(c(exp(x[1]),x[2],exp(x[3]),exp(x[4])), pars)
 
 # plot one-step predictions, simulated states and observations
 t.est = fit$states$mean$prior$t
 x.mean = fit$states$mean$prior$x
 x.sd = fit$states$sd$prior$x
-ggplot() +
+ggplot(data=.df) +
   geom_ribbon(aes(x=t.est, ymin=x.mean-2*x.sd, ymax=x.mean+2*x.sd),fill="grey", alpha=0.9) +
   geom_line(aes(x=t.sim,y=x)) + 
   geom_line(aes(x=t.est, x.mean),col="blue") +
@@ -151,13 +136,10 @@ ggplot() +
 
 
 # Check one-step-ahead residuals
-plot(fit, use.ggplot=T)
+plot(fit)
 
 # Predict to obtain k-step-ahead predictions to see model forecasting ability
-# The predict function will use the optimized parameters if obj$estimate was
-# called before calling predict, otherwise it will use the initial values
-# that were provided upon calling obj$add_parameters.
-pred = obj$predict(data=.data, k.ahead=10, method="ekf", ode.solver="euler")
+pred = obj$predict(data=.data, k.ahead=10, method="ekf", ode.solver="rk4")
 ```
 
 
