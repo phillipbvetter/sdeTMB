@@ -10,6 +10,7 @@
 <script src="../deps/jquery-3.6.0/jquery-3.6.0.min.js"></script><meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
 <link href="../deps/bootstrap-5.2.2/bootstrap.min.css" rel="stylesheet">
 <script src="../deps/bootstrap-5.2.2/bootstrap.bundle.min.js"></script><link href="../deps/Mukta-0.4.2/font.css" rel="stylesheet">
+<link href="../deps/Source_Code_Pro-0.4.2/font.css" rel="stylesheet">
 <!-- Font Awesome icons --><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.12.1/css/all.min.css" integrity="sha256-mmgLkCYLUQbXn0B1SRqzHar6dCnv9oZFPEC1g1cwlkk=" crossorigin="anonymous">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.12.1/css/v4-shims.min.css" integrity="sha256-wZjR52fzng1pJHwx4aV2AO3yyTOXrcDW7jBpJtTwVxw=" crossorigin="anonymous">
 <!-- bootstrap-toc --><script src="https://cdn.jsdelivr.net/gh/afeld/bootstrap-toc@v1.0.1/dist/bootstrap-toc.min.js" integrity="sha256-4veVQbu7//Lk5TSmc7YV48MxtMy98e26cf5MrgZYnwo=" crossorigin="anonymous"></script><!-- headroom.js --><script src="https://cdnjs.cloudflare.com/ajax/libs/headroom/0.11.0/headroom.min.js" integrity="sha256-AsUX4SJE1+yuDu5+mAVzJbuYNPHj/WroHuZ8Ir/CkE0=" crossorigin="anonymous"></script><script src="https://cdnjs.cloudflare.com/ajax/libs/headroom/0.11.0/jQuery.headroom.min.js" integrity="sha256-ZX/yNShbjqsohH1k95liqY9Gd8uOiE1S4vZc+9KQ1K4=" crossorigin="anonymous"></script><!-- clipboard.js --><script src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.6/clipboard.min.js" integrity="sha256-inc5kl9MA1hkeYUt+EC3BhlIgyp/2jDIyBLS6k3UxPI=" crossorigin="anonymous"></script><!-- search --><script src="https://cdnjs.cloudflare.com/ajax/libs/fuse.js/6.4.6/fuse.js" integrity="sha512-zv6Ywkjyktsohkbp9bb45V6tEMoWhzFzXis+LrMehmJZZSys19Yxf1dopHx7WzIKxr5tK2dVcYmaCk2uqdjF4A==" crossorigin="anonymous"></script><script src="https://cdnjs.cloudflare.com/ajax/libs/autocomplete.js/0.38.0/autocomplete.jquery.min.js" integrity="sha512-GU9ayf+66Xx2TmpxqJpliWbT5PiGYxpaG8rfnBEk1LL8l1KGkRShhngwdXK1UgqhAzWpZHSiYPc09/NwDQIGyg==" crossorigin="anonymous"></script><script src="https://cdnjs.cloudflare.com/ajax/libs/mark.js/8.11.1/mark.min.js" integrity="sha512-5CYOlHXGh6QpOFA/TeTylKLWfB3ftPsde7AnmhuitiTX4K5SqCLBeKro6sPS8ilsz1Q4NRx3v8Ko2IBiszzdww==" crossorigin="anonymous"></script><!-- pkgdown --><script src="../pkgdown.js"></script><meta property="og:title" content="Choose your own optimizer - how to extract the function handlers">
@@ -180,7 +181,6 @@ run the optimization scheme using the built-in optimization which uses
 <code class="sourceCode R"><span><span class="va">fit</span> <span class="op">=</span> <span class="va">obj</span><span class="op">$</span><span class="fu">estimate</span><span class="op">(</span>data<span class="op">=</span><span class="va">.data</span>, </span>
 <span>                   method<span class="op">=</span><span class="st">"ekf"</span>, </span>
 <span>                   ode.timestep<span class="op">=</span><span class="va">dt.sim</span>,</span>
-<span>                   silence<span class="op">=</span><span class="cn">TRUE</span>,</span>
 <span>                   control<span class="op">=</span><span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>trace<span class="op">=</span><span class="fl">0</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
 <pre><code><span><span class="co">## Building model...</span></span></code></pre>
 <pre><code><span><span class="co">## Loading pre-compiled model...</span></span></code></pre>
@@ -193,7 +193,8 @@ run the optimization scheme using the built-in optimization which uses
 <span><span class="co">##             The maximum gradient component is: 1.7e-06</span></span>
 <span><span class="co">##             The convergence message is: relative convergence (4)</span></span>
 <span><span class="co">##             Iterations: 32</span></span>
-<span><span class="co">##             Evaluations: Fun: 53 Grad: 33</span></span></code></pre>
+<span><span class="co">##             Evaluations: Fun: 53 Grad: 33</span></span>
+<span><span class="co">##             See stats::nlminb for available tolerance/control arguments.</span></span></code></pre>
 <p>Inside the package we optimise the objective function with respect to
 the fixed effects using the construction function handlers from
 <code><a href="https://rdrr.io/pkg/TMB/man/MakeADFun.html" class="external-link">TMB::MakeADFun</a></code> and parsing them to
@@ -216,7 +217,6 @@ for more information):</p>
 <span>                        ode.timestep<span class="op">=</span><span class="va">dt.sim</span>,</span>
 <span>                        method<span class="op">=</span><span class="st">"ekf"</span>,</span>
 <span>                        compile<span class="op">=</span><span class="cn">FALSE</span>,</span>
-<span>                        silence<span class="op">=</span><span class="cn">TRUE</span>,</span>
 <span>                        loss<span class="op">=</span><span class="st">"quadratic"</span>,</span>
 <span>                        loss_c<span class="op">=</span><span class="fl">3</span><span class="op">)</span></span></code></pre></div>
 <pre><code><span><span class="co">## Building model...</span></span></code></pre>
@@ -280,7 +280,7 @@ uses <code><a href="https://rdrr.io/r/stats/nlminb.html" class="external-link">s
 <span><span class="co">## logsigma_y -6.7296196 -3.7464698</span></span></code></pre>
 <div class="sourceCode" id="cb31"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Neg. Log-Likelihood</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span>external<span class="op">=</span><span class="va">opt</span><span class="op">$</span><span class="va">value</span>, internal<span class="op">=</span><span class="va">fit</span><span class="op">$</span><span class="va">nll.value</span><span class="op">)</span></span></code></pre></div>
+<span><span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span>external<span class="op">=</span><span class="va">opt</span><span class="op">$</span><span class="va">value</span>, internal<span class="op">=</span><span class="va">fit</span><span class="op">$</span><span class="va">nll</span><span class="op">)</span></span></code></pre></div>
 <pre><code><span><span class="co">##    external internal</span></span>
 <span><span class="co">## 1 -77.28819  -77.368</span></span></code></pre>
 <div class="sourceCode" id="cb33"><pre class="downlit sourceCode r">
@@ -288,8 +288,8 @@ uses <code><a href="https://rdrr.io/r/stats/nlminb.html" class="external-link">s
 <span><span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span>external<span class="op">=</span><span class="fu"><a href="https://rdrr.io/r/base/t.html" class="external-link">t</a></span><span class="op">(</span><span class="va">nll</span><span class="op">$</span><span class="fu">gr</span><span class="op">(</span><span class="va">opt</span><span class="op">$</span><span class="va">par</span><span class="op">)</span><span class="op">)</span>, internal<span class="op">=</span><span class="fu"><a href="https://rdrr.io/r/base/t.html" class="external-link">t</a></span><span class="op">(</span><span class="va">nll</span><span class="op">$</span><span class="fu">gr</span><span class="op">(</span><span class="va">fit</span><span class="op">$</span><span class="va">par.fixed</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
 <pre><code><span><span class="co">##        external      internal</span></span>
 <span><span class="co">## 1 -3.803126e-04 -1.673431e-06</span></span>
-<span><span class="co">## 2 -4.928238e-04  3.570794e-07</span></span>
-<span><span class="co">## 3  8.055609e-05  7.948012e-07</span></span>
+<span><span class="co">## 2 -4.928238e-04  3.570795e-07</span></span>
+<span><span class="co">## 3  8.055609e-05  7.948013e-07</span></span>
 <span><span class="co">## 4 -8.146150e-04 -5.908887e-08</span></span></code></pre>
 </div>
   </main><aside class="col-md-3"><nav id="toc"><h2>On this page</h2>

@@ -99,7 +99,6 @@ We are in principle ready to call the `estimate` method to run the optimization 
 fit = obj$estimate(data=.data, 
                    method="ekf", 
                    ode.timestep=dt.sim,
-                   silence=TRUE,
                    control=list(trace=0))
 ```
 
@@ -118,7 +117,6 @@ nll = obj$construct_nll(data=.data,
                         ode.timestep=dt.sim,
                         method="ekf",
                         compile=FALSE,
-                        silence=TRUE,
                         loss="quadratic",
                         loss_c=3)
 
@@ -154,7 +152,7 @@ Lets compare the results from using `stats::optim` with the extracted function h
 data.frame(external=opt$par, internal=fit$par.fixed)
 
 # Neg. Log-Likelihood
-data.frame(external=opt$value, internal=fit$nll.value)
+data.frame(external=opt$value, internal=fit$nll)
 
 # Gradient components
 data.frame(external=t(nll$gr(opt$par)), internal=t(nll$gr(fit$par.fixed)))

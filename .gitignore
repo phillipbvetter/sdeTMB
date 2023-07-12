@@ -1,3 +1,6 @@
 .Rhistory
 .Rbuildignore
 .DS_Store
+vignettes/ornstein_uhlenbeck.cpp
+vignettes/ornstein_uhlenbeck.so
+vignettes/ornstein_uhlenbeck.o

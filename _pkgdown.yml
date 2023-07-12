@@ -4,8 +4,7 @@ template:
   #bootswatch: quartz
   bslib:
     base_font: {google: "Mukta"}
-    #code_font: {google: "Source Code Pro"}
-    #font-size-base: 1rem
+    code_font: {google: "Source Code Pro"}
     pkgdown-nav-height: 125px
     bg: '#FFFFFF'
     fg: '#424242'
