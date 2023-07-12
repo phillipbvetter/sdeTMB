@@ -16,9 +16,9 @@ The package implements the following methods
 
 The main advantage of the Kalman Filter implementation is a large increase in the computation speed, and access to the fixed effects hessian for improved convergence of the optimization. In these cases TMB just provides automatic differentiation.
 
-A district advantage of the `TMB`-style implementation is its use of the Laplace approximation for likelihood calculations allows state space formulations where the density of the observation residuals are non-Gaussian. This feature is however not yet implemented.
+A district advantage of the `TMB`-style implementation is its use of the Laplace approximation for likelihood calculations which allows state space formulations where the density of the observation residuals are non-Gaussian. This feature will be implemented in the future.
 
-The package is currently mostly tailored towards the Kalman Filter, with features such as `predict` method for simulations and k-step-ahead predictions without data updates, but these features will eventually be available for the TMB estimation method as well.
+The package is currently mostly tailored towards the Kalman Filter, with features such as `predict` method for simulations and k-step-ahead predictions without data updates, and `plot` of the fit object from `estimate` to display a basic residuals analysis. These features will eventually be available for the TMB method.
 
 ## Installation
 
@@ -117,7 +117,7 @@ obj$add_parameters(
 # Set initial state mean and covariance
 obj$set_initial_state(x[1], 1e-1*diag(1))
 
-# Carry out estimation using extended kalman filter method with in-built nlminb optimizer
+# Carry out estimation using extended kalman filter method with stats::nlminb as optimizer
 fit <- obj$estimate(data=.data, method="ekf", ode.solver="rk4", use.hessian=TRUE)
 
 # Check parameter estimates against truth
