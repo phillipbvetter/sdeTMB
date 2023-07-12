@@ -29,7 +29,7 @@ Imports:
     	TMB,
 	stringr
 Suggests: 
-    	ggplot2
+    ggplot2,
+    testthat (>= 3.0.0)
 URL: https://phillipbvetter.github.io/ctsmrTMB, https://github.com/phillipbvetter/ctsmrTMB
-
-	
+Config/testthat/edition: 3
