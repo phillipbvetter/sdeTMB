@@ -487,7 +487,7 @@ paste(fvars2_new,collapse=", "), paste(dfdxvars2_new,collapse=", "), paste(dfdxv
   txt = c(txt, temptxt)
   
   ##################################################
-  # Construct observation variance diagonal function
+  # Construct observation variance function
   
   obsvars0 = sort(unique(unlist(lapply(private$obs.var.trans,function(x) all.vars(x$rhs)))))
   obsvars0.withoutStates = obsvars0[!(obsvars0 %in% private$state.names)]
@@ -495,6 +495,7 @@ paste(fvars2_new,collapse=", "), paste(dfdxvars2_new,collapse=", "), paste(dfdxv
   obsvars1.withoutStates = paste("Type", obsvars0.withoutStates, collapse=", ")
   obsvars2 = obsvars0
   obsvars2.withoutStates = obsvars0.withoutStates
+  obsvars2.withoutInputIndices = obsvars0
   obsvars2.tmb = obsvars0
   if(length(private$input.names)>0){
     for(i in 1:length(private$input.names)){
@@ -505,6 +506,7 @@ paste(fvars2_new,collapse=", "), paste(dfdxvars2_new,collapse=", "), paste(dfdxv
   }
   for(i in 1:private$n){
     obsvars2 = sub(pattern=sprintf("^%s$",private$state.names[i]),replacement=sprintf("x0__(%s)",i-1),obsvars2)
+    obsvars2.withoutInputIndices = sub(pattern=sprintf("^%s$",private$state.names[i]),replacement=sprintf("x0__(%s)",i-1),obsvars2.withoutInputIndices)
     obsvars2.tmb = sub(pattern=sprintf("^%s$",private$state.names[i]), replacement=sprintf("%s(Nc__(i))",private$state.names[i]), x=obsvars2.tmb)
   }
   if(length(obsvars2)<1){
@@ -535,17 +537,6 @@ paste(fvars2_new,collapse=", "), paste(dfdxvars2_new,collapse=", "), paste(dfdxv
   temptxt = c(temptxt, "\treturn ans;\n}")
   txt = c(txt, temptxt)
   
-  # temptxt = sprintf(
-  #   "template<class Type>
-  #   vector<Type> obsvar_diagonal_usingXsp__(matrix<Type> Xsp, %s){
-  #   vector<Type> ans;
-  #   vector<Type> x0__ = Xsp.col(0);
-  #   ans = obsvar_diagonal__(%s);
-  #   return ans;
-  #   }",
-  #   hvars1.withoutStates,
-  #   hvars2)
-  
   txt = c(txt, "\n//////////// UKF sigma points observation variance matrix function ///////////")
   temptxt = sprintf("template<class Type>\nmatrix<Type> obsvarFun_usingXsp__(matrix<Type> Xsp, %s){
   matrix<Type> V;
@@ -554,7 +545,7 @@ paste(fvars2_new,collapse=", "), paste(dfdxvars2_new,collapse=", "), paste(dfdxv
   return V;
   }",
   paste(obsvars1.withoutStates,collapse=", "),
-  paste(obsvars2,collapse=", "))
+  paste(obsvars2.withoutInputIndices,collapse=", "))
   txt = c(txt, temptxt)
   
   ##################################################

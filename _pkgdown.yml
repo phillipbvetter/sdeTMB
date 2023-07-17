@@ -12,8 +12,6 @@ template:
     bg: '#FFFFFF'
     fg: '#424242'
     primary: '#0075FD'
-  includes:
-    in_header: <script type="text/javascript" id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"> </script>
 
 navbar:
   bg: dark

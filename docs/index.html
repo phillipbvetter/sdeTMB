@@ -18,7 +18,7 @@
 <!-- mathjax --><script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/MathJax.js" integrity="sha256-nvJJv9wWKEm88qvoQl9ekL2J+k/RWIsaSScxxlsrv8k=" crossorigin="anonymous"></script><script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/config/TeX-AMS-MML_HTMLorMML.js" integrity="sha256-84DKXVJXs0/F8OTMzX4UR909+jtl4G7SPypPavF+GfA=" crossorigin="anonymous"></script><!--[if lt IE 9]>
 <script src="https://oss.maxcdn.com/html5shiv/3.7.3/html5shiv.min.js"></script>
 <script src="https://oss.maxcdn.com/respond/1.4.2/respond.min.js"></script>
-<![endif]--><script type="text/javascript" id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"> </script>
+<![endif]-->
 </head>
 <body>
     <a href="#main" class="visually-hidden-focusable">Skip to contents</a>
@@ -76,9 +76,145 @@
 </h3>
 <hr>
 <p>Welcome to the homepage for <code>ctsmrTMB</code>.</p>
-<p><code>ctsmrTMB</code> is an <code>R</code> package for parameter and state estimation, and state filtration in stochastic state space systems. These are systems of stochastic differential equations and algebraic observation equations</p>
-<p><span class="math display">d<em>X</em><sub><em>t</em></sub> = <em>θ</em>(<em>μ</em>−<em>X</em><sub><em>t</em></sub>) d<em>t</em>  + <em>σ</em><sub><em>X</em></sub> d<em>B</em><sub><em>t</em></sub></span></p>
+<p><code>ctsmrTMB</code> is an <code>R</code> package for parameter estimation, state filtration and forecasting in stochastic state space system.</p>
+<p>The package is maintained by a group of researchers at the Technical University of Denmark (DTU), Department of Applied Mathematics and Computer Science, at the section for Dynamical Systems.</p>
+<p>The package is the successor of the <code>ctsmr</code> package whose FORTRAN libraries became increasingly difficult to maintain at the section. We now instead rely on the <code>TMB</code> package which gives easy access to a series of fast and modern <code>C++</code> libraries, including automatic differentiation through <code>CppAD</code>.</p>
+<p>The package implements a <code>R6</code> class object through which the user specifies a state space model which consists of a system of stochastic differential equations (SDEs) and a series of algebraic observation equations (AOEs). The package uses the defined model system and a user-supplied dataset of observations to write a <code>C++</code> function in the form accepted by <code>TMB</code> which calculates the negative log-likelihood.</p>
 </div>
+<div class="section level3">
+<h3 id="installation">Installation<a class="anchor" aria-label="anchor" href="#installation"></a>
+</h3>
+<hr>
+<p>You can install the latest version using</p>
+<div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu">remotes</span><span class="fu">::</span><span class="fu"><a href="https://remotes.r-lib.org/reference/install_github.html" class="external-link">install_github</a></span><span class="op">(</span>repo<span class="op">=</span><span class="st">"phillipbvetter/ctsmrTMB"</span>, dependencies<span class="op">=</span><span class="cn">TRUE</span><span class="op">)</span></span></code></pre></div>
+<p>You should also follow the installation instructions for <code>TMB</code> <a href="https://github.com/kaskr/adcomp/wiki/Download" class="external-link">here</a> to get everything working. Windows users must have Rtools intalled, and Mac users must have Command Line Tools for various compilers. You can read more on the <code>TMB</code> GitHub <a href="https://github.com/kaskr/adcomp" class="external-link">here</a>.</p>
+</div>
+<div class="section level3">
+<h3 id="getting-started">Getting Started<a class="anchor" aria-label="anchor" href="#getting-started"></a>
+</h3>
+<hr>
+<p>If you are a new user we recommend that you check out the <a href="https://phillipbvetter.github.io/ctsmrTMB/articles/ctsmrTMB.html" class="external-link">Getting Started</a> vignette to start learning the simple steps of using <code>ctsmrTMB</code>.</p>
+<p>You can find documentation for the methods <a href="https://phillipbvetter.github.io/ctsmrTMB/reference/ctsmrTMB.html" class="external-link">here</a>.</p>
+</div>
+<div class="section level3">
+<h3 id="example-usage">Example Usage<a class="anchor" aria-label="anchor" href="#example-usage"></a>
+</h3>
+<hr>
+<div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://phillipbvetter.github.io/ctsmrTMB" class="external-link">ctsmrTMB</a></span><span class="op">)</span></span>
+<span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://ggplot2.tidyverse.org" class="external-link">ggplot2</a></span><span class="op">)</span></span>
+<span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://patchwork.data-imaginist.com" class="external-link">patchwork</a></span><span class="op">)</span></span>
+<span></span>
+<span><span class="co">############################################################</span></span>
+<span><span class="co"># Data simulation</span></span>
+<span><span class="co">############################################################</span></span>
+<span></span>
+<span><span class="co"># Simulate data using Euler Maruyama</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">10</span><span class="op">)</span></span>
+<span><span class="va">pars</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span>theta<span class="op">=</span><span class="fl">10</span>, mu<span class="op">=</span><span class="fl">1</span>, sigma_x<span class="op">=</span><span class="fl">1</span>, sigma_y<span class="op">=</span><span class="fl">1e-2</span><span class="op">)</span></span>
+<span><span class="co"># </span></span>
+<span><span class="va">dt.sim</span> <span class="op">=</span> <span class="fl">1e-3</span></span>
+<span><span class="va">t.sim</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/seq.html" class="external-link">seq</a></span><span class="op">(</span><span class="fl">0</span>,<span class="fl">1</span>,by<span class="op">=</span><span class="va">dt.sim</span><span class="op">)</span></span>
+<span><span class="va">dw</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/Normal.html" class="external-link">rnorm</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/length.html" class="external-link">length</a></span><span class="op">(</span><span class="va">t.sim</span><span class="op">)</span><span class="op">-</span><span class="fl">1</span>,sd<span class="op">=</span><span class="fu"><a href="https://rdrr.io/r/base/MathFun.html" class="external-link">sqrt</a></span><span class="op">(</span><span class="va">dt.sim</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="va">x</span> <span class="op">=</span> <span class="fl">3</span></span>
+<span><span class="kw">for</span><span class="op">(</span><span class="va">i</span> <span class="kw">in</span> <span class="fl">1</span><span class="op">:</span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/length.html" class="external-link">length</a></span><span class="op">(</span><span class="va">t.sim</span><span class="op">)</span><span class="op">-</span><span class="fl">1</span><span class="op">)</span><span class="op">)</span> <span class="op">{</span></span>
+<span>  <span class="va">x</span><span class="op">[</span><span class="va">i</span><span class="op">+</span><span class="fl">1</span><span class="op">]</span> <span class="op">=</span> <span class="va">x</span><span class="op">[</span><span class="va">i</span><span class="op">]</span> <span class="op">+</span> <span class="va">pars</span><span class="op">[</span><span class="fl">1</span><span class="op">]</span><span class="op">*</span><span class="op">(</span><span class="va">pars</span><span class="op">[</span><span class="fl">2</span><span class="op">]</span><span class="op">-</span><span class="va">x</span><span class="op">[</span><span class="va">i</span><span class="op">]</span><span class="op">)</span><span class="op">*</span><span class="va">dt.sim</span> <span class="op">+</span> <span class="va">pars</span><span class="op">[</span><span class="fl">3</span><span class="op">]</span><span class="op">*</span><span class="va">dw</span><span class="op">[</span><span class="va">i</span><span class="op">]</span></span>
+<span><span class="op">}</span></span>
+<span></span>
+<span><span class="co"># Extract observations and add noise</span></span>
+<span><span class="va">dt.obs</span> <span class="op">=</span> <span class="fl">1e-2</span></span>
+<span><span class="va">t.obs</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/seq.html" class="external-link">seq</a></span><span class="op">(</span><span class="fl">0</span>,<span class="fl">1</span>,by<span class="op">=</span><span class="va">dt.obs</span><span class="op">)</span></span>
+<span><span class="va">y</span> <span class="op">=</span> <span class="va">x</span><span class="op">[</span><span class="va">t.sim</span> <span class="op"><a href="https://rdrr.io/r/base/match.html" class="external-link">%in%</a></span> <span class="va">t.obs</span><span class="op">]</span> <span class="op">+</span> <span class="va">pars</span><span class="op">[</span><span class="fl">4</span><span class="op">]</span> <span class="op">*</span> <span class="fu"><a href="https://rdrr.io/r/stats/Normal.html" class="external-link">rnorm</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/length.html" class="external-link">length</a></span><span class="op">(</span><span class="va">t.obs</span><span class="op">)</span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># Create data</span></span>
+<span><span class="va">.data</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span></span>
+<span>  t <span class="op">=</span> <span class="va">t.obs</span>,</span>
+<span>  y <span class="op">=</span> <span class="va">y</span></span>
+<span><span class="op">)</span></span>
+<span></span>
+<span><span class="co">############################################################</span></span>
+<span><span class="co"># Model creation and estimation</span></span>
+<span><span class="co">############################################################</span></span>
+<span></span>
+<span><span class="co"># Create model object</span></span>
+<span><span class="va">obj</span> <span class="op">=</span> <span class="va"><a href="reference/ctsmrTMB.html">ctsmrTMB</a></span><span class="op">$</span><span class="fu">new</span><span class="op">(</span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># Set name of model (and the created .cpp file)</span></span>
+<span><span class="va">obj</span><span class="op">$</span><span class="fu">set_modelname</span><span class="op">(</span><span class="st">"ornstein_uhlenbeck"</span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># Set path where generated C++ files are saved.</span></span>
+<span><span class="co"># This will create a cppfiles folder in your current working directory if it doesnt exist</span></span>
+<span><span class="va">obj</span><span class="op">$</span><span class="fu">set_cppfile_directory</span><span class="op">(</span><span class="st">"cppfiles"</span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># Add system equations</span></span>
+<span><span class="va">obj</span><span class="op">$</span><span class="fu">add_systems</span><span class="op">(</span></span>
+<span>  <span class="va">dx</span> <span class="op">~</span> <span class="va">theta</span> <span class="op">*</span> <span class="op">(</span><span class="va">mu</span><span class="op">-</span><span class="va">x</span><span class="op">)</span> <span class="op">*</span> <span class="va">dt</span> <span class="op">+</span> <span class="va">sigma_x</span><span class="op">*</span><span class="va">dw</span></span>
+<span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># Add observation equations</span></span>
+<span><span class="va">obj</span><span class="op">$</span><span class="fu">add_observations</span><span class="op">(</span></span>
+<span>  <span class="va">y</span> <span class="op">~</span> <span class="va">x</span></span>
+<span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># Set observation equation variances</span></span>
+<span><span class="va">obj</span><span class="op">$</span><span class="fu">add_observation_variances</span><span class="op">(</span></span>
+<span>  <span class="va">y</span> <span class="op">~</span> <span class="va">sigma_y</span><span class="op">^</span><span class="fl">2</span></span>
+<span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># Specify algebraic relations</span></span>
+<span><span class="va">obj</span><span class="op">$</span><span class="fu">add_algebraics</span><span class="op">(</span></span>
+<span>  <span class="va">theta</span>   <span class="op">~</span> <span class="fu"><a href="https://rdrr.io/r/base/Log.html" class="external-link">exp</a></span><span class="op">(</span><span class="va">logtheta</span><span class="op">)</span>,</span>
+<span>  <span class="va">sigma_x</span> <span class="op">~</span> <span class="fu"><a href="https://rdrr.io/r/base/Log.html" class="external-link">exp</a></span><span class="op">(</span><span class="va">logsigma_x</span><span class="op">)</span>,</span>
+<span>  <span class="va">sigma_y</span> <span class="op">~</span> <span class="fu"><a href="https://rdrr.io/r/base/Log.html" class="external-link">exp</a></span><span class="op">(</span><span class="va">logsigma_y</span><span class="op">)</span></span>
+<span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># Specify parameter initial values and lower/upper bounds in estimation</span></span>
+<span><span class="va">obj</span><span class="op">$</span><span class="fu">add_parameters</span><span class="op">(</span></span>
+<span>  logtheta    <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/Log.html" class="external-link">log</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span>init <span class="op">=</span> <span class="fl">1</span>, lower<span class="op">=</span><span class="fl">1e-5</span>, upper<span class="op">=</span><span class="fl">50</span><span class="op">)</span><span class="op">)</span>,</span>
+<span>  mu          <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span>init<span class="op">=</span><span class="fl">1.5</span>, lower<span class="op">=</span><span class="fl">0</span>, upper<span class="op">=</span><span class="fl">5</span><span class="op">)</span>,</span>
+<span>  logsigma_x  <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/Log.html" class="external-link">log</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span>init<span class="op">=</span> <span class="fl">1e-1</span>, lower<span class="op">=</span><span class="fl">1e-10</span>, upper<span class="op">=</span><span class="fl">10</span><span class="op">)</span><span class="op">)</span>,</span>
+<span>  logsigma_y  <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/Log.html" class="external-link">log</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span>init<span class="op">=</span><span class="fl">1e-1</span>, lower<span class="op">=</span><span class="fl">1e-10</span>, upper<span class="op">=</span><span class="fl">10</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># Set initial state mean and covariance</span></span>
+<span><span class="va">obj</span><span class="op">$</span><span class="fu">set_initial_state</span><span class="op">(</span><span class="va">x</span><span class="op">[</span><span class="fl">1</span><span class="op">]</span>, <span class="fl">1e-1</span><span class="op">*</span><span class="fu"><a href="https://rdrr.io/r/base/diag.html" class="external-link">diag</a></span><span class="op">(</span><span class="fl">1</span><span class="op">)</span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># Carry out estimation using extended kalman filter method with stats::nlminb as optimizer</span></span>
+<span><span class="va">fit</span> <span class="op">&lt;-</span> <span class="va">obj</span><span class="op">$</span><span class="fu">estimate</span><span class="op">(</span>data<span class="op">=</span><span class="va">.data</span>, method<span class="op">=</span><span class="st">"ekf"</span>, ode.solver<span class="op">=</span><span class="st">"rk4"</span>, use.hessian<span class="op">=</span><span class="cn">TRUE</span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># Check parameter estimates against truth</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/cbind.html" class="external-link">cbind</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/Log.html" class="external-link">exp</a></span><span class="op">(</span><span class="va">x</span><span class="op">[</span><span class="fl">1</span><span class="op">]</span><span class="op">)</span>,<span class="va">x</span><span class="op">[</span><span class="fl">2</span><span class="op">]</span>,<span class="fu"><a href="https://rdrr.io/r/base/Log.html" class="external-link">exp</a></span><span class="op">(</span><span class="va">x</span><span class="op">[</span><span class="fl">3</span><span class="op">]</span><span class="op">)</span>,<span class="fu"><a href="https://rdrr.io/r/base/Log.html" class="external-link">exp</a></span><span class="op">(</span><span class="va">x</span><span class="op">[</span><span class="fl">4</span><span class="op">]</span><span class="op">)</span><span class="op">)</span>, <span class="va">pars</span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># plot one-step predictions, simulated states and observations</span></span>
+<span><span class="va">t.est</span> <span class="op">=</span> <span class="va">fit</span><span class="op">$</span><span class="va">states</span><span class="op">$</span><span class="va">mean</span><span class="op">$</span><span class="va">prior</span><span class="op">$</span><span class="va">t</span></span>
+<span><span class="va">x.mean</span> <span class="op">=</span> <span class="va">fit</span><span class="op">$</span><span class="va">states</span><span class="op">$</span><span class="va">mean</span><span class="op">$</span><span class="va">prior</span><span class="op">$</span><span class="va">x</span></span>
+<span><span class="va">x.sd</span> <span class="op">=</span> <span class="va">fit</span><span class="op">$</span><span class="va">states</span><span class="op">$</span><span class="va">sd</span><span class="op">$</span><span class="va">prior</span><span class="op">$</span><span class="va">x</span></span>
+<span><span class="fu"><a href="https://ggplot2.tidyverse.org/reference/ggplot.html" class="external-link">ggplot</a></span><span class="op">(</span><span class="op">)</span> <span class="op">+</span></span>
+<span>  <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/geom_ribbon.html" class="external-link">geom_ribbon</a></span><span class="op">(</span><span class="fu"><a href="https://ggplot2.tidyverse.org/reference/aes.html" class="external-link">aes</a></span><span class="op">(</span>x<span class="op">=</span><span class="va">t.est</span>, ymin<span class="op">=</span><span class="va">x.mean</span><span class="op">-</span><span class="fl">2</span><span class="op">*</span><span class="va">x.sd</span>, ymax<span class="op">=</span><span class="va">x.mean</span><span class="op">+</span><span class="fl">2</span><span class="op">*</span><span class="va">x.sd</span><span class="op">)</span>,fill<span class="op">=</span><span class="st">"grey"</span>, alpha<span class="op">=</span><span class="fl">0.9</span><span class="op">)</span> <span class="op">+</span></span>
+<span>  <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/geom_path.html" class="external-link">geom_line</a></span><span class="op">(</span><span class="fu"><a href="https://ggplot2.tidyverse.org/reference/aes.html" class="external-link">aes</a></span><span class="op">(</span>x<span class="op">=</span><span class="va">t.est</span>, <span class="va">x.mean</span><span class="op">)</span>,col<span class="op">=</span><span class="st">"steelblue"</span>,lwd<span class="op">=</span><span class="fl">1</span><span class="op">)</span> <span class="op">+</span></span>
+<span>  <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/geom_path.html" class="external-link">geom_line</a></span><span class="op">(</span><span class="fu"><a href="https://ggplot2.tidyverse.org/reference/aes.html" class="external-link">aes</a></span><span class="op">(</span>x<span class="op">=</span><span class="va">t.sim</span>,y<span class="op">=</span><span class="va">x</span><span class="op">)</span><span class="op">)</span> <span class="op">+</span> </span>
+<span>  <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/geom_point.html" class="external-link">geom_point</a></span><span class="op">(</span><span class="fu"><a href="https://ggplot2.tidyverse.org/reference/aes.html" class="external-link">aes</a></span><span class="op">(</span>x<span class="op">=</span><span class="va">t.obs</span>,y<span class="op">=</span><span class="va">y</span><span class="op">)</span>,col<span class="op">=</span><span class="st">"tomato"</span>,size<span class="op">=</span><span class="fl">2</span><span class="op">)</span> <span class="op">+</span></span>
+<span>  <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/ggtheme.html" class="external-link">theme_minimal</a></span><span class="op">(</span><span class="op">)</span></span>
+<span></span>
+<span></span>
+<span><span class="co"># Plot one-step-ahead residual analysis</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span><span class="va">fit</span>, use.ggplot<span class="op">=</span><span class="cn">T</span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># Predict to obtain k-step-ahead predictions to see model forecasting ability</span></span>
+<span><span class="va">pred</span> <span class="op">=</span> <span class="va">obj</span><span class="op">$</span><span class="fu">predict</span><span class="op">(</span>data<span class="op">=</span><span class="va">.data</span>, k.ahead<span class="op">=</span><span class="fl">10</span>, method<span class="op">=</span><span class="st">"ekf"</span>, ode.solver<span class="op">=</span><span class="st">"rk4"</span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># Plot all 10-step predictions against data</span></span>
+<span><span class="va">pred10step</span> <span class="op">=</span> <span class="va">pred</span><span class="op">[</span><span class="va">pred</span><span class="op">$</span><span class="va">k.ahead</span><span class="op">==</span><span class="fl">10</span>,<span class="op">]</span></span>
+<span><span class="fu"><a href="https://ggplot2.tidyverse.org/reference/ggplot.html" class="external-link">ggplot</a></span><span class="op">(</span><span class="op">)</span> <span class="op">+</span></span>
+<span>  <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/geom_point.html" class="external-link">geom_point</a></span><span class="op">(</span><span class="fu"><a href="https://ggplot2.tidyverse.org/reference/aes.html" class="external-link">aes</a></span><span class="op">(</span>x<span class="op">=</span><span class="va">t.obs</span>,y<span class="op">=</span><span class="va">y</span><span class="op">)</span>,color<span class="op">=</span><span class="st">"steelblue"</span><span class="op">)</span> <span class="op">+</span></span>
+<span>  <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/geom_point.html" class="external-link">geom_point</a></span><span class="op">(</span><span class="fu"><a href="https://ggplot2.tidyverse.org/reference/aes.html" class="external-link">aes</a></span><span class="op">(</span>x<span class="op">=</span><span class="va">pred10step</span><span class="op">$</span><span class="va">t.j</span>,<span class="va">pred10step</span><span class="op">$</span><span class="va">x</span><span class="op">)</span>,color<span class="op">=</span><span class="st">"tomato"</span><span class="op">)</span> <span class="op">+</span></span>
+<span>  <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/geom_linerange.html" class="external-link">geom_errorbar</a></span><span class="op">(</span><span class="fu"><a href="https://ggplot2.tidyverse.org/reference/aes.html" class="external-link">aes</a></span><span class="op">(</span>x<span class="op">=</span><span class="va">pred10step</span><span class="op">$</span><span class="va">t.j</span>, </span>
+<span>                    ymin<span class="op">=</span><span class="va">pred10step</span><span class="op">$</span><span class="va">x</span><span class="op">-</span><span class="fl">2</span><span class="op">*</span><span class="fu"><a href="https://rdrr.io/r/base/MathFun.html" class="external-link">sqrt</a></span><span class="op">(</span><span class="va">pred10step</span><span class="op">$</span><span class="va">var.x</span><span class="op">)</span>, </span>
+<span>                    ymax<span class="op">=</span><span class="va">pred10step</span><span class="op">$</span><span class="va">x</span><span class="op">+</span><span class="fl">2</span><span class="op">*</span><span class="fu"><a href="https://rdrr.io/r/base/MathFun.html" class="external-link">sqrt</a></span><span class="op">(</span><span class="va">pred10step</span><span class="op">$</span><span class="va">var.x</span><span class="op">)</span><span class="op">)</span>,color<span class="op">=</span><span class="st">"tomato"</span><span class="op">)</span> <span class="op">+</span></span>
+<span>  <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/ggtheme.html" class="external-link">theme_minimal</a></span><span class="op">(</span><span class="op">)</span></span></code></pre></div>
+</div>
+
   </main><aside class="col-md-3"><div class="links">
 <h2 data-toc-skip>Links</h2>
 <ul class="list-unstyled">

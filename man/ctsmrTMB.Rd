@@ -183,8 +183,8 @@ Declare variables as data inputs
 
 Declare whether a variable contained in system, observation or observation variance equations
 is an input variable. If e.g. the system equation contains an input variable \code{u} then it
-is declared using \code{add_inputs(u)}. The input data \code{u} must be contained in the
-data.frame \code{data} when calling \code{estimate(data)} for parameter estimation.
+is declared using \code{add_inputs(u)}. The input \code{u} must be contained in the
+data.frame \code{.data} provided when calling the \code{estimate} or \code{predict} methods.
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{ctsmrTMB$add_inputs(...)}\if{html}{\out{</div>}}
 }
@@ -192,7 +192,7 @@ data.frame \code{data} when calling \code{estimate(data)} for parameter estimati
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{...}}{additional formulas identical to \code{form} to specify multiple observation equations at a time.}
+\item{\code{...}}{unquoted variable names that specifies the name of input variables in the defined system.}
 }
 \if{html}{\out{</div>}}
 }
@@ -357,6 +357,8 @@ directory specified by the \code{set_cppfile_directory} method with name \code{<
 \if{latex}{\out{\hypertarget{method-ctsmrTMB-set_cppfile_directory}{}}}
 \subsection{Method \code{set_cppfile_directory()}}{
 Set the path directory where the constructed C++ file is created.
+You should specify the entire path, unless you want to construct a subfolder
+in the current working directory - then you can call e.g. \code{set_cppfile_directory("folder_in_current_wd")}.
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{ctsmrTMB$set_cppfile_directory(directory)}\if{html}{\out{</div>}}
 }
@@ -364,7 +366,7 @@ Set the path directory where the constructed C++ file is created.
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{directory}}{string specifying the local path / directory}
+\item{\code{directory}}{string specifying a local directory}
 }
 \if{html}{\out{</div>}}
 }

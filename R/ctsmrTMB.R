@@ -174,10 +174,10 @@ ctsmrTMB = R6::R6Class(
     #' 
     #' Declare whether a variable contained in system, observation or observation variance equations 
     #' is an input variable. If e.g. the system equation contains an input variable \code{u} then it
-    #' is declared using \code{add_inputs(u)}. The input data \code{u} must be contained in the 
-    #' data.frame \code{data} when calling \code{estimate(data)} for parameter estimation.
+    #' is declared using \code{add_inputs(u)}. The input \code{u} must be contained in the 
+    #' data.frame \code{.data} provided when calling the \code{estimate} or \code{predict} methods.
     #' 
-    #' @param ... additional formulas identical to \code{form} to specify multiple observation equations at a time.
+    #' @param ... unquoted variable names that specifies the name of input variables in the defined system.
     add_inputs =  function(...) {
       args = as.list(match.call()[-1])
       # lapply for multi-arguments
@@ -468,8 +468,10 @@ ctsmrTMB = R6::R6Class(
     ########################################################################
     ########################################################################
     #' @description Set the path directory where the constructed C++ file is created.
+    #' You should specify the entire path, unless you want to construct a subfolder
+    #' in the current working directory - then you can call e.g. \code{set_cppfile_directory("folder_in_current_wd")}.
     #'
-    #' @param directory string specifying the local path / directory
+    #' @param directory string specifying a local directory
     set_cppfile_directory = function(directory) {
       # was a string passed?
       if (!is.character(directory)) {
