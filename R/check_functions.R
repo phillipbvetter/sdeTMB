@@ -435,3 +435,23 @@ check_constants = function(constant, self, private) {
   
   return(invisible(self))
 }
+
+#######################################################
+# REMOVE PARAMETER
+#######################################################
+
+remove_parameter = function(parname, self, private) {
+  
+  # remove parameter from parameter list
+  bool = !(private$parameter.names %in% parname)
+  private$parameters = private$parameters[bool]
+  
+  # update parameter names
+  private$parameter.names = names(private$parameters)
+  
+  # check fixed parameters
+  bool = !(private$fixed.pars %in% parname)
+  private$fixed.pars = private$fixed.pars[bool]
+  
+  return(invisible(self))
+}
