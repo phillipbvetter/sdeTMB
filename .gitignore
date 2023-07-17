@@ -4,3 +4,6 @@
 vignettes/ornstein_uhlenbeck.cpp
 vignettes/ornstein_uhlenbeck.so
 vignettes/ornstein_uhlenbeck.o
+vignettes/sde_model.cpp
+vignettes/sde_model.so
+vignettes/sde_model.o
