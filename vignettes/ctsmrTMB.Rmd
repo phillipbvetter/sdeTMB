@@ -31,9 +31,7 @@ so that some observations have a larger variance than others, i.e. we believe th
 
 We initialise a `ctsmrTMB` model object using
 ```{r}
-# library(ctsmrTMB)
-devtools::document("~/github/ctsmrTMB")
-devtools::load_all("~/github/ctsmrTMB")
+library(ctsmrTMB)
 obj = ctsmrTMB$new()
 ```
 
@@ -273,8 +271,7 @@ We specify the algebraic relation like so:
 obj$add_algebraics(theta ~ exp(logtheta))
 ```
 
-When we change parameters like this, it is best to do it before calling `add_parameters` since we must now redefine the parameter initial, lower and upper bound for the new parameter `logtheta`.
-
+The parameter settings for `theta` are not automatically transformed into `logtheta`, so they must be redefined:
 ```{r}
 obj$add_parameters(logtheta = log(c(initial=5, lower=0, upper=10)))
 ```
