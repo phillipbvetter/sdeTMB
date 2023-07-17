@@ -307,7 +307,7 @@ ctsmrTMB = R6::R6Class(
         private$alg.eqs[[names(res)]] = res[[1]]
         
         # Check if algebraic redefines a parameter, and if yes; remove that parameter
-        remove_parameter(res[[1]], self, private)
+        remove_parameter(names(res), self, private)
         # Function Body
       })
       

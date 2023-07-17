@@ -31,7 +31,9 @@ so that some observations have a larger variance than others, i.e. we believe th
 
 We initialise a `ctsmrTMB` model object using
 ```{r}
-library(ctsmrTMB)
+# library(ctsmrTMB)
+devtools::document("~/github/ctsmrTMB")
+devtools::load_all("~/github/ctsmrTMB")
 obj = ctsmrTMB$new()
 ```
 
