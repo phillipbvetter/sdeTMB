@@ -124,6 +124,7 @@ obj$set_initial_state(x[1], 1e-1*diag(1))
 fit <- obj$estimate(data=.data, method="ekf", ode.solver="rk4", use.hessian=TRUE)
 
 # Check parameter estimates against truth
+x = fit$par.fixed
 cbind(c(exp(x[1]),x[2],exp(x[3]),exp(x[4])), pars)
 
 # plot one-step predictions, simulated states and observations

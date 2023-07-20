@@ -130,9 +130,25 @@ ctsmrTMB = R6::R6Class(
     #' add_observations(y ~ exp(x1) + exp(x2))
     #' @param form formula class specifying the obsevation equation to be added to the system.
     #' @param ... additional formulas identical to \code{form} to specify multiple observation equations at a time.
-    add_observations = function(form,...) {
-      # lapply for multi-arguments
-      lapply(c(form,...), function(form) {
+    #' @param obsnames character vector specifying the name of the observation. When the observation left-hand side
+    #' consists of more than just a single variable name (when its class is 'call' instead of 'name') it will be 
+    #' given a name on the form obs__# where # is a number, unless obsnames is provided.
+    add_observations = function(form,...,obsnames=NULL) {
+      # check if obsnames is given
+      if(!is.null(obsnames)){
+        if(length(c(form,...))!=length(obsnames)){
+          stop("You must supply as many observation names as there are observation equations")
+        }
+        if(!is.character(obsnames)){
+          stop("The observation names in obsnames must be characters")
+        }
+      }
+      # attach observation name to the each formula in list
+      formlist = lapply(c(form,...), function(form) list(form=form))
+      for(i in seq_along(formlist)){formlist[[i]]$name = obsnames[i]}
+      
+      # lapply over all provided formulas
+      lapply(formlist, function(form) {
         # Function Body
         res = check_observation_eqs(form, self, private)
         check_name(names(res), "obs", self, private)
@@ -924,43 +940,8 @@ ctsmrTMB = R6::R6Class(
       
       # construct return data.frame
       message("Constructing return data.frame...")
-      df.out = data.frame(matrix(nrow=private$last.pred.index*(private$n.ahead+1), ncol=5+private$n+private$n^2))
-      
-      disp_names = sprintf(rep("cor.%s.%s",private$n^2),rep(private$state.names,each=private$n),rep(private$state.names,private$n))
-      disp_names[seq.int(1,private$n^2,by=private$n+1)] = sprintf(rep("var.%s",private$n),private$state.names)
-      var_bool = !stringr::str_detect(disp_names,"cor")
-      if(return.covariance){
-        disp_names = sprintf(rep("cov.%s.%s",private$n^2),rep(private$state.names,each=private$n),rep(private$state.names,private$n))
-        disp_names[seq.int(1,private$n^2,by=private$n+1)] = sprintf(rep("var.%s",private$n),private$state.names)
-      }
-      names(df.out) = c("i.","j.","t.i","t.j","k.ahead",private$state.names,disp_names)
-      ran = 0:(private$last.pred.index-1)
-      df.out["i."] = rep(ran,each=private$n.ahead+1)
-      df.out["j."] = df.out["i."] + rep(0:private$n.ahead,private$last.pred.index)
-      df.out["t.i"] = rep(data$t[ran+1],each=private$n.ahead+1)
-      df.out["t.j"] = data$t[df.out[,"i."]+1+rep(0:private$n.ahead,private$last.pred.index)]
-      df.out["k.ahead"] = rep(0:private$n.ahead,private$last.pred.index)
-      df.out[,private$state.names] = do.call(rbind,rep$xk__)
-      if(return.covariance){
-        df.out[,disp_names] = do.call(rbind,rep$pk__)
-      } else {
-        df.out[,disp_names] = do.call(rbind, lapply(rep$pk__,function(x) do.call(rbind, apply(x,1, function(y) as.vector(cov2cor(matrix(y,ncol=2,byrow=T))),simplify=FALSE))))
-        diag.ids = seq(from=1,to=private$n^2,by=private$n+1)
-        df.out[,disp_names[diag.ids]] = do.call(rbind,rep$pk__)[,diag.ids]
-      }
-      
-      # adding observations to the output data e.g. for easy residual calculations by user
-      obs.df = c()
-      for(i in seq_along(private$obs.names)){
-        obs.df = cbind(obs.df, private$data[df.out[,"j."]+1,private$obs.names[i]])
-      }
-      obs.df = setNames(as.data.frame(obs.df),private$obs.names)
-      df.out = cbind(df.out, obs.df)
-      
-      # return only specific n.ahead
-      df.out = df.out[df.out[,"k.ahead"] %in% return.k.ahead,]
-      class(df.out) = c("ctsmrTMB.pred", "data.frame")
-      
+      df.out = construct_predict_dataframe(pars, rep, data, return.covariance, return.k.ahead, self, private)
+
       # reset prediction variable such that estimate and nll works fine
       private$pred.bool = 0
       
@@ -999,9 +980,9 @@ ctsmrTMB = R6::R6Class(
         for (i in 1:length(private$obs.eqs)) {
           bool = private$obs.names[i] %in% private$obsvar.names
           if (bool) {
-            cat("\t",deparse1(private$obs.eqs[[i]]$form),"+ e", "\t","e ~ N(0,",paste0(deparse1(private$obs.var[[i]]$rhs),")"),"\n")
+            cat("\t",paste(names(private$obs.eqs)[i],": ",sep=""),deparse1(private$obs.eqs[[i]]$form),"+ e", "\t","e ~ N(0,",paste0(deparse1(private$obs.var[[i]]$rhs),")"),"\n")
           } else {
-            cat("\t",deparse1(private$obs.eqs[[i]]$form),"+ e", "\t","e ~ N(0,?)","\n")
+            cat("\t",paste(names(private$obs.eqs)[i],": ",sep=""),deparse1(private$obs.eqs[[i]]$form),"+ e", "\t","e ~ N(0,?)","\n")
           }
         }
       }
@@ -1022,9 +1003,9 @@ ctsmrTMB = R6::R6Class(
         for (i in 1:length(private$obs.eqs)) {
           bool = private$obs.names[i] %in% private$obsvar.names
           if (bool) {
-            cat("\t",deparse1(private$obs.eqs.trans[[i]]$form),"+ e", "\t","e ~ N(0,",paste0(deparse1(private$obs.var.trans[[i]]$rhs),")"),"\n")
+            cat("\t",paste(names(private$obs.eqs)[i],": ",sep=""),deparse1(private$obs.eqs.trans[[i]]$form),"+ e", "\t","e ~ N(0,",paste0(deparse1(private$obs.var.trans[[i]]$rhs),")"),"\n")
           } else {
-            cat("\t",deparse1(private$obs.eqs[[i]]$form),"+ e", "\t","e ~ N(0,?)","\n")
+            cat("\t",paste(names(private$obs.eqs)[i],": ",sep=""),deparse1(private$obs.eqs[[i]]$form),"+ e", "\t","e ~ N(0,?)","\n")
           }
         }
       }
@@ -1163,8 +1144,8 @@ ctsmrTMB = R6::R6Class(
     ########################################################################
     ########################################################################
     # lamperti transform functions
-    add_trans_observations = function(form) {
-      res = check_observation_eqs(form, self, private, silent=T)
+    add_trans_observations = function(formz) {
+      res = check_observation_eqs(formz, self, private)
       private$obs.eqs.trans[[names(res)]] = res[[1]]
       return(invisible(self))
     },
@@ -1172,7 +1153,7 @@ ctsmrTMB = R6::R6Class(
     ########################################################################
     # lamperti transform functions
     add_trans_observation_variances = function(form) {
-      res = check_observation_variance_eqs(form, self, private, silent=T)
+      res = check_observation_variance_eqs(form, self, private)
       private$obs.var.trans[[names(res)]] = res[[1]]
       return(invisible(self))
     },
@@ -1377,13 +1358,16 @@ ctsmrTMB = R6::R6Class(
     ########################################################################
     # SET k step ahead and last pred index for obj$predict
     set_n_ahead_and_last_pred_index = function(data, n.ahead) {
-      # is integer numeric?
-      if (!(is.numeric(n.ahead)) & !(length(n.ahead==1)) & n.ahead >= 1) {
+      # is integer numeric length 1 and positive?
+      if (!(is.numeric(n.ahead)) | !(length(n.ahead==1)) | n.ahead <= 0.5) {
         stop("n.ahead must be a non-negative numeric integer")
       }
+      
       last.pred.index = nrow(data) - n.ahead
       if(last.pred.index < 1){
-        stop("The provided n.ahead exceeds the possible maximum (nrow(data)-1)")
+        message("The provided n.ahead exceeds the possible max (nrow(data)-1). Setting it to this value.")
+        n.ahead = nrow(data)-1
+        last.pred.index = 1
       }
       
       # return values

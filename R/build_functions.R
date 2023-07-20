@@ -59,7 +59,7 @@ check_algebraics_before_applying = function(self, private) {
     }
     
     # You can't apply algebraics to an observation
-    if (deparse(obj[[2]]) %in% names(private$inputs)) {
+    if (deparse(obj[[2]]) %in% names(private$obs.names)) {
       stop("You can't redefine an input: ", deparse(obj))
     }
     
@@ -98,7 +98,6 @@ apply_algebraics = function(self, private) {
   for(i in 1:length(sys.eqs)) {
     sys[[i]]$form[[3]] = sys.eqs[[i]]
     new_eq = sys[[i]]$form
-    # self$add_trans_systems(new_eq)
     private$add_trans_systems(new_eq)
   }
   
@@ -106,9 +105,9 @@ apply_algebraics = function(self, private) {
   obs = private$obs.eqs
   for(i in 1:length(obs.eqs)) {
     obs[[i]]$form[[3]] = obs.eqs[[i]]
-    new_eq = obs[[i]]$form
-    # self$add_trans_observations(new_eq)
-    private$add_trans_observations(new_eq)
+    new_form = list(form=obs[[i]]$form, name=names(obs)[i])
+    private$add_trans_observations(new_form)
+    # 
   }
   
   # observation variances
@@ -116,7 +115,6 @@ apply_algebraics = function(self, private) {
   for(i in 1:length(obs.var)) {
     var[[i]]$form[[3]] = obs.var[[i]]
     new_eq = var[[i]]$form
-    # self$add_trans_observation_variances(new_eq)
     private$add_trans_observation_variances(new_eq)
   }
   
@@ -201,7 +199,6 @@ apply_lamperti = function(self, private) {
         paste(deparse(final_eq),collapse=""),
         sep ="~"
       ))
-      # self$add_trans_systems(form)
       private$add_trans_systems(form)
     }
   }
@@ -233,8 +230,7 @@ lastcheck_before_compile = function(self, private) {
   vars[[2]] = unlist(lapply(private$obs.eqs.trans, function(x) x$allvars))
   vars[[3]] = unlist(lapply(private$obs.var.trans, function(x) x$allvars))
   rhs.vars = unique(unlist(vars))
-  
-  # given.vars = c( private$parameter.names, private$input.names[-1], private$state.names, private$constant.names)
+
   given.vars = c( private$parameter.names, private$input.names, private$state.names, private$constant.names)
   bool = rhs.vars %in% given.vars
   if (any(!bool)) {
@@ -261,10 +257,15 @@ compile_cppfile = function(self, private) {
   
   if(private$compile){
     write_cppfile(self, private)
+    # write_ekf_cppfile(self, private)
+    # 
     TMB::compile(paste(private$cppfile.path,".cpp",sep=""))
+    # TMB::compile(paste(private$cppfile.path.with.method,".cpp",sep=""))
     # reload shared libraries
     try(dyn.unload(TMB::dynlib(private$cppfile.path)),silent=T)
     try(dyn.load(TMB::dynlib(private$cppfile.path)),silent=T)
+    # try(dyn.unload(TMB::dynlib(private$cppfile.path.with.method)),silent=T)
+    # try(dyn.load(TMB::dynlib(private$cppfile.path.with.method)),silent=T)
   }
   
   # If compile=FALSE then the shared library must exist
@@ -273,6 +274,7 @@ compile_cppfile = function(self, private) {
     # mac : check that files exist
     if (.Platform$OS.type=="unix") {
       modelpath.so = paste(private$cppfile.path,".so",sep="")
+      # modelpath.so = paste(private$cppfile.path.with.method,".so",sep="")
       if (!file.exists(modelpath.so)) {
         message("Compiling model...")
         private$compile = TRUE
@@ -291,7 +293,7 @@ compile_cppfile = function(self, private) {
     }
     
     # reload libraries
-    message("Loading pre-compiled model...")
+    message("Loading existing compiled model...")
     try(dyn.unload(TMB::dynlib(private$cppfile.path)),silent=T)
     try(dyn.load(TMB::dynlib(private$cppfile.path)),silent=T)
     

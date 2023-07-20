@@ -14,6 +14,9 @@ check_and_set_data = function(data, self, private) {
   # convert to data.frame
   data = as.data.frame(data)
   
+  # calculate observations that are not provided
+  data = calculate_observation_data(data, self, private)
+  
   # check that all inputs and observations are provided in the data
   required.names = c(private$input.names,private$obs.names)
   bool = required.names %in% names(data)
@@ -76,6 +79,39 @@ check_and_set_data = function(data, self, private) {
   
   # Return
   return(invisible(self))
+}
+
+#######################################################
+# CALCULATE THE COMPLEX OBSERVATION NAMES
+#######################################################
+
+calculate_observation_data = function(data, self, private){
+  
+  # Assign columns from data to their respective names
+  for(i in 1:ncol(data)){
+    assign(names(data)[i], data[[i]])
+  }
+  
+  newdf = c()
+  # We only need to calculate the lhs thats are of class 'call'
+  bool = unlist(lapply(private$obs.eqs.trans, function(ls){inherits(ls$lhs,"call")}))
+  ids = seq_along(private$obs.eqs.trans)[bool]
+  
+  for(i in ids){
+    # get lhs form
+    form = private$obs.eqs.trans[[i]]$lhs
+    name = names(private$obs.eqs.trans)[i]
+    # Check if the variables are available in data
+    bool = all.vars(form) %in% names(data)
+    if(!all(bool)){
+      stop("Unable to compute the observation ",name," because the following variable(s) are not in the provided data: \n\t",all.vars(form)[!bool])
+    }
+    # Compute the observation and add to data.frame
+    newnames = c(names(data),name)
+    data = cbind(data, eval(form))
+    names(data) = newnames
+  }
+  return(data)
 }
 
 #######################################################
@@ -304,11 +340,6 @@ create_return_fit = function(self, private) {
     private$fit$nll = private$opt$objective
 
     # Gradient
-    # private$fit$nll.gradient = tryCatch( as.vector(private$nll$gr(private$opt$par)),
-    #                                      error=function(e) NA,
-    #                                      warning=function(w) NA
-    # )
-    # names(private$fit$nll.gradient) = names(private$free.pars)
     private$fit$nll.gradient = try_withWarningRecovery(
       {
         nll.grad = as.vector(private$nll$gr(private$opt$par))
@@ -321,12 +352,6 @@ create_return_fit = function(self, private) {
     }
 
     # Hessian
-    # private$fit$nll.hessian = tryCatch(private$nll$he(private$opt$par),
-    #                                    error=function(e) NA,
-    #                                    warning=function(w) NA
-    # )
-    # rownames(private$fit$nll.hessian) = names(private$free.pars)
-    # colnames(private$fit$nll.hessian) = names(private$free.pars)
     private$fit$nll.hessian = try_withWarningRecovery(
       {
         nll.hess = private$nll$he(private$opt$par)
@@ -420,8 +445,27 @@ create_return_fit = function(self, private) {
     private$fit$residuals$cov = innovation.cov
 
 
-    # Observations?
-    # private$fit$observations$mean =
+    # Observations
+    # We need all states, inputs and parameter values to evaluate the observation
+    # put them in a list
+    listofvariables.prior = c(
+      as.list(private$fit$states$mean$prior[-1]),
+      as.list(private$fit$par.fixed),
+      as.list(private$fit$data)
+    )
+    listofvariables.posterior = c(
+      as.list(private$fit$states$mean$posterior[-1]),
+      as.list(private$fit$par.fixed),
+      as.list(private$fit$data)
+    )
+    obs.df.prior = as.data.frame(
+      lapply(private$obs.eqs.trans, function(ls){eval(ls$rhs, envir = listofvariables.prior)})
+    )
+    obs.df.posterior = as.data.frame(
+      lapply(private$obs.eqs.trans, function(ls){eval(ls$rhs, envir = listofvariables.posterior)})
+      )
+    private$fit$observations$mean$prior = data.frame(t=private$data$t, obs.df.prior)
+    private$fit$observations$mean$posterior = data.frame(t=private$data$t, obs.df.posterior)
 
     # t-values and Pr( t > t_test )
     private$fit$tvalue = private$fit$par.fixed / private$fit$sd.fixed
@@ -480,5 +524,68 @@ create_return_fit = function(self, private) {
   class(private$fit) = "ctsmrTMB.fit"
 
   return(invisible(self))
+}
+
+#######################################################
+# CREATE DATA.FRAME FOR PREDICT METHOD
+#######################################################
+
+construct_predict_dataframe = function(pars, rep, data, return.covariance, return.k.ahead, self, private){
+  
+  df.out = data.frame(matrix(nrow=private$last.pred.index*(private$n.ahead+1), ncol=5+private$n+private$n^2))
+  
+  disp_names = sprintf(rep("cor.%s.%s",private$n^2),rep(private$state.names,each=private$n),rep(private$state.names,private$n))
+  disp_names[seq.int(1,private$n^2,by=private$n+1)] = sprintf(rep("var.%s",private$n),private$state.names)
+  var_bool = !stringr::str_detect(disp_names,"cor")
+  if(return.covariance){
+    disp_names = sprintf(rep("cov.%s.%s",private$n^2),rep(private$state.names,each=private$n),rep(private$state.names,private$n))
+    disp_names[seq.int(1,private$n^2,by=private$n+1)] = sprintf(rep("var.%s",private$n),private$state.names)
+  }
+  names(df.out) = c("i.","j.","t.i","t.j","k.ahead",private$state.names,disp_names)
+  ran = 0:(private$last.pred.index-1)
+  df.out["i."] = rep(ran,each=private$n.ahead+1)
+  df.out["j."] = df.out["i."] + rep(0:private$n.ahead,private$last.pred.index)
+  df.out["t.i"] = rep(data$t[ran+1],each=private$n.ahead+1)
+  df.out["t.j"] = data$t[df.out[,"i."]+1+rep(0:private$n.ahead,private$last.pred.index)]
+  df.out["k.ahead"] = rep(0:private$n.ahead,private$last.pred.index)
+  df.out[,private$state.names] = do.call(rbind,rep$xk__)
+  if(return.covariance){
+    df.out[,disp_names] = do.call(rbind,rep$pk__)
+  } else {
+    df.out[,disp_names] = do.call(rbind, lapply(rep$pk__,function(x) do.call(rbind, apply(x,1, function(y) as.vector(cov2cor(matrix(y,ncol=2,byrow=T))),simplify=FALSE))))
+    diag.ids = seq(from=1,to=private$n^2,by=private$n+1)
+    df.out[,disp_names[diag.ids]] = do.call(rbind,rep$pk__)[,diag.ids]
+  }
+  
+  # calculate inputs at every time-step in predict
+  inputs.df = c()
+  for(i in seq_along(private$input.names)){
+    input.df = cbind(inputs.df, private$data[df.out[,"j."]+1,private$input.names[i]])
+  }
+  env.list = c(
+    as.list(df.out[private$state.names]),
+    as.list(inputs.df),
+    as.list(pars)
+  )
+  obs.df.predict = as.data.frame(
+    lapply(private$obs.eqs.trans, function(ls){eval(ls$rhs, envir = env.list)})
+  )
+  names(obs.df.predict) = paste(private$obs.names,"",sep="")
+  df.out = cbind(df.out, obs.df.predict)
+  
+  # add observation to output data.frame 
+  obs.df = c()
+  for(i in seq_along(private$obs.names)){
+    obs.df = cbind(obs.df, private$data[df.out[,"j."]+1,private$obs.names[i]])
+  }
+  obs.df = as.data.frame(obs.df)
+  names(obs.df) = paste(private$obs.names,".data",sep="")
+  df.out = cbind(df.out, obs.df)
+  
+  # return only specific n.ahead
+  df.out = df.out[df.out[,"k.ahead"] %in% return.k.ahead,]
+  class(df.out) = c("ctsmrTMB.pred", "data.frame")
+  
+  return(df.out)
 }
 

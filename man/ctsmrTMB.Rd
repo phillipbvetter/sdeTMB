@@ -125,7 +125,7 @@ where \code{h} is the observation function, and \code{e} is normally distributed
 to be specified. The observation variable should be present in the data provided when calling
 \code{estimate(.data)} for parameter estimation.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{ctsmrTMB$add_observations(form, ...)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{ctsmrTMB$add_observations(form, ..., obsnames = NULL)}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{
@@ -134,6 +134,10 @@ to be specified. The observation variable should be present in the data provided
 \item{\code{form}}{formula class specifying the obsevation equation to be added to the system.}
 
 \item{\code{...}}{additional formulas identical to \code{form} to specify multiple observation equations at a time.}
+
+\item{\code{obsnames}}{character vector specifying the name of the observation. When the observation left-hand side
+consists of more than just a single variable name (when its class is 'call' instead of 'name') it will be
+given a name on the form obs__# where # is a number, unless obsnames is provided.}
 }
 \if{html}{\out{</div>}}
 }

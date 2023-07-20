@@ -676,7 +676,8 @@ paste(fvars2_new,collapse=", "), paste(dfdxvars2_new,collapse=", "), paste(dfdxv
   
   # Data Update
   txt = c(txt, "\n\t\t //////////// DATA-UPDATE ///////////")
-  obs.lhs = paste(unlist(lapply(private$obs.eqs.trans,function(x) deparse(x$form[[2]]))),"(i+1)",sep="")
+  # obs.lhs = paste(unlist(lapply(private$obs.eqs.trans,function(x) deparse(x$form[[2]]))),"(i+1)",sep="")
+  obs.lhs = paste(names(private$obs.eqs.trans),"(i+1)",sep="")
   txt = c(txt, sprintf("\t\t data_vector__ << %s;", paste(obs.lhs,collapse=", ")))
   txt = c(txt, "\t\t na_bool__ = is_not_na(data_vector__);")
   txt = c(txt, "\t\t s__ = CppAD::Integer(sum(na_bool__));")
@@ -854,7 +855,8 @@ paste(fvars2_new,collapse=", "), paste(dfdxvars2_new,collapse=", "), paste(dfdxv
   
   # Data Update
   txt = c(txt, "\n\t\t //////////// DATA-UPDATE ///////////")
-  obs.lhs = paste(unlist(lapply(private$obs.eqs.trans,function(x) deparse(x$form[[2]]))),"(i+1)",sep="")
+  # obs.lhs = paste(unlist(lapply(private$obs.eqs.trans,function(x) deparse(x$form[[2]]))),"(i+1)",sep="")
+  obs.lhs = paste(names(private$obs.eqs.trans),"(i+1)",sep="")
   txt = c(txt, sprintf("\t\t data_vector__ << %s;", paste(obs.lhs,collapse=", ")))
   txt = c(txt, "\t\t na_bool__ = is_not_na(data_vector__);")
   txt = c(txt, "\t\t s__ = CppAD::Integer(sum(na_bool__));")

@@ -1,5 +1,5 @@
 ---
-title: "Getting Started"
+title: "Getting started"
 author: ""
 date: ""
 output: html_document
@@ -50,7 +50,7 @@ We can begin by adding the desired stochastic differential equation to the objec
 ```{r}
 obj$add_systems(dX ~ theta * (mu - X) * dt + sigma_x * dw)
 ```
-We note that the drift term ends with `*dt` and diffusions are specified by `dw` or `dw#` where # can be any sequence of numbers.
+We note that the drift term ends with `*dt` and diffusions are specified by `dw` or `dw#` where `#` can be any sequence of numbers.
 
 # Add observation equations
 
@@ -77,7 +77,7 @@ Let's inspect the model object again
 ```{r}
 print(obj)
 ```
-So now we have specified one state $X$ and an observation $Y$. The diffusions count the number of $\mathrm{d}\omega$ terms (a single equation can have multiple diffusion terms i.e. `sigma_1 * dw1 + sigma_2*dw2`). We also notice that there are no inputs and no parameter specified yet.
+So now we have specified one state $X$ and an observation $Y$. The diffusions count the number of $\mathrm{d}\omega_{i}$ terms. A single equation can have multiple diffusion terms i.e. `sigma_1 * dw1 + sigma_2*dw2`). We also note that there are no inputs and no parameter specified yet.
 
 # Add inputs
 
@@ -87,14 +87,14 @@ We tell the model which variable names are inputs via
 ```{r}
 obj$add_inputs(U)
 ```
-The input values should be provided in the `data`, with the same name, similarly to the observations.
+The input values should be provided in the `data`, with the same name, similar to the observations.
 
 
 # Add parameters
 
 ---
 
-We must also specify the (fixed effects) parameters, together with their initial value and lower and upper bound during optimization.
+We must also specify the (fixed effects) parameters, together with their initial value and lower/upper bound, for the optimization.
 ```{r}
 obj$add_parameters(
   theta   = c(initial = 5,    lower = 0,    upper = 20),
@@ -104,7 +104,7 @@ obj$add_parameters(
 )
 ```
 
-We can fix a parameter value (so the parameter becomes a constant) by supplying just a single value. It is usually difficult to seperate both noise parameters in practice, so lets say we want to fix $\sigma_{Y}$
+We can fix a parameter value (so the parameter becomes a constant) by supplying just a single value. It is usually difficult to identify both of the noise parameters $\left(\sigma_{X},\sigma_{Y}\right)$ in practice, so lets assume that we want to fix $\sigma_{Y}$. This is done via
 ```{r}
 obj$add_parameters(
   sigma_y  = 1e-1
@@ -161,15 +161,24 @@ data = data.frame(
 
 The data must contain a time column named `t` and columns for each of the specified inputs and observations.
 
-We pass the `data` to the `estimate` method. The method will build and compile the generated model `C++` function, check data, construct the objective function (the computational tree must be build for automatic differentiation) and then start the optimization. 
+We pass the `data` to the `estimate` method. The method will build and compile a generated `C++` function for the negative log-likelihood, check if the supplied data contains all necessary variables, construct the objective function (the computational tree must be build for automatic differentiation) and then start the optimization. 
 
-The output generated during the optimization is the objective (negativ log-likelihood) value and parameter values at the current step.
-
-The optimizer used in the package is `stats::nlminb`. 
+The output generated during the optimization is the objective (negativ log-likelihood) value and parameter values at the current step. The optimizer used in the package is `stats::nlminb`. This optimizer is great because of its robustness and ability to use the objective function hessian unlike e.g. 'stats::optim'
 
 ```{r}
 fit = obj$estimate(data)
 ```
+
+# **Important Note for Model Changes**
+
+---
+
+If you change the model at a later stage but retain the same model name, then you need to recompile the `C++` objective function. You can do this like so:
+```{r, eval=FALSE}
+obj$estimate(data, compile=TRUE)
+```
+
+If you receive error messages when calling `estimate` regarding variables that are not in your specified model, it is likely because you forgot to recompile.
 
 # Parameter estimates
 
@@ -183,22 +192,26 @@ print(fit)
 ```
 We can see the parameter estimate and the associated standard error together with the t-test statistic and P-value associated with the standard null-hypothesis 
 $$
-p = 0 \\
-p \neq 0
+H_{0}: p = 0 \\
+H_{1}: p \neq 0
 $$
-Note that the true parameter values were set during the simulation step as
-$$
-\begin{align}
-\theta & = 10 \\
-\mu & = 1 \\
-\sigma_x & = 1
-\end{align}
-$$
-The parameter values, standard deviations and covariance matrix can be extracted via
+Note that the true parameter values were set during the simulation step as $\theta = 10$, $\mu=1$ and $\sigma_{X} = 1$.
+
+The parameter values, standard deviations and covariance matrix can be extracted via:
+
+The estimated (fixed) parameters:
 ```{r}
-# fit$par.fixed
-# fit$sd.fixed
-# fit$cov.fixed
+fit$par.fixed
+```
+
+The standard deviations of the (fixed) parameters:
+```{r}
+fit$sd.fixed
+```
+
+The covariance of the (fixed) parameters:
+```{r}
+fit$cov.fixed
 ```
 
 # State estimates
@@ -256,7 +269,7 @@ We can display a standard residual analysis for the observations by calling `plo
 ```{r, fig.height=7}
 plot(fit, use.ggplot=TRUE)
 ```
-
+The residuals (both standard and normalized) can be extracted as well, together with their standard deviation and covariance matrix via `fit$residuals`
 
 # **Extra:** Adding algebraic equations
 
@@ -273,6 +286,7 @@ obj$add_algebraics(theta ~ exp(logtheta))
 
 The parameter settings for `theta` are not automatically transformed into `logtheta`, so they must be redefined:
 ```{r}
-obj$add_parameters(logtheta = log(c(initial=5, lower=0, upper=10)))
+obj$add_parameters(logtheta = log(c(initial=5, lower=0, upper=20)))
 ```
+
 

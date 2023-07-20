@@ -321,7 +321,7 @@ plot.ctsmrTMB.fit = function(fit,
   
   
   # restore old parameter settings
-  par(.defaultpars)
+  suppressWarnings(par(.defaultpars))
   
   # return
   return(invisible(NULL))

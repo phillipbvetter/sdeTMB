@@ -132,7 +132,9 @@ check_system_eqs = function(form, self, private, silent=FALSE) {
 # CHECK OBSERVATION EQUATION FUNCTION
 #######################################################
 
-check_observation_eqs <- function(form, self, private, silent=FALSE) {
+check_observation_eqs <- function(formz, self, private) {
+  
+  form = formz$form
   
   if(!inherits(form,"formula")){
     stop("The observation equation should be a formula e.g. 'y ~ ...")
@@ -141,27 +143,32 @@ check_observation_eqs <- function(form, self, private, silent=FALSE) {
   lhs <- form[[2]]
   rhs <- form[[3]]
   
-  # is there one term on the lhs?
-  if (!(length(lhs) == 1)) {
-    stop("You can only have one term on the left-hand side")
+  # if the observation is complex (of class 'call') then we must have a name provided
+  if(inherits(lhs,"call") & is.null(formz$name)){
+    stop("You must provide observation names for observation equations that consits of more than just a single variable name.")
+  } else if (inherits(lhs,"call")) {
+    obsname = formz$name
+  } else {
+    obsname = deparse(lhs)
+  }
+  
+  # Check if the observation name is OK
+  bool = stringr::str_detect(obsname,"^[a-zA-Z]+")
+  if(!bool){
+    stop("The observation name must begin with a letter")
   }
   
   # you cannot observe a differential process
-  obs = stringr::str_match(deparse(lhs),"^(?!d[tw])[[:alnum:]]*")
-  if (is.na(obs)) {
+  bool = stringr::str_detect(obsname,"^(?!d[tw])[[:alnum:]]*")
+  if (!bool) {
     stop("You can't observe a differential process.")
-  }
-  
-  # is there an observation with that name already?
-  if (deparse(lhs) %in% names(private$obs.eqs) & !silent) {
-    # warning("Overwriting observation for ", deparse(lhs))
   }
   
   # grab allvars
   variables = unique(all.vars(rhs))
   
-  result = list(list(form=form,rhs=rhs,allvars=variables))
-  names(result) <- deparse(lhs)
+  result = list(list(form=form,rhs=rhs,lhs=lhs,allvars=variables))
+  names(result) = obsname
   return(result)
 }
 
@@ -169,7 +176,7 @@ check_observation_eqs <- function(form, self, private, silent=FALSE) {
 # CHECK OBSERVATION EQUATION FUNCTION
 #######################################################
 
-check_observation_variance_eqs <- function(form, self, private, silent=FALSE) {
+check_observation_variance_eqs <- function(form, self, private) {
   
   if(!inherits(form,"formula")){
     stop("The observation equation should be a formula e.g. 'y ~ ...")
@@ -177,18 +184,10 @@ check_observation_variance_eqs <- function(form, self, private, silent=FALSE) {
   
   lhs <- form[[2]]
   rhs <- form[[3]]
-  if (!(length(lhs) == 1)) {
-    stop("You can only have one term on the left-hand side")
-  }
   
   # Is there an observation with that name?
   if (!(deparse(lhs) %in% names(private$obs.eqs))) {
-    stop("Please add an observation equaiton for ", deparse(lhs), " before specifying its variance")
-  }
-  
-  # is there an observation variance with that name already?
-  if (deparse(lhs) %in% names(private$obs.var) & !silent) {
-    # warning("Overwriting observation variance for ", deparse(lhs))
+    stop("Please add an observation equation for ", deparse(lhs), " before specifying its variance")
   }
   
   # grab allvars
