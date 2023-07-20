@@ -1,5 +1,5 @@
 ---
-title: "Extract function handlers, and choosing your own optimizer"
+title: "construct_nll: How to extract function handlers, and choosing your own optimizer"
 author: ""
 date: ""
 output: html_document

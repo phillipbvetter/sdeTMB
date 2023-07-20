@@ -46,9 +46,10 @@
 <li class="nav-item dropdown">
   <a href="#" class="nav-link dropdown-toggle" data-bs-toggle="dropdown" role="button" aria-expanded="false" aria-haspopup="true" id="dropdown-articles">Articles</a>
   <div class="dropdown-menu" aria-labelledby="dropdown-articles">
-    <a class="dropdown-item" href="../articles/construct_nll.html">Extract function handlers, and choosing your own optimizer</a>
-    <a class="dropdown-item" href="../articles/observation_equations.html">Extract function handlers, and choosing your own optimizer</a>
-    <a class="dropdown-item" href="../articles/predict.html">How to do prediction / forecasting</a>
+    <a class="dropdown-item" href="../articles/construct_nll.html">construct_nll: How to extract function handlers, and choosing your own optimizer</a>
+    <a class="dropdown-item" href="../articles/estimate.html">estimate: Estimating model parameters and states</a>
+    <a class="dropdown-item" href="../articles/observation_equations.html">observations: Using functions on the left-hand side</a>
+    <a class="dropdown-item" href="../articles/predict.html">predict: Forecasting the model states and observations.</a>
   </div>
 </li>
 <li class="nav-item">
@@ -183,7 +184,7 @@ variance is associated with that observation equation.</p>
 <span><span class="co">## </span></span>
 <span><span class="co">## Observation Equations:</span></span>
 <span><span class="co">## </span></span>
-<span><span class="co">##   Y ~ X + e   e ~ N(0, sigma_y^2 * U)</span></span></code></pre>
+<span><span class="co">##   Y:  Y ~ X + e   e ~ N(0, sigma_y^2 * U)</span></span></code></pre>
 <p>So now we have specified one state <span class="math inline">\(X\)</span> and an observation <span class="math inline">\(Y\)</span>. The diffusions count the number of
 <span class="math inline">\(\mathrm{d}\omega_{i}\)</span> terms. A
 single equation can have multiple diffusion terms
@@ -239,7 +240,7 @@ parameters (both non-fixed and fixed) have been registered.</p>
 <span><span class="co">## </span></span>
 <span><span class="co">## Observation Equations:</span></span>
 <span><span class="co">## </span></span>
-<span><span class="co">##   Y ~ X + e   e ~ N(0, sigma_y^2 * U) </span></span>
+<span><span class="co">##   Y:  Y ~ X + e   e ~ N(0, sigma_y^2 * U) </span></span>
 <span><span class="co">## </span></span>
 <span><span class="co">## </span></span>
 <span><span class="co">## Parameters:</span></span>
@@ -311,7 +312,7 @@ objective function hessian unlike e.g. ‘stats::optim’</p>
 <div class="sourceCode" id="cb16"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">fit</span> <span class="op">=</span> <span class="va">obj</span><span class="op">$</span><span class="fu">estimate</span><span class="op">(</span><span class="va">data</span><span class="op">)</span></span></code></pre></div>
 <pre><code><span><span class="co">## Building model...</span></span></code></pre>
-<pre><code><span><span class="co">## Loading pre-compiled model...</span></span></code></pre>
+<pre><code><span><span class="co">## Loading existing compiled model...</span></span></code></pre>
 <pre><code><span><span class="co">## Checking data...</span></span></code></pre>
 <pre><code><span><span class="co">## Constructing objective function...</span></span></code></pre>
 <pre><code><span><span class="co">## Minimizing the negative log-likelihood...</span></span></code></pre>

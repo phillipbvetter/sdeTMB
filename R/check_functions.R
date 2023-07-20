@@ -144,10 +144,11 @@ check_observation_eqs <- function(formz, self, private) {
   rhs <- form[[3]]
   
   # if the observation is complex (of class 'call') then we must have a name provided
-  if(inherits(lhs,"call") & is.null(formz$name)){
-    stop("You must provide observation names for observation equations that consits of more than just a single variable name.")
-  } else if (inherits(lhs,"call")) {
+  if(inherits(lhs,"call")){
     obsname = formz$name
+    if(is.null(formz$name)){
+      stop("You must provide observation names for observation equations that consits of more than just a single variable name.")
+    }
   } else {
     obsname = deparse(lhs)
   }

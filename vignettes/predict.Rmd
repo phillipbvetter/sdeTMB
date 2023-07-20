@@ -1,5 +1,5 @@
 ---
-title: "How to obtain model predictions."
+title: "predict: Forecasting the model states and observations."
 author: ""
 date: ""
 output: html_document
