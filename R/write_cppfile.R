@@ -286,15 +286,10 @@ matrix<Type> construct_F__(matrix<Type> Xsp, %s){
     }
   }
   for(i in 1:length(private$state.names)){
+    gvars2 = sub(pattern=sprintf("^%s$",private$state.names[i]),replacement=sprintf("x0__(%s)",i-1),gvars2)
     gvars2.tmb = sub(pattern=sprintf("^%s$",private$state.names[i]), replacement=sprintf("%s(Nc__(i)+j)",private$state.names[i]), x=gvars2.tmb)
   }
-  # g = matrix(0,nrow=private$n,ncol=private$ng)
-  # for(i in 1:private$n){
-  #   for(j in 1:private$ng){
-  #     term = paste(deparse(hat2pow(private$diff.terms[[i]][[j+1]])),collapse = "")
-  #     g[i,j] = term
-  #   }
-  # }
+  
   txt = c(txt, "\n//////////// diffusion function ///////////")
   temptxt = sprintf("template<class Type>\nmatrix<Type> g__(%s){",gvars1)
   temptxt = c(temptxt, sprintf("\tmatrix<Type> ans(%i,%i);",private$n,private$ng))
@@ -302,7 +297,6 @@ matrix<Type> construct_F__(matrix<Type> Xsp, %s){
     for(j in 1:private$ng){
       term = paste(deparse(hat2pow(private$diff.terms[[i]][[j+1]])),collapse = "")
       temptxt = c(temptxt, sprintf("\tans(%s,%s) = %s;",i-1,j-1,term))
-      # temptxt = c(temptxt, sprintf("\tans(%s,%s) = %s;",i-1,j-1,g[i,j]))
     }
   }
   temptxt = c(temptxt, "\treturn ans;\n}")
@@ -659,12 +653,6 @@ paste(fvars2_new,collapse=", "), paste(dfdxvars2_new,collapse=", "), paste(dfdxv
   # Solve Moment ODEs
   txt = c(txt, "\n\t\t //////////// TIME-UPDATE: SOLVE MOMENT ODES ///////////")
   txt = c(txt, "\t\t for(int j=0 ; j<N__(i) ; j++){")
-  #
-  # txt = c(txt, sprintf("\t\t\t F__  = f__(%s);",paste(fvars2,collapse=", ")) )
-  # txt = c(txt, sprintf("\t\t\t A__  = dfdx__(%s);",paste(dfdxvars2,collapse=", ")) )
-  # txt = c(txt, sprintf("\t\t\t G__  = g__(%s);",paste(gvars2,collapse=", ")) )
-  # txt = c(txt,"\t\t\t x0__ = x0__ + F__ * dt__(i);")
-  # txt = c(txt, "\t\t\t p0__ = p0__ + ( A__*p0__ + p0__*A__.transpose() + G__*G__.transpose() ) * dt__(i);")
   
   txt = c(txt, sprintf("\t\t\t ode_integration<Type> odelist = {x0__, p0__, t(i)+j*dt__(i), dt__(i), algo__, %s};",paste(allvars2_nostate_notime,collapse=", ")))
   txt = c(txt,"\t\t\t x0__ = odelist.X_next;")
@@ -676,7 +664,6 @@ paste(fvars2_new,collapse=", "), paste(dfdxvars2_new,collapse=", "), paste(dfdxv
   
   # Data Update
   txt = c(txt, "\n\t\t //////////// DATA-UPDATE ///////////")
-  # obs.lhs = paste(unlist(lapply(private$obs.eqs.trans,function(x) deparse(x$form[[2]]))),"(i+1)",sep="")
   obs.lhs = paste(names(private$obs.eqs.trans),"(i+1)",sep="")
   txt = c(txt, sprintf("\t\t data_vector__ << %s;", paste(obs.lhs,collapse=", ")))
   txt = c(txt, "\t\t na_bool__ = is_not_na(data_vector__);")
@@ -826,13 +813,7 @@ paste(fvars2_new,collapse=", "), paste(dfdxvars2_new,collapse=", "), paste(dfdxv
   # Solve Moment ODEs
   txt = c(txt, "\n\t\t //////////// TIME-UPDATE: SOLVE MOMENT ODES ///////////")
   txt = c(txt, "\t\t for(int j=0 ; j<N__(i+k) ; j++){")
-  #
-  # txt = c(txt, sprintf("\t\t\t F__  = f__(%s);",paste(fvars2.pred,collapse=", ")) )
-  # txt = c(txt, sprintf("\t\t\t A__  = dfdx__(%s);",paste(dfdxvars2.pred,collapse=", ")) )
-  # txt = c(txt, sprintf("\t\t\t G__  = g__(%s);",paste(gvars2.pred,collapse=", ")) )
-  # txt = c(txt,"\t\t\t x0__ = x0__ + F__ * dt__(i+k);")
-  # txt = c(txt, "\t\t\t p0__ = p0__ + ( A__*p0__ + p0__*A__.transpose() + G__*G__.transpose() ) * dt__(i+k);")
-  # 
+  
   txt = c(txt, sprintf("\t\t\t ode_integration<Type> odelist = {x0__, p0__, t(i+k)+j*dt__(i+k), dt__(i+k), algo__, %s};",paste(allvars2_nostate_notime_pred,collapse=", ")))
   txt = c(txt,"\t\t\t x0__ = odelist.X_next;")
   txt = c(txt,"\t\t\t p0__ = odelist.P_next;")
@@ -855,7 +836,6 @@ paste(fvars2_new,collapse=", "), paste(dfdxvars2_new,collapse=", "), paste(dfdxv
   
   # Data Update
   txt = c(txt, "\n\t\t //////////// DATA-UPDATE ///////////")
-  # obs.lhs = paste(unlist(lapply(private$obs.eqs.trans,function(x) deparse(x$form[[2]]))),"(i+1)",sep="")
   obs.lhs = paste(names(private$obs.eqs.trans),"(i+1)",sep="")
   txt = c(txt, sprintf("\t\t data_vector__ << %s;", paste(obs.lhs,collapse=", ")))
   txt = c(txt, "\t\t na_bool__ = is_not_na(data_vector__);")
@@ -879,8 +859,6 @@ paste(fvars2_new,collapse=", "), paste(dfdxvars2_new,collapse=", "), paste(dfdxv
   
   # Report variables
   txt = c(txt, "\n\t //////////// Return/Report //////////////")
-  #
-  # txt = c(txt ,"\t REPORT(Innovation);")
   txt = c(txt ,"\t REPORT(xk__);")
   txt = c(txt ,"\t REPORT(pk__);")
   txt = c(txt, "\t }")

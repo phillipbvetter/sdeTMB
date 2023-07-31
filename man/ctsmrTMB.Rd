@@ -209,7 +209,7 @@ Declare variables as fixed effects and specify their initial value, lower and
 upper bound used when calling the maximum likelihood optimization.
 
 There are two ways to declare parameters. You can declare parameters using formulas i.e.
-\code{add_parameters( theta ~ c(1,0,10), mu ~ c(0,-10,10) )}, where the values are initial,
+\code{add_parameters( theta = c(1,0,10), mu = c(0,-10,10) )}, where the values are initial,
 lower and upper bound respectively. Alternatively you can provide a 3-column matrix where
 rows corresponds to different parameters, and the parameter names are provided as rownames
 of the matrix.

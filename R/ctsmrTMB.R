@@ -215,7 +215,7 @@ ctsmrTMB = R6::R6Class(
     #' upper bound used when calling the maximum likelihood optimization.
     #' 
     #' There are two ways to declare parameters. You can declare parameters using formulas i.e.
-    #' \code{add_parameters( theta ~ c(1,0,10), mu ~ c(0,-10,10) )}, where the values are initial,
+    #' \code{add_parameters( theta = c(1,0,10), mu = c(0,-10,10) )}, where the values are initial,
     #' lower and upper bound respectively. Alternatively you can provide a 3-column matrix where
     #' rows corresponds to different parameters, and the parameter names are provided as rownames
     #' of the matrix.
@@ -993,22 +993,22 @@ ctsmrTMB = R6::R6Class(
         }
       }
       # if the algebraic transformations have occured
-      if (!is.null(private$sys.eqs.trans)) {
-        cat("\nTransformed System Equations:\n\n")
-        lapply(private$sys.eqs.trans,function(x) cat("\t",deparse1(x$form),"\n"))
-      }
+      # if (!is.null(private$sys.eqs.trans)) {
+      #   cat("\nTransformed System Equations:\n\n")
+      #   lapply(private$sys.eqs.trans,function(x) cat("\t",deparse1(x$form),"\n"))
+      # }
       # if the algebraic transformations have occured
-      if (!is.null(private$obs.eqs.trans) | !is.null(private$obs.var.trans)) {
-        cat("\nTransformed Observation Equations:\n\n")
-        for (i in 1:length(private$obs.eqs)) {
-          bool = private$obs.names[i] %in% private$obsvar.names
-          if (bool) {
-            cat("\t",paste(names(private$obs.eqs)[i],": ",sep=""),deparse1(private$obs.eqs.trans[[i]]$form),"+ e", "\t","e ~ N(0,",paste0(deparse1(private$obs.var.trans[[i]]$rhs),")"),"\n")
-          } else {
-            cat("\t",paste(names(private$obs.eqs)[i],": ",sep=""),deparse1(private$obs.eqs[[i]]$form),"+ e", "\t","e ~ N(0,?)","\n")
-          }
-        }
-      }
+      # if (!is.null(private$obs.eqs.trans) | !is.null(private$obs.var.trans)) {
+      #   cat("\nTransformed Observation Equations:\n\n")
+      #   for (i in 1:length(private$obs.eqs)) {
+      #     bool = private$obs.names[i] %in% private$obsvar.names
+      #     if (bool) {
+      #       cat("\t",paste(names(private$obs.eqs)[i],": ",sep=""),deparse1(private$obs.eqs.trans[[i]]$form),"+ e", "\t","e ~ N(0,",paste0(deparse1(private$obs.var.trans[[i]]$rhs),")"),"\n")
+      #     } else {
+      #       cat("\t",paste(names(private$obs.eqs)[i],": ",sep=""),deparse1(private$obs.eqs[[i]]$form),"+ e", "\t","e ~ N(0,?)","\n")
+      #     }
+      #   }
+      # }
       if (p>1) {
         cat("\nInputs:\n")
         cat("\t", paste(private$input.names[!private$input.names %in% "t"],collapse=", "))

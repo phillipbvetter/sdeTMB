@@ -915,3 +915,132 @@ predict.ctsmrTMB.fit = function(fit,
   
   
 }
+
+# 
+# predict.ctsmrTMB = function(obj, 
+#                      data=NULL,
+#                      pars=NULL,
+#                      k.ahead=1,
+#                      return.k.ahead=NULL,
+#                      method="ekf",
+#                      ode.timestep=min(diff(data$t)),
+#                      ode.solver="euler",
+#                      x0=NULL,
+#                      p0=NULL,
+#                      return.covariance=TRUE,
+#                      compile=FALSE
+#                      )
+#   
+#   private = obj$.__enclos_env__$private
+# 
+# ##### CREATE OUTPUT DATA FRAME #####
+# df.out = data.frame(matrix(nrow=last.possible.index*(n.step.ahead+1), ncol=5+private$n+private$n^2))
+# disp_names = sprintf(rep("cor[%s,%s]",private$n^2),rep(private$state.names,each=private$n),rep(private$state.names,private$n))
+# disp_names[seq.int(1,private$n^2,by=private$n+1)] = sprintf(rep("var[%s]",private$n),private$state.names)
+# var_bool = !stringr::str_detect(disp_names,"cor")
+# if(covariance){
+#   disp_names = sprintf(rep("cov[%s,%s]",private$n^2),rep(private$state.names,each=private$n),rep(private$state.names,private$n))
+#   disp_names[seq.int(1,private$n^2,by=private$n+1)] = sprintf(rep("var[%s]",private$n),private$state.names)
+# }
+# names(df.out) = c("k","k+i","n.step.ahead","t_{k}","t_{k+i}",private$state.names,disp_names)
+# ran = 0:(last.possible.index-1)
+# df.out["k"] = rep(ran,each=n.step.ahead+1)
+# df.out["k+i"] = df.out["k"] + rep(0:n.step.ahead,last.possible.index)
+# df.out["n.step.ahead"] = rep(0:n.step.ahead,last.possible.index)
+# df.out["t_{k}"] = rep(data$t[ran+1],each=n.step.ahead+1)
+# df.out["t_{k+i}"] = data$t[df.out[,"k"]+1+rep(0:n.step.ahead,last.possible.index)]
+# 
+# ##### KALMAN FILTER INITIALIZATION #####
+# 
+# datmat = as.matrix(data)
+# I.n = diag(private$n)
+# # V.obs = diag(private$n)
+# V.obs = diag(private$m)
+# 
+# ##### LOOP OVER DATA TIME POINTS #####
+# 
+# for (i in 1:last.possible.index){
+#   message(sprintf("Predicting...: %s out of %s",i,last.possible.index))
+#   
+#   # store the posterior estimate (initial or previous loop)
+#   index_i_i = (i-1)*(n.step.ahead+1) + 1
+#   df.out[index_i_i, private$state.names] = x0
+#   df.out[index_i_i,disp_names] = as.vector(stats::cov2cor(p0))
+#   df.out[index_i_i,disp_names[var_bool]] = as.vector(diag(p0))
+#   if(covariance){
+#     df.out[index_i_i, disp_names] = as.vector(p0)
+#   }
+#   
+#   # compute the n.step.ahead ahead priors (predictions): x{i+k|i}, k = 1..n.step.ahead
+#   for(k in 1:n.step.ahead){
+#     inputs = datmat[i+k-1,private$input.names]
+#     
+#     # solve moment odes using ode.N time-steps with ode.dt step size.
+#     for(j in 1:ode.N[i+k-1]){
+#       A. = dfdx(x0,inputs)
+#       G. = g(x0,inputs)
+#       x0 = x0 + f(x0,inputs) * ode.dt[i+k-1]
+#       p0 = p0 + (A. %*% p0 + p0 %*% t(A.) + G. %*% t(G.)) * ode.dt[i+k-1]
+#     }
+#     
+#     # store n.step.ahead ahead state x_{i+k|i} and covariance p_{i+k|i}
+#     index_i_k = (i-1) * (n.step.ahead+1) + k + 1
+#     df.out[index_i_k,private$state.names] = x0
+#     df.out[index_i_k, disp_names] = as.vector(p0)
+#   }
+#   
+#   # recover state x{i+1|i} and covariance p{i+1|i} one-step prior
+#   index_i_1 = (i-1) * (n.step.ahead+1) + 2
+#   x0 = unlist(df.out[index_i_1, private$state.names])
+#   p0 = matrix(unlist(df.out[index_i_1, disp_names]), nrow=private$n, ncol=private$n)
+#   
+#   # data:update to update from prior to posterior
+#   inputs = datmat[i,private$input.names]
+#   diag(V.obs) = obs_f(x0,inputs)
+#   y = datmat[i+1,private$obs.names]
+#   nas = !is.na(y)
+#   s = sum(nas)
+#   if (s > 0){
+#     ynew = y[nas]
+#     E. = diag(private$m)[nas,,drop=FALSE]
+#     e. = ynew - E. %*% h(x0,inputs)
+#     C. = E. %*% dhdx(x0,inputs)
+#     V. = E. %*% V.obs %*% t(E.)
+#     R. = C. %*% p0 %*% t(C.) + V.
+#     Ri. = solve(R.)
+#     K. = p0 %*% t(C.) %*% Ri.
+#     # update states
+#     x0  = x0 + K. %*% e.
+#     p0  = (I.n - K. %*% C.) %*% p0 %*% t(I.n - K. %*% C.) + K. %*% V. %*% t(K.)
+#   }
+# }
+# # convert to correlations instead of covariances
+# if(!covariance & return.state.dispersion){
+#   # convert covariance to correlation
+#   df.out[,disp_names] = t(apply(df.out[,disp_names],
+#                                 MARGIN=1,
+#                                 FUN=function(x){
+#                                   cov = matrix(x,nrow=2,ncol=2)
+#                                   cor = stats::cov2cor(cov)
+#                                   diag(cor) = diag(cov)
+#                                   return(as.vector(cor))
+#                                 }
+#   ))
+# }
+# 
+# # should we return covariance/correlation stats?
+# if(!return.state.dispersion){
+#   bool = !stringr::str_detect(names(df.out),"cor") & !stringr::str_detect(names(df.out),"cov")
+#   df.out = df.out[,bool]
+# }
+# 
+# # should 1:n.step.ahead be provided, or only n.step.ahead?
+# if(give.only.n.step.ahead){
+#   df.out = df.out[df.out[["n.step.ahead"]]==n.step.ahead,]
+# }
+# 
+# 
+# # return data.frame
+# message("Prediction finished!")
+# return(pred=df.out)
+# }

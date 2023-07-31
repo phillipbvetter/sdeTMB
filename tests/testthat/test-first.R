@@ -1,4 +1,6 @@
-# 
+
+# This is a testthat script for automatically testing that the functions in
+# ctsmrTMB are working as intended.
 
 obj = ctsmrTMB$new()
 testthat::expect_s3_class(obj,class=c("ctsmrTMB","R6"))
