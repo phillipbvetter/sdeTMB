@@ -293,7 +293,7 @@ compile_cppfile = function(self, private) {
     }
     
     # reload libraries
-    message("Loading existing compiled model...")
+    # message("Loading existing compiled model...")
     try(dyn.unload(TMB::dynlib(private$cppfile.path)),silent=T)
     try(dyn.load(TMB::dynlib(private$cppfile.path)),silent=T)
     

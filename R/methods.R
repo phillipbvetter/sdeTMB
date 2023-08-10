@@ -146,13 +146,18 @@ plot.ctsmrTMB = function(object,
 }
 
 #' Basic summary of objects of class 'ctsmrTMB'
+#' @param plot.obs a vector to indicate which observations should be plotted for. If multiple
+#' are chosen a list of plots for each observation is returned.
+#' @param pacf logical to indicate whether or not the partial autocorrelations should be returned.
+#' The default is FALSE in which case a histogram is returned instead.
 #' @param extended logical. if TRUE additional information is printed
-#' @returns A huge amount of information
+#' @param ggtheme ggplot2 theme to use for creating the ggplot.
+#' @returns A list of plots
 #' @export
 #' @importFrom stats frequency fft spec.taper
 plot.ctsmrTMB.fit = function(fit,
                              plot.obs=1,
-                             use.ggplot=FALSE,
+                             pacf=FALSE,
                              extended=FALSE,
                              ggtheme=getggplot2theme()) {
   
@@ -220,7 +225,6 @@ plot.ctsmrTMB.fit = function(fit,
       # histogram
       plot.hist =
         ggplot2::ggplot(data=data.frame(e)) +
-        # ggplot2::geom_histogram(ggplot2::aes(x=e,y=..density..),bins=100,color="black",fill=mycolor) +
         ggplot2::geom_histogram(ggplot2::aes(x=e,y=after_stat(density)),bins=100,color="black",fill=mycolor) +
         ggtheme +
         ggplot2::labs(
@@ -238,6 +242,19 @@ plot.ctsmrTMB.fit = function(fit,
         ggtheme +
         ggplot2::labs(
           title = paste("Auto-Correlation: "),
+          y = "",
+          x = "Lag"
+        )
+      # pacf
+      mypacf = stats::pacf(e,na.action=na.pass,plot=FALSE)
+      plot.pacf = 
+        ggplot2::ggplot(data=data.frame(lag=mypacf$lag[-1], pacf=mypacf$acf[-1])) +
+        ggplot2::geom_errorbar(ggplot2::aes(x=lag,ymax=acf,ymin=0),width=0,color=mycolor) +
+        ggplot2::geom_hline(yintercept=0) +
+        ggplot2::geom_hline(yintercept=c(-2/sqrt(myacf$n.used),2/sqrt(myacf$n.used)),color="blue",lty="dashed") +
+        ggtheme +
+        ggplot2::labs(
+          title = paste("Partial Auto-Correlation: "),
           y = "",
           x = "Lag"
         )
@@ -260,68 +277,71 @@ plot.ctsmrTMB.fit = function(fit,
       )
       # store plot
       plots[[i]] = (plot.qq + plot.hist) / (plot.acf + plot.cpgram) +
-        patchwork::plot_annotation(title=paste("Residuals for ", nam),theme=ggtheme + ggplot2::theme(text=ggplot2::element_text("Avenir Next Condensed",size=18,face="bold")),)
-      
+        patchwork::plot_annotation(title=paste("Residual Analysis for ", nam),theme=ggtheme + ggplot2::theme(text=ggplot2::element_text("Avenir Next Condensed",size=18,face="bold")),)
+      if(pacf){
+        plots[[i]] = (plot.qq + plot.pacf) / (plot.acf + plot.cpgram) +
+          patchwork::plot_annotation(title=paste("Residuals Analysis for ", nam),theme=ggtheme + ggplot2::theme(text=ggplot2::element_text("Avenir Next Condensed",size=18,face="bold")),)
+      }
     }
     # return plot list, and print one of the plots
     print(plots[[plot.obs]])
     return(invisible(plots))
   }
   
-  # if we aren't using ggplot we can't return the plots, we just print one plot
-  graphics::par(mfrow=c(2,2))
-  e = fit$residuals$normalized[[plot.obs+1]]
-  nam = private$obs.names[plot.obs]
-  # qqnorm and line
-  stats::qqnorm(e, main=paste("Normal Q-Q Plot:"),axes=FALSE)
-  graphics::grid()
-  graphics::axis(1,-3:3)
-  graphics::axis(2)
-  graphics::grid()
-  stats::qqline(e)
-  # histogram
-  graphics::hist(e,main=paste("Histogram:"),breaks=50)
-  graphics::grid()
-  graphics::axis(1)
-  graphics::axis(2)
-  # acf
-  max.lag = round(10*log10(length(stats::na.omit(e))))
-  plot(acf(e,plot=F,na.action=na.pass)[1:max.lag],main=paste("Auto-Correlation:"),axes=FALSE)
-  graphics::grid()
-  graphics::axis(1,seq(0,max.lag,round(max.lag/10)))
-  graphics::axis(2)
-  # cpgram
-  x <- e[!is.na(e)]
-  x <- stats::spec.taper(scale(x, TRUE, FALSE), p = 0.1)
-  y <- Mod(stats::fft(x))^2/length(x)
-  y[1L] <- 0
-  n <- length(x)
-  x <- (0:(n/2)) * stats::frequency(e)/n
-  if (length(x)%%2 == 0) {
-    n <- length(x) - 1
-    y <- y[1L:n]
-    x <- x[1L:n]
-  } else {
-    y <- y[seq_along(x)]
-  }
-  xm <- stats::frequency(e)/2
-  mp <- length(x) - 1
-  crit <- 1.358/(sqrt(mp) + 0.12 + 0.11/sqrt(mp))
-  plot(x, cumsum(y)/sum(y), type = "s", xlim = c(0, xm), ylim = c(0,1),
-       xaxs = "i", yaxs = "i", xlab = "frequency", ylab = "",
-       main=paste("Cumulative Periodogram:"), axes=FALSE)
-  graphics::lines(c(0, xm * (1 - crit)), c(crit, 1), col = "blue", lty = 2)
-  graphics::lines(c(xm * crit, xm), c(0, 1 - crit), col = "blue", lty = 2)
-  # stats::cpgram(e,main=paste("Cumulative Periodogram:"),axes=FALSE)
-  graphics::grid()
-  graphics::axis(1)
-  graphics::axis(2)
-  # overall title
-  graphics::title(main=paste("Residuals for ", nam),outer=TRUE,line=-1.25,cex.main=1.5)
-  
-  
-  # restore old parameter settings
-  suppressWarnings(par(.defaultpars))
+  # # if we aren't using ggplot we can't return the plots, we just print one plot
+  # graphics::par(mfrow=c(2,2))
+  # e = fit$residuals$normalized[[plot.obs+1]]
+  # nam = private$obs.names[plot.obs]
+  # # qqnorm and line
+  # stats::qqnorm(e, main=paste("Normal Q-Q Plot:"),axes=FALSE)
+  # graphics::grid()
+  # graphics::axis(1,-3:3)
+  # graphics::axis(2)
+  # graphics::grid()
+  # stats::qqline(e)
+  # # histogram
+  # graphics::hist(e,main=paste("Histogram:"),breaks=50)
+  # graphics::grid()
+  # graphics::axis(1)
+  # graphics::axis(2)
+  # # acf
+  # max.lag = round(10*log10(length(stats::na.omit(e))))
+  # plot(acf(e,plot=F,na.action=na.pass)[1:max.lag],main=paste("Auto-Correlation:"),axes=FALSE)
+  # graphics::grid()
+  # graphics::axis(1,seq(0,max.lag,round(max.lag/10)))
+  # graphics::axis(2)
+  # # cpgram
+  # x <- e[!is.na(e)]
+  # x <- stats::spec.taper(scale(x, TRUE, FALSE), p = 0.1)
+  # y <- Mod(stats::fft(x))^2/length(x)
+  # y[1L] <- 0
+  # n <- length(x)
+  # x <- (0:(n/2)) * stats::frequency(e)/n
+  # if (length(x)%%2 == 0) {
+  #   n <- length(x) - 1
+  #   y <- y[1L:n]
+  #   x <- x[1L:n]
+  # } else {
+  #   y <- y[seq_along(x)]
+  # }
+  # xm <- stats::frequency(e)/2
+  # mp <- length(x) - 1
+  # crit <- 1.358/(sqrt(mp) + 0.12 + 0.11/sqrt(mp))
+  # plot(x, cumsum(y)/sum(y), type = "s", xlim = c(0, xm), ylim = c(0,1),
+  #      xaxs = "i", yaxs = "i", xlab = "frequency", ylab = "",
+  #      main=paste("Cumulative Periodogram:"), axes=FALSE)
+  # graphics::lines(c(0, xm * (1 - crit)), c(crit, 1), col = "blue", lty = 2)
+  # graphics::lines(c(xm * crit, xm), c(0, 1 - crit), col = "blue", lty = 2)
+  # # stats::cpgram(e,main=paste("Cumulative Periodogram:"),axes=FALSE)
+  # graphics::grid()
+  # graphics::axis(1)
+  # graphics::axis(2)
+  # # overall title
+  # graphics::title(main=paste("Residuals for ", nam),outer=TRUE,line=-1.25,cex.main=1.5)
+  # 
+  # 
+  # # restore old parameter settings
+  # suppressWarnings(par(.defaultpars))
   
   # return
   return(invisible(NULL))

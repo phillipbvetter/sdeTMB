@@ -27,9 +27,10 @@ Imports:
     	R6,
     	stats,
     	TMB,
-	stringr
+	stringr,
+	ggplot2,
+	ggfortify
 Suggests: 
-    ggplot2,
     testthat (>= 3.0.0)
 URL: https://phillipbvetter.github.io/ctsmrTMB, https://github.com/phillipbvetter/ctsmrTMB
 Config/testthat/edition: 3

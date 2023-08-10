@@ -652,13 +652,16 @@ ctsmrTMB = R6::R6Class(
     #' parameter \code{loss_c}. The implementations of these losses are approximations (pseudo-huber and sigmoid 
     #' approxmation respectively) for smooth derivatives.
     #' @param loss_c cutoff value for huber and tukey loss functions. Defaults to \code{c=3}
+    #' @param silent logical value whether or not to suppress printed messages such as 'Checking Data',
+    #' 'Building Model', etc. Default behaviour (FALSE) is to print the messages.
     construct_nll = function(data,
                              method="ekf",
                              ode.solver="euler",
                              ode.timestep=min(diff(data$t)),
                              loss="quadratic",
                              loss_c=3,
-                             compile=FALSE){
+                             compile=FALSE,
+                             silent=FALSE){
       
       # set flags
       private$set_timestep(ode.timestep)
@@ -668,19 +671,19 @@ ctsmrTMB = R6::R6Class(
       private$set_algo(ode.solver)
       
       # build model
-      message("Building model...")
+      if(!silent) message("Building model...")
       private$build_model()
       
       # check and set data
-      message("Checking data...")
+      if(!silent) message("Checking data...")
       check_and_set_data(data, self, private)
       
       # construct neg. log-likelihood
-      message("Constructing objective function...")
+      if(!silent) message("Constructing objective function...")
       construct_nll(self, private)
       
       # return
-      message("Succesfully returned function handlers")
+      if(!silent) message("Succesfully returned function handlers")
       return(private$nll)
     },
     ########################################################################
@@ -751,6 +754,8 @@ ctsmrTMB = R6::R6Class(
     #' @param loss_c cutoff value for huber and tukey loss functions. Defaults to \code{c=3}
     #' @param control list of control parameters parsed to \code{nlminb} as its \code{control} argument. 
     #' See \code{?stats::nlminb} for more information
+    #' @param silent logical value whether or not to suppress printed messages such as 'Checking Data',
+    #' 'Building Model', etc. Default behaviour (FALSE) is to print the messages.
     estimate = function(data, 
                         method="ekf",
                         ode.solver="euler",
@@ -759,7 +764,8 @@ ctsmrTMB = R6::R6Class(
                         loss_c=3,
                         use.hessian=FALSE,
                         compile=FALSE,
-                        control=list(trace=1)){
+                        control=list(trace=1),
+                        silent=FALSE){
       
       # set flags
       if(method=="ukf"){
@@ -776,19 +782,19 @@ ctsmrTMB = R6::R6Class(
       
       
       # build model
-      message("Building model...")
+      if(!silent) message("Building model...")
       private$build_model()
       
       # check and set data
-      message("Checking data...")
+      if(!silent) message("Checking data...")
       check_and_set_data(data, self, private)
       
       # construct neg. log-likelihood function
-      message("Constructing objective function...")
+      if(!silent) message("Constructing objective function...")
       construct_nll(self, private)
       
       # estimate
-      message("Minimizing the negative log-likelihood...")
+      if(!silent) message("Minimizing the negative log-likelihood...")
       optimise_nll(self, private)
       if(is.null(private$opt)){
         return(invisible(NULL))
@@ -869,6 +875,8 @@ ctsmrTMB = R6::R6Class(
     #' with these methods (use the \code{predict} S3 method), and stochastic simulation is also available 
     #' in the cases where long prediction horizons are sought, where the normality assumption will be 
     #' inaccurate.
+    #' @param silent logical value whether or not to suppress printed messages such as 'Checking Data',
+    #' 'Building Model', etc. Default behaviour (FALSE) is to print the messages.
     #' 
     predict = function(data = NULL,
                        pars = NULL,
@@ -880,7 +888,8 @@ ctsmrTMB = R6::R6Class(
                        x0 = NULL,
                        p0 = NULL,
                        return.covariance = TRUE,
-                       compile = FALSE){
+                       compile = FALSE,
+                       silent = FALSE){
       
       if(method!="ekf"){ stop("The predict function is currently only implemented for method = 'ekf'.") }
       
@@ -908,11 +917,11 @@ ctsmrTMB = R6::R6Class(
       }
       
       # build model
-      message("Building model...")
+      if(!silent) message("Building model...")
       private$build_model()
       
       # check and set data
-      message("Checking data...")
+      if(!silent) message("Checking data...")
       check_and_set_data(data, self, private)
       
       # set flags
@@ -923,7 +932,7 @@ ctsmrTMB = R6::R6Class(
       }
       
       # construct neg. log-likelihood function (stored in private$nll)
-      message("Constructing objective function...")
+      if(!silent) message("Constructing objective function...")
       construct_nll(self, private)
       
       # check parameters
@@ -935,18 +944,18 @@ ctsmrTMB = R6::R6Class(
       }
       
       # get predictions
-      message("Predicting...")
+      if(!silent) message("Predicting...")
       rep = private$nll$rep(pars)
       
       # construct return data.frame
-      message("Constructing return data.frame...")
+      if(!silent) message("Constructing return data.frame...")
       df.out = construct_predict_dataframe(pars, rep, data, return.covariance, return.k.ahead, self, private)
 
       # reset prediction variable such that estimate and nll works fine
       private$pred.bool = 0
       
       # return
-      message("Succesfully returned predictions")
+      if(!silent) message("Succesfully returned predictions")
       return(invisible(df.out))
     },
     ########################################################################

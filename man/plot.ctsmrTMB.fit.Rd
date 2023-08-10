@@ -7,16 +7,24 @@
 \method{plot}{ctsmrTMB.fit}(
   fit,
   plot.obs = 1,
-  use.ggplot = FALSE,
+  pacf = FALSE,
   extended = FALSE,
   ggtheme = getggplot2theme()
 )
 }
 \arguments{
+\item{plot.obs}{a vector to indicate which observations should be plotted for. If multiple
+are chosen a list of plots for each observation is returned.}
+
+\item{pacf}{logical to indicate whether or not the partial autocorrelations should be returned.
+The default is FALSE in which case a histogram is returned instead.}
+
 \item{extended}{logical. if TRUE additional information is printed}
+
+\item{ggtheme}{ggplot2 theme to use for creating the ggplot.}
 }
 \value{
-A huge amount of information
+A list of plots
 }
 \description{
 Basic summary of objects of class 'ctsmrTMB'

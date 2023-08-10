@@ -466,7 +466,8 @@ for estimation.
   ode.timestep = min(diff(data$t)),
   loss = "quadratic",
   loss_c = 3,
-  compile = FALSE
+  compile = FALSE,
+  silent = FALSE
 )}\if{html}{\out{</div>}}
 }
 
@@ -542,6 +543,9 @@ C++ object. If a precompiled C++ object is not found in the specified directory 
 in \code{<cppfile_directory>/<modelname>/(dll/so)} then the compile flag is set to \code{TRUE}.
 If the user makes changes to system equations, observation equations, observation variances,
 algebraic relations or lamperi transformations then the C++ object should be recompiled.}
+
+\item{\code{silent}}{logical value whether or not to suppress printed messages such as 'Checking Data',
+'Building Model', etc. Default behaviour (FALSE) is to print the messages.}
 }
 \if{html}{\out{</div>}}
 }
@@ -561,7 +565,8 @@ Estimate the fixed effects parameters in the specified model.
   loss_c = 3,
   use.hessian = FALSE,
   compile = FALSE,
-  control = list(trace = 1)
+  control = list(trace = 1),
+  silent = FALSE
 )}\if{html}{\out{</div>}}
 }
 
@@ -645,6 +650,9 @@ algebraic relations or lamperi transformations then the C++ object should be rec
 
 \item{\code{control}}{list of control parameters parsed to \code{nlminb} as its \code{control} argument.
 See \code{?stats::nlminb} for more information}
+
+\item{\code{silent}}{logical value whether or not to suppress printed messages such as 'Checking Data',
+'Building Model', etc. Default behaviour (FALSE) is to print the messages.}
 }
 \if{html}{\out{</div>}}
 }
@@ -668,7 +676,8 @@ state estimate as the initial condition.
   x0 = NULL,
   p0 = NULL,
   return.covariance = TRUE,
-  compile = FALSE
+  compile = FALSE,
+  silent = FALSE
 )}\if{html}{\out{</div>}}
 }
 
@@ -747,6 +756,9 @@ C++ object. If a precompiled C++ object is not found in the specified directory 
 in \code{<cppfile_directory>/<modelname>/(dll/so)} then the compile flag is set to \code{TRUE}.
 If the user makes changes to system equations, observation equations, observation variances,
 algebraic relations or lamperi transformations then the C++ object should be recompiled.}
+
+\item{\code{silent}}{logical value whether or not to suppress printed messages such as 'Checking Data',
+'Building Model', etc. Default behaviour (FALSE) is to print the messages.}
 }
 \if{html}{\out{</div>}}
 }
