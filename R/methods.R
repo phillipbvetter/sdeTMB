@@ -164,8 +164,8 @@ plot.ctsmrTMB.fit = function(fit,
   # get private fields from object
   private = fit$.__object__$.__enclos_env__$private
   
-  if (!is.logical(use.ggplot)) {
-    stop("use.ggplot must be logical")
+  if (!is.logical(pacf)) {
+    stop("pacf must be logical")
   }
   if (!is.logical(extended)) {
     stop("extended must be logical")
@@ -187,102 +187,104 @@ plot.ctsmrTMB.fit = function(fit,
   }
   
   # retrieve user default parameter settings
-  .defaultpars = par()
+  # .defaultpars = par()
   
   # use ggplot to plot
   mycolor = getggplot2colors(2)[2]
-  if (use.ggplot) {
-    plots = list()
-    t = fit$residuals$normalized[["t"]]
-    for (i in 1:private$m) {
-      e = fit$residuals$normalized[[private$obs.names[i]]]
-      id = !is.na(e)
-      e = e[id]
-      t = t[id]
-      nam = private$obs.names[i]
-      
-      # time vs residuals
-      plot.res =
-        ggplot2::ggplot(data=data.frame(t,e)) +
-        ggplot2::geom_point(ggplot2::aes(x=t,y=e),color=mycolor) +
-        ggtheme +
-        ggplot2::labs(
-          title = paste("Time Series of Residuals: "),
-          y = "",
-          x = "Time"
-        )
-      # quantile plots
-      plot.qq =
-        ggplot2::ggplot(data=data.frame(e)) +
-        ggplot2::stat_qq(ggplot2::aes(sample=e),color=mycolor) +
-        ggplot2::stat_qq_line(ggplot2::aes(sample=e),lty="dashed") +
-        ggtheme +
-        ggplot2::labs(
-          title = paste("Normal Q-Q Plot: "),
-          y = "Sample Quantiles",
-          x = "Theoretical Quantiles"
-        )
-      # histogram
-      plot.hist =
-        ggplot2::ggplot(data=data.frame(e)) +
-        ggplot2::geom_histogram(ggplot2::aes(x=e,y=after_stat(density)),bins=100,color="black",fill=mycolor) +
-        ggtheme +
-        ggplot2::labs(
-          title = paste("Histogram: "),
-          y = "",
-          x = ""
-        )
-      # acf
-      myacf = stats::acf(e,na.action=na.pass,plot=FALSE)
-      plot.acf =
-        ggplot2::ggplot(data=data.frame(lag=myacf$lag[-1],acf=myacf$acf[-1])) +
-        ggplot2::geom_errorbar(ggplot2::aes(x=lag,ymax=acf,ymin=0),width=0,color=mycolor) +
-        ggplot2::geom_hline(yintercept=0) +
-        ggplot2::geom_hline(yintercept=c(-2/sqrt(myacf$n.used),2/sqrt(myacf$n.used)),color="blue",lty="dashed") +
-        ggtheme +
-        ggplot2::labs(
-          title = paste("Auto-Correlation: "),
-          y = "",
-          x = "Lag"
-        )
-      # pacf
-      mypacf = stats::pacf(e,na.action=na.pass,plot=FALSE)
-      plot.pacf = 
-        ggplot2::ggplot(data=data.frame(lag=mypacf$lag[-1], pacf=mypacf$acf[-1])) +
-        ggplot2::geom_errorbar(ggplot2::aes(x=lag,ymax=acf,ymin=0),width=0,color=mycolor) +
-        ggplot2::geom_hline(yintercept=0) +
-        ggplot2::geom_hline(yintercept=c(-2/sqrt(myacf$n.used),2/sqrt(myacf$n.used)),color="blue",lty="dashed") +
-        ggtheme +
-        ggplot2::labs(
-          title = paste("Partial Auto-Correlation: "),
-          y = "",
-          x = "Lag"
-        )
-      # cpgram
-      plot.cpgram =
-        ggfortify::ggcpgram(e,colour=mycolor) +
-        ggtheme +
-        ggplot2::labs(
-          title = paste("Cumulative Periodogram: "),
-          y = "",
-          x = "Lag"
-        )
-      #
-      templist = list(
-        plot.res,
-        plot.hist,
-        plot.qq,
-        plot.acf,
-        plot.cpgram
+  # if (use.ggplot) {
+  plots = list()
+  t = fit$residuals$normalized[["t"]]
+  for (i in 1:private$m) {
+    e = fit$residuals$normalized[[private$obs.names[i]]]
+    id = !is.na(e)
+    e = e[id]
+    t = t[id]
+    nam = private$obs.names[i]
+    
+    # time vs residuals
+    plot.res =
+      ggplot2::ggplot(data=data.frame(t,e)) +
+      ggplot2::geom_point(ggplot2::aes(x=t,y=e),color=mycolor) +
+      ggtheme +
+      ggplot2::labs(
+        title = paste("Time Series of Residuals: "),
+        y = "",
+        x = "Time"
       )
-      # store plot
-      plots[[i]] = (plot.qq + plot.hist) / (plot.acf + plot.cpgram) +
-        patchwork::plot_annotation(title=paste("Residual Analysis for ", nam),theme=ggtheme + ggplot2::theme(text=ggplot2::element_text("Avenir Next Condensed",size=18,face="bold")),)
-      if(pacf){
-        plots[[i]] = (plot.qq + plot.pacf) / (plot.acf + plot.cpgram) +
-          patchwork::plot_annotation(title=paste("Residuals Analysis for ", nam),theme=ggtheme + ggplot2::theme(text=ggplot2::element_text("Avenir Next Condensed",size=18,face="bold")),)
-      }
+    # quantile plots
+    plot.qq =
+      ggplot2::ggplot(data=data.frame(e)) +
+      ggplot2::stat_qq(ggplot2::aes(sample=e),color=mycolor) +
+      ggplot2::stat_qq_line(ggplot2::aes(sample=e),lty="dashed") +
+      ggtheme +
+      ggplot2::labs(
+        title = paste("Normal Q-Q Plot: "),
+        y = "Sample Quantiles",
+        x = "Theoretical Quantiles"
+      )
+    # histogram
+    plot.hist =
+      ggplot2::ggplot(data=data.frame(e)) +
+      ggplot2::geom_histogram(ggplot2::aes(x=e,y=after_stat(density)),bins=100,color="black",fill=mycolor) +
+      ggtheme +
+      ggplot2::labs(
+        title = paste("Histogram: "),
+        y = "",
+        x = ""
+      )
+    # acf
+    myacf = stats::acf(e,na.action=na.pass,plot=FALSE)
+    plot.acf =
+      ggplot2::ggplot(data=data.frame(lag=myacf$lag[-1],acf=myacf$acf[-1])) +
+      ggplot2::geom_errorbar(ggplot2::aes(x=lag,ymax=acf,ymin=0),width=0,color=mycolor) +
+      ggplot2::geom_hline(yintercept=0) +
+      ggplot2::geom_hline(yintercept=c(-2/sqrt(myacf$n.used),2/sqrt(myacf$n.used)),color="blue",lty="dashed") +
+      ggtheme +
+      coord_cartesian(xlim=c(0,ceiling(max(myacf$lag)/10)*10)) +
+      ggplot2::labs(
+        title = paste("Auto-Correlation: "),
+        y = "",
+        x = "Lag"
+      )
+    # pacf
+    mypacf = stats::pacf(e,na.action=na.pass,plot=FALSE)
+    plot.pacf = 
+      ggplot2::ggplot(data=data.frame(lag=mypacf$lag[-1], pacf=mypacf$acf[-1])) +
+      ggplot2::geom_errorbar(ggplot2::aes(x=lag,ymax=pacf,ymin=0),width=0,color=mycolor) +
+      ggplot2::geom_hline(yintercept=0) +
+      ggplot2::geom_hline(yintercept=c(-2/sqrt(mypacf$n.used),2/sqrt(mypacf$n.used)),color="blue",lty="dashed") +
+      ggtheme +
+      coord_cartesian(xlim=c(0,ceiling(max(mypacf$lag)/10)*10)) +
+      ggplot2::labs(
+        title = paste("Partial Auto-Correlation: "),
+        y = "",
+        x = "Lag"
+      )
+    # cpgram
+    plot.cpgram =
+      ggfortify::ggcpgram(e,colour=mycolor) +
+      ggtheme +
+      ggplot2::labs(
+        title = paste("Cumulative Periodogram: "),
+        y = "",
+        x = "Lag"
+      )
+    #
+    templist = list(
+      plot.res,
+      plot.hist,
+      plot.qq,
+      plot.acf,
+      plot.cpgram
+    )
+    # store plot
+    plots[[i]] = (plot.qq + plot.hist) / (plot.acf + plot.cpgram) +
+      patchwork::plot_annotation(title=paste("Residual Analysis for ", nam),theme=ggtheme + ggplot2::theme(text=ggplot2::element_text("Avenir Next Condensed",size=18,face="bold")),)
+    if(pacf){
+      plots[[i]] = (plot.qq + plot.pacf) / (plot.acf + plot.cpgram) +
+        patchwork::plot_annotation(title=paste("Residuals Analysis for ", nam),theme=ggtheme + ggplot2::theme(text=ggplot2::element_text("Avenir Next Condensed",size=18,face="bold")),)
     }
+    # }
     # return plot list, and print one of the plots
     print(plots[[plot.obs]])
     return(invisible(plots))

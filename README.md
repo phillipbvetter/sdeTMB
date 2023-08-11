@@ -124,36 +124,39 @@ obj$set_initial_state(x[1], 1e-1*diag(1))
 fit <- obj$estimate(data=.data, method="ekf", ode.solver="rk4", use.hessian=TRUE)
 
 # Check parameter estimates against truth
-x = fit$par.fixed
-cbind(c(exp(x[1]),x[2],exp(x[3]),exp(x[4])), pars)
+p0 = fit$par.fixed
+cbind(c(exp(p0[1]),p0[2],exp(p0[3]),exp(p0[4])), pars)
 
-# plot one-step predictions, simulated states and observations
+# Create plot of one-step predictions, simulated states and observations
 t.est = fit$states$mean$prior$t
 x.mean = fit$states$mean$prior$x
 x.sd = fit$states$sd$prior$x
-ggplot() +
+plot1 = ggplot() +
   geom_ribbon(aes(x=t.est, ymin=x.mean-2*x.sd, ymax=x.mean+2*x.sd),fill="grey", alpha=0.9) +
   geom_line(aes(x=t.est, x.mean),col="steelblue",lwd=1) +
   geom_line(aes(x=t.sim,y=x)) + 
   geom_point(aes(x=t.obs,y=y),col="tomato",size=2) +
   theme_minimal()
 
-
-# Plot one-step-ahead residual analysis
-plot(fit, use.ggplot=T)
-
 # Predict to obtain k-step-ahead predictions to see model forecasting ability
 pred = obj$predict(data=.data, k.ahead=10, method="ekf", ode.solver="rk4")
 
-# Plot all 10-step predictions against data
+# Create plot all 10-step predictions against data
 pred10step = pred[pred$k.ahead==10,]
-ggplot() +
+plot2 = ggplot() +
   geom_point(aes(x=t.obs,y=y),color="steelblue") +
   geom_point(aes(x=pred10step$t.j,pred10step$x),color="tomato") +
   geom_errorbar(aes(x=pred10step$t.j, 
                     ymin=pred10step$x-2*sqrt(pred10step$var.x), 
                     ymax=pred10step$x+2*sqrt(pred10step$var.x)),color="tomato") +
   theme_minimal()
+
+# Draw both plots
+plot1 / plot2
+
+# Plot one-step-ahead residual analysis
+plot(fit)
+
 ```
 
 
