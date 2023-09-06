@@ -68,11 +68,16 @@
 <span>  <span class="va">object</span>,</span>
 <span>  <span class="va">data</span>,</span>
 <span>  pars <span class="op">=</span> <span class="cn">NULL</span>,</span>
-<span>  n.ahead <span class="op">=</span> <span class="fl">1</span>,</span>
-<span>  ode.timestep <span class="op">=</span> <span class="cn">NULL</span>,</span>
-<span>  compile <span class="op">=</span> <span class="cn">FALSE</span>,</span>
+<span>  k.ahead <span class="op">=</span> <span class="fl">1</span>,</span>
+<span>  return.k.ahead <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  method <span class="op">=</span> <span class="st">"ekf"</span>,</span>
-<span>  return.covariance <span class="op">=</span> <span class="cn">TRUE</span></span>
+<span>  ode.timestep <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/Extremes.html" class="external-link">min</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/diff.html" class="external-link">diff</a></span><span class="op">(</span><span class="va">data</span><span class="op">$</span><span class="va">t</span><span class="op">)</span><span class="op">)</span>,</span>
+<span>  ode.solver <span class="op">=</span> <span class="st">"euler"</span>,</span>
+<span>  x0 <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  p0 <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  return.covariance <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>  compile <span class="op">=</span> <span class="cn">FALSE</span>,</span>
+<span>  silent <span class="op">=</span> <span class="cn">FALSE</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -85,38 +90,6 @@ can take <code>NA</code>-values.</p></dd>
 
 <dt>pars</dt>
 <dd><p>fixed parameter vector parsed to the objective function for prediction/filtration.</p></dd>
-
-
-<dt>n.ahead</dt>
-<dd><p>integer specifying the desired number of time-steps (as determined by the provided
-data time-vector) for which predictions are made (integrating the moment ODEs forward in time without
-data updates).</p></dd>
-
-
-<dt>ode.timestep</dt>
-<dd><p>numeric value. Sets the time step-size in numerical filtering schemes.
-The defined step-size is used to calculate the number of steps between observation time-points as
-defined by the provided <code>data</code>. If the calculated number of steps is larger than N.01 where N
-is an integer, then the time-step is reduced such that exactly N+1 steps is taken between observations
-The step-size is used in the two following ways depending on the
-chosen method:</p><ol><li><p>Kalman filters: The time-step is used as the step-size in the
-numerical Forward-Euler scheme to compute the prior state mean and
-covariance estimate as the final time solution to the first and second
-order moment differential equations.</p></li>
-<li><p>TMB method: The time-step is used as the step-size in the Euler-Maruyama
-scheme for simulating a sample path of the stochastic differential equation,
-which serves to link together the latent (random effects) states.</p></li>
-</ol></dd>
-
-
-<dt>compile</dt>
-<dd><p>boolean value. The default (<code>FALSE</code>) is to not compile the C++ objective
-function but assume it is already compiled and corresponds to the specified model object. It is
-the user's responsibility to ensure correspondence between the specified model and the precompiled
-C++ object. If a precompiled C++ object is not found in the specified directory i.e.
-in <code>&lt;cppfile_directory&gt;/&lt;modelname&gt;/(dll/so)</code> then the compile flag is set to <code>TRUE</code>.
-If the user makes changes to system equations, observation equations, observation variances,
-algebraic relations or lamperi transformations then the C++ object should be recompiled.</p></dd>
 
 
 <dt>method</dt>
@@ -140,9 +113,41 @@ in the cases where long prediction horizons are sought, where the normality assu
 inaccurate.</p></dd>
 
 
+<dt>ode.timestep</dt>
+<dd><p>numeric value. Sets the time step-size in numerical filtering schemes.
+The defined step-size is used to calculate the number of steps between observation time-points as
+defined by the provided <code>data</code>. If the calculated number of steps is larger than N.01 where N
+is an integer, then the time-step is reduced such that exactly N+1 steps is taken between observations
+The step-size is used in the two following ways depending on the
+chosen method:</p><ol><li><p>Kalman filters: The time-step is used as the step-size in the
+numerical Forward-Euler scheme to compute the prior state mean and
+covariance estimate as the final time solution to the first and second
+order moment differential equations.</p></li>
+<li><p>TMB method: The time-step is used as the step-size in the Euler-Maruyama
+scheme for simulating a sample path of the stochastic differential equation,
+which serves to link together the latent (random effects) states.</p></li>
+</ol></dd>
+
+
 <dt>return.covariance</dt>
 <dd><p>booelan value to indicate whether the covariance (instead of the correlation)
 should be returned.</p></dd>
+
+
+<dt>compile</dt>
+<dd><p>boolean value. The default (<code>FALSE</code>) is to not compile the C++ objective
+function but assume it is already compiled and corresponds to the specified model object. It is
+the user's responsibility to ensure correspondence between the specified model and the precompiled
+C++ object. If a precompiled C++ object is not found in the specified directory i.e.
+in <code>&lt;cppfile_directory&gt;/&lt;modelname&gt;/(dll/so)</code> then the compile flag is set to <code>TRUE</code>.
+If the user makes changes to system equations, observation equations, observation variances,
+algebraic relations or lamperi transformations then the C++ object should be recompiled.</p></dd>
+
+
+<dt>n.ahead</dt>
+<dd><p>integer specifying the desired number of time-steps (as determined by the provided
+data time-vector) for which predictions are made (integrating the moment ODEs forward in time without
+data updates).</p></dd>
 
 </dl></div>
     <div class="section level2">

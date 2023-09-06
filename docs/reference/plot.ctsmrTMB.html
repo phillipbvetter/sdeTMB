@@ -67,16 +67,30 @@
 <span><span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span></span>
 <span>  <span class="va">object</span>,</span>
 <span>  plot.obs <span class="op">=</span> <span class="fl">1</span>,</span>
+<span>  pacf <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  extended <span class="op">=</span> <span class="cn">FALSE</span>,</span>
-<span>  use.ggplot <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  ggtheme <span class="op">=</span> <span class="fu">getggplot2theme</span><span class="op">(</span><span class="op">)</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
     <div class="section level2">
     <h2 id="arguments">Arguments<a class="anchor" aria-label="anchor" href="#arguments"></a></h2>
-    <dl><dt>extended</dt>
+    <dl><dt>plot.obs</dt>
+<dd><p>a vector to indicate which observations should be plotted for. If multiple
+are chosen a list of plots for each observation is returned.</p></dd>
+
+
+<dt>pacf</dt>
+<dd><p>logical to indicate whether or not the partial autocorrelations should be returned.
+The default is FALSE in which case a histogram is returned instead.</p></dd>
+
+
+<dt>extended</dt>
 <dd><p>logical. if TRUE additional information is printed</p></dd>
+
+
+<dt>ggtheme</dt>
+<dd><p>ggplot2 theme to use for creating the ggplot.</p></dd>
 
 </dl></div>
     <div class="section level2">

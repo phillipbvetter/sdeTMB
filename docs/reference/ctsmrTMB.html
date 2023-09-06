@@ -236,7 +236,7 @@ data.frame <code>.data</code> provided when calling the <code>estimate</code> or
 <p>Declare variables as fixed effects and specify their initial value, lower and
 upper bound used when calling the maximum likelihood optimization.</p>
 <p>There are two ways to declare parameters. You can declare parameters using formulas i.e.
-<code>add_parameters( theta ~ c(1,0,10), mu ~ c(0,-10,10) )</code>, where the values are initial,
+<code>add_parameters( theta = c(1,0,10), mu = c(0,-10,10) )</code>, where the values are initial,
 lower and upper bound respectively. Alternatively you can provide a 3-column matrix where
 rows corresponds to different parameters, and the parameter names are provided as rownames
 of the matrix.</p><div class="section">
@@ -482,7 +482,8 @@ for estimation.</p><div class="section">
 <span>  ode.timestep <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/Extremes.html" class="external-link">min</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/diff.html" class="external-link">diff</a></span><span class="op">(</span><span class="va">data</span><span class="op">$</span><span class="va">t</span><span class="op">)</span><span class="op">)</span>,</span>
 <span>  loss <span class="op">=</span> <span class="st">"quadratic"</span>,</span>
 <span>  loss_c <span class="op">=</span> <span class="fl">3</span>,</span>
-<span>  compile <span class="op">=</span> <span class="cn">FALSE</span></span>
+<span>  compile <span class="op">=</span> <span class="cn">FALSE</span>,</span>
+<span>  silent <span class="op">=</span> <span class="cn">FALSE</span></span>
 <span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div>
 
@@ -562,6 +563,11 @@ If the user makes changes to system equations, observation equations, observatio
 algebraic relations or lamperi transformations then the C++ object should be recompiled.</p></dd>
 
 
+<dt><code>silent</code></dt>
+<dd><p>logical value whether or not to suppress printed messages such as 'Checking Data',
+'Building Model', etc. Default behaviour (FALSE) is to print the messages.</p></dd>
+
+
 </dl><p></p></div>
 </div>
 
@@ -578,7 +584,8 @@ algebraic relations or lamperi transformations then the C++ object should be rec
 <span>  loss_c <span class="op">=</span> <span class="fl">3</span>,</span>
 <span>  use.hessian <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  compile <span class="op">=</span> <span class="cn">FALSE</span>,</span>
-<span>  control <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>trace <span class="op">=</span> <span class="fl">1</span><span class="op">)</span></span>
+<span>  control <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>trace <span class="op">=</span> <span class="fl">1</span><span class="op">)</span>,</span>
+<span>  silent <span class="op">=</span> <span class="cn">FALSE</span></span>
 <span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div>
 
@@ -670,6 +677,11 @@ algebraic relations or lamperi transformations then the C++ object should be rec
 See <code><a href="https://rdrr.io/r/stats/nlminb.html" class="external-link">?stats::nlminb</a></code> for more information</p></dd>
 
 
+<dt><code>silent</code></dt>
+<dd><p>logical value whether or not to suppress printed messages such as 'Checking Data',
+'Building Model', etc. Default behaviour (FALSE) is to print the messages.</p></dd>
+
+
 </dl><p></p></div>
 </div>
 
@@ -680,7 +692,7 @@ obtained by solving the moment equations <code>n.ahead</code> steps forward in t
 state estimate as the initial condition.</p><div class="section">
 <h4 id="usage-20">Usage<a class="anchor" aria-label="anchor" href="#usage-20"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">ctsmrTMB</span><span class="op">$</span><span class="fu">predict</span><span class="op">(</span></span>
-<span>  data <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  <span class="va">data</span>,</span>
 <span>  pars <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  k.ahead <span class="op">=</span> <span class="fl">1</span>,</span>
 <span>  return.k.ahead <span class="op">=</span> <span class="cn">NULL</span>,</span>
@@ -690,7 +702,8 @@ state estimate as the initial condition.</p><div class="section">
 <span>  x0 <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  p0 <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  return.covariance <span class="op">=</span> <span class="cn">TRUE</span>,</span>
-<span>  compile <span class="op">=</span> <span class="cn">FALSE</span></span>
+<span>  compile <span class="op">=</span> <span class="cn">FALSE</span>,</span>
+<span>  silent <span class="op">=</span> <span class="cn">FALSE</span></span>
 <span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div>
 
@@ -784,6 +797,11 @@ If the user makes changes to system equations, observation equations, observatio
 algebraic relations or lamperi transformations then the C++ object should be recompiled.</p></dd>
 
 
+<dt><code>silent</code></dt>
+<dd><p>logical value whether or not to suppress printed messages such as 'Checking Data',
+'Building Model', etc. Default behaviour (FALSE) is to print the messages.</p></dd>
+
+
 </dl><p></p></div>
 </div>
 <div class="section">
@@ -824,7 +842,7 @@ correlation matrix.</p></dd>
 <h4 id="usage-23">Usage<a class="anchor" aria-label="anchor" href="#usage-23"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">ctsmrTMB</span><span class="op">$</span><span class="fu">plot</span><span class="op">(</span></span>
 <span>  plot.obs <span class="op">=</span> <span class="fl">1</span>,</span>
-<span>  use.ggplot <span class="op">=</span> <span class="cn">FALSE</span>,</span>
+<span>  pacf <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  extended <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  ggtheme <span class="op">=</span> <span class="fu">getggplot2theme</span><span class="op">(</span><span class="op">)</span></span>
 <span><span class="op">)</span></span></code></pre></div><p></p></div>
@@ -833,21 +851,21 @@ correlation matrix.</p></dd>
 <div class="section">
 <h4 id="arguments-16">Arguments<a class="anchor" aria-label="anchor" href="#arguments-16"></a></h4>
 <p></p><div class="arguments"><dl><dt><code>plot.obs</code></dt>
-<dd><p>integer value. The value determines which state residual plot is shown, when the states are numbered
-by the order in which they were defined in the model object.</p></dd>
+<dd><p>a vector to indicate which observations should be plotted for. If multiple
+are chosen a list of plots for each observation is returned.</p></dd>
 
 
-<dt><code>use.ggplot</code></dt>
-<dd><p>boolean value. The default <code>FALSE</code> is to use base plots in R, if <code>TRUE</code> then <code>ggplot2</code>
-is used to show and return a list of all residual state plots.</p></dd>
+<dt><code>pacf</code></dt>
+<dd><p>logical to indicate whether or not the partial autocorrelations should be returned.
+The default is FALSE in which case a histogram is returned instead.</p></dd>
 
 
 <dt><code>extended</code></dt>
-<dd><p>boolean value. No functionality yet.</p></dd>
+<dd><p>logical. if TRUE additional information is printed</p></dd>
 
 
 <dt><code>ggtheme</code></dt>
-<dd><p>ggplot theme. This determines the theme used to construct the ggplot2 if <code>use.ggplot=TRUE</code>.</p></dd>
+<dd><p>ggplot2 theme to use for creating the ggplot.</p></dd>
 
 
 </dl><p></p></div>

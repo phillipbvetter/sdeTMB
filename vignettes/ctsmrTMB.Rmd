@@ -267,7 +267,7 @@ ggplot() +
 We can display a standard residual analysis for the observations by calling `plot` on the `fit` object, which invokes the `S3` `plot.ctsmrTMB.fit` method of `plot`. This includes a quantile-quantile plot, histogram, auto-correlations and cumulative periodogram.
 
 ```{r, fig.height=7}
-plot(fit, use.ggplot=TRUE)
+plot(fit)
 ```
 The residuals (both standard and normalized) can be extracted as well, together with their standard deviation and covariance matrix via `fit$residuals`
 
