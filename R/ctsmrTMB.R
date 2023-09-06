@@ -154,6 +154,7 @@ ctsmrTMB = R6::R6Class(
         check_name(names(res), "obs", self, private)
         private$obs.eqs[[names(res)]] = res[[1]]
         private$obs.names = names(private$obs.eqs)
+        private$obs.var[[names(res)]] = list()
         # Function Body
       })
       
@@ -878,7 +879,7 @@ ctsmrTMB = R6::R6Class(
     #' @param silent logical value whether or not to suppress printed messages such as 'Checking Data',
     #' 'Building Model', etc. Default behaviour (FALSE) is to print the messages.
     #' 
-    predict = function(data = NULL,
+    predict = function(data,
                        pars = NULL,
                        k.ahead = 1,
                        return.k.ahead = NULL,
@@ -1053,21 +1054,28 @@ ctsmrTMB = R6::R6Class(
     ########################################################################
     # PLOT FUNCTION
     #' @description Function to print the model object
-    #' @param plot.obs integer value. The value determines which state residual plot is shown, when the states are numbered
-    #' by the order in which they were defined in the model object.
-    #' @param use.ggplot boolean value. The default \code{FALSE} is to use base plots in R, if \code{TRUE} then \code{ggplot2} 
-    #' is used to show and return a list of all residual state plots.
-    #' @param extended boolean value. No functionality yet.
-    #' @param ggtheme ggplot theme. This determines the theme used to construct the ggplot2 if \code{use.ggplot=TRUE}.
-    plot = function(plot.obs=1, use.ggplot=FALSE, extended=FALSE, ggtheme=getggplot2theme()){
-      # check if model was estimated
+    #' @param plot.obs a vector to indicate which observations should be plotted for. If multiple
+    #' are chosen a list of plots for each observation is returned.
+    #' @param pacf logical to indicate whether or not the partial autocorrelations should be returned.
+    #' The default is FALSE in which case a histogram is returned instead.
+    #' @param extended logical. if TRUE additional information is printed
+    #' @param ggtheme ggplot2 theme to use for creating the ggplot.
+    plot = function(plot.obs=1, 
+                    pacf=FALSE,
+                    extended=FALSE,
+                    ggtheme=getggplot2theme()){
+      
+      # check if the estimate method has been run i.e. and private$fit has been created
       if (is.null(private$fit)) {
         message("Please estimate your model in order to plot residuals.")
         return(invisible(NULL))
       }
-      # if we have estimated
-      plotlist = plot(private$fit, plot.obs=plot.obs, use.ggplot=use.ggplot,
-                      extended=extended, ggtheme=ggtheme)
+      
+      plotlist = plot(private$fit, 
+                      plot.obs=plot.obs,
+                      pacf=pacf,
+                      extended=extended, 
+                      ggtheme=ggtheme)
       return(invisible(plotlist))
     }
   ),
@@ -1182,12 +1190,10 @@ ctsmrTMB = R6::R6Class(
       apply_lamperti(self, private)
       update_diffterms(self, private)
       
-      # check if model is ok
+      # last check and compile
       lastcheck_before_compile(self, private)
-      
-      # compile cpp file
       compile_cppfile(self, private)
-      
+
       # set build
       private$build = TRUE
       
@@ -1323,7 +1329,7 @@ ctsmrTMB = R6::R6Class(
       available_losses = c("quadratic","huber","tukey")
       if (!(loss %in% available_losses)) {
         stop("That method is not available. Please choose one of the following instead: \n
-                  1. Quadratic loss = 'quadratic'
+                  1. Quadratic loss = 'quadratic' (default)
                   2. Quadratic-Linear loss = 'huber'
                   3. Quadratic-Constant loss = 'tukey'")
       }
@@ -1374,7 +1380,7 @@ ctsmrTMB = R6::R6Class(
       
       last.pred.index = nrow(data) - n.ahead
       if(last.pred.index < 1){
-        message("The provided n.ahead exceeds the possible max (nrow(data)-1). Setting it to this value.")
+        message("The provided k.ahead is too large, setting it to the maximum value nrow(data)-1.")
         n.ahead = nrow(data)-1
         last.pred.index = 1
       }

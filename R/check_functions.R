@@ -119,10 +119,6 @@ check_system_eqs = function(form, self, private, silent=FALSE) {
   bool = unique(all.vars(rhs)) %in% diff.processes
   variables = unique(all.vars(rhs))[!bool]
   
-  # test for linearity
-  
-  
-  # result = list(list(form=form,rhs=rhs,diff=diff.terms,allvars=variables))
   result = list(list(form=form, rhs=rhs, allvars=variables, diff=diff.processes))
   names(result) = state
   return(result)
@@ -147,7 +143,7 @@ check_observation_eqs <- function(formz, self, private) {
   if(inherits(lhs,"call")){
     obsname = formz$name
     if(is.null(formz$name)){
-      stop("You must provide observation names for observation equations that consits of more than just a single variable name.")
+      stop("You must provide argument 'obsnames' for observations with complex left-hand sides.")
     }
   } else {
     obsname = deparse(lhs)
@@ -410,7 +406,7 @@ check_algebraics = function(form, self, private) {
   }
   bool = stringr::str_match(deparse_rhs,"^(?!d[tw])[[:alnum:]]*")
   if (is.na(bool)) {
-    stop("No differential processes on the right-hand side.")
+    stop("You are not allowed to have differential processes on the right-hand side of an algebraic relation.")
   }
   
   # Is there already an algebraic relation for this variable?

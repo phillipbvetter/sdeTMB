@@ -11,8 +11,10 @@ init_build = function(self, private) {
   if (length(private$obs.eqs) == 0) {
     stop("Need at least one observation equation")
   }
-  if (length(private$obs.eqs)!=length(private$obs.var)) {
-    stop("The number of observation equations and specified variances do not match.")
+  missing.var = sapply(private$obs.var, function(x) length(x)==0)
+  if (any(missing.var)) {
+    missing.names = paste(private$obs.names[missing.var],collapse=", ")
+    stop("The observation variances for the following observation(s) have not been specified: ", missing.names)
   }
   if (is.null(private$initial.state)) {
     stop("You must set an initial state estimate and covariance")
@@ -22,6 +24,7 @@ init_build = function(self, private) {
   private$diff.processes = unique(unlist(lapply(private$sys.eqs, function(x) x$diff)))
   private$n = length(private$sys.eqs)
   private$m = length(private$obs.eqs)
+  # Count dw diffusion proceses (minus 1 to remove 'dt')
   private$ng = length(private$diff.processes) - 1
   
   # add method to filepath and modelname to reflect 'method'
@@ -37,13 +40,10 @@ init_build = function(self, private) {
 
 check_algebraics_before_applying = function(self, private) {
   
-  # So now we know all parameters, constants and inputs
-  
-  # An algebraic state equation
-  
-  # An observation can not be transformed
-  
-  # An observation can not depend on observations
+  # We must check the algebraic since some are not allowed.
+  # 1. You can't change a state
+  # 2. You can't change an input
+  # 3. 
   
   for (i in 1:length(private$alg.eqs)) {
     obj = private$alg.eqs[[i]]$form
@@ -59,8 +59,8 @@ check_algebraics_before_applying = function(self, private) {
     }
     
     # You can't apply algebraics to an observation
-    if (deparse(obj[[2]]) %in% names(private$obs.names)) {
-      stop("You can't redefine an input: ", deparse(obj))
+    if (deparse(obj[[2]]) %in% private$obs.names) {
+      stop("You can't redefine an observation: ", deparse(obj))
     }
     
   }
@@ -230,7 +230,6 @@ lastcheck_before_compile = function(self, private) {
   vars[[2]] = unlist(lapply(private$obs.eqs.trans, function(x) x$allvars))
   vars[[3]] = unlist(lapply(private$obs.var.trans, function(x) x$allvars))
   rhs.vars = unique(unlist(vars))
-
   given.vars = c( private$parameter.names, private$input.names, private$state.names, private$constant.names)
   bool = rhs.vars %in% given.vars
   if (any(!bool)) {
@@ -257,15 +256,10 @@ compile_cppfile = function(self, private) {
   
   if(private$compile){
     write_cppfile(self, private)
-    # write_ekf_cppfile(self, private)
-    # 
     TMB::compile(paste(private$cppfile.path,".cpp",sep=""))
-    # TMB::compile(paste(private$cppfile.path.with.method,".cpp",sep=""))
-    # reload shared libraries
-    try(dyn.unload(TMB::dynlib(private$cppfile.path)),silent=T)
-    try(dyn.load(TMB::dynlib(private$cppfile.path)),silent=T)
-    # try(dyn.unload(TMB::dynlib(private$cppfile.path.with.method)),silent=T)
-    # try(dyn.load(TMB::dynlib(private$cppfile.path.with.method)),silent=T)
+    # reload shared libraries - we use capture.output to remove tmb message "removing X pointers"
+    capture.output(try(dyn.unload(TMB::dynlib(private$cppfile.path)),silent=T))
+    capture.output(try(dyn.load(TMB::dynlib(private$cppfile.path)),silent=T))
   }
   
   # If compile=FALSE then the shared library must exist
@@ -274,7 +268,6 @@ compile_cppfile = function(self, private) {
     # mac : check that files exist
     if (.Platform$OS.type=="unix") {
       modelpath.so = paste(private$cppfile.path,".so",sep="")
-      # modelpath.so = paste(private$cppfile.path.with.method,".so",sep="")
       if (!file.exists(modelpath.so)) {
         message("Compiling model...")
         private$compile = TRUE
@@ -294,12 +287,9 @@ compile_cppfile = function(self, private) {
     
     # reload libraries
     # message("Loading existing compiled model...")
-    try(dyn.unload(TMB::dynlib(private$cppfile.path)),silent=T)
-    try(dyn.load(TMB::dynlib(private$cppfile.path)),silent=T)
-    
-    
+    utils::capture.output(try(dyn.unload(TMB::dynlib(private$cppfile.path)),silent=T))
+    utils::capture.output(try(dyn.load(TMB::dynlib(private$cppfile.path)),silent=T))
   }
-  
   return(invisible(self))
 }
 

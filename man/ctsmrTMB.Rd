@@ -666,7 +666,7 @@ obtained by solving the moment equations \code{n.ahead} steps forward in time wh
 state estimate as the initial condition.
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{ctsmrTMB$predict(
-  data = NULL,
+  data,
   pars = NULL,
   k.ahead = 1,
   return.k.ahead = NULL,
@@ -804,7 +804,7 @@ Function to print the model object
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{ctsmrTMB$plot(
   plot.obs = 1,
-  use.ggplot = FALSE,
+  pacf = FALSE,
   extended = FALSE,
   ggtheme = getggplot2theme()
 )}\if{html}{\out{</div>}}
@@ -813,15 +813,15 @@ Function to print the model object
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{plot.obs}}{integer value. The value determines which state residual plot is shown, when the states are numbered
-by the order in which they were defined in the model object.}
+\item{\code{plot.obs}}{a vector to indicate which observations should be plotted for. If multiple
+are chosen a list of plots for each observation is returned.}
 
-\item{\code{use.ggplot}}{boolean value. The default \code{FALSE} is to use base plots in R, if \code{TRUE} then \code{ggplot2}
-is used to show and return a list of all residual state plots.}
+\item{\code{pacf}}{logical to indicate whether or not the partial autocorrelations should be returned.
+The default is FALSE in which case a histogram is returned instead.}
 
-\item{\code{extended}}{boolean value. No functionality yet.}
+\item{\code{extended}}{logical. if TRUE additional information is printed}
 
-\item{\code{ggtheme}}{ggplot theme. This determines the theme used to construct the ggplot2 if \code{use.ggplot=TRUE}.}
+\item{\code{ggtheme}}{ggplot2 theme to use for creating the ggplot.}
 }
 \if{html}{\out{</div>}}
 }

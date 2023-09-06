@@ -8,11 +8,16 @@
   object,
   data,
   pars = NULL,
-  n.ahead = 1,
-  ode.timestep = NULL,
-  compile = FALSE,
+  k.ahead = 1,
+  return.k.ahead = NULL,
   method = "ekf",
-  return.covariance = TRUE
+  ode.timestep = min(diff(data$t)),
+  ode.solver = "euler",
+  x0 = NULL,
+  p0 = NULL,
+  return.covariance = TRUE,
+  compile = FALSE,
+  silent = FALSE
 )
 }
 \arguments{
@@ -20,34 +25,6 @@
 can take \code{NA}-values.}
 
 \item{pars}{fixed parameter vector parsed to the objective function for prediction/filtration.}
-
-\item{n.ahead}{integer specifying the desired number of time-steps (as determined by the provided
-data time-vector) for which predictions are made (integrating the moment ODEs forward in time without
-data updates).}
-
-\item{ode.timestep}{numeric value. Sets the time step-size in numerical filtering schemes.
-The defined step-size is used to calculate the number of steps between observation time-points as
-defined by the provided \code{data}. If the calculated number of steps is larger than N.01 where N
-is an integer, then the time-step is reduced such that exactly N+1 steps is taken between observations
-The step-size is used in the two following ways depending on the
-chosen method:
-\enumerate{
-\item Kalman filters: The time-step is used as the step-size in the
-numerical Forward-Euler scheme to compute the prior state mean and
-covariance estimate as the final time solution to the first and second
-order moment differential equations.
-\item TMB method: The time-step is used as the step-size in the Euler-Maruyama
-scheme for simulating a sample path of the stochastic differential equation,
-which serves to link together the latent (random effects) states.
-}}
-
-\item{compile}{boolean value. The default (\code{FALSE}) is to not compile the C++ objective
-function but assume it is already compiled and corresponds to the specified model object. It is
-the user's responsibility to ensure correspondence between the specified model and the precompiled
-C++ object. If a precompiled C++ object is not found in the specified directory i.e.
-in \code{<cppfile_directory>/<modelname>/(dll/so)} then the compile flag is set to \code{TRUE}.
-If the user makes changes to system equations, observation equations, observation variances,
-algebraic relations or lamperi transformations then the C++ object should be recompiled.}
 
 \item{method}{character vector - one of either "ekf", "ukf" or "tmb". Sets the estimation
 method. The package has three available methods implemented:
@@ -73,8 +50,36 @@ with these methods (use the \code{predict} S3 method), and stochastic simulation
 in the cases where long prediction horizons are sought, where the normality assumption will be
 inaccurate.}
 
+\item{ode.timestep}{numeric value. Sets the time step-size in numerical filtering schemes.
+The defined step-size is used to calculate the number of steps between observation time-points as
+defined by the provided \code{data}. If the calculated number of steps is larger than N.01 where N
+is an integer, then the time-step is reduced such that exactly N+1 steps is taken between observations
+The step-size is used in the two following ways depending on the
+chosen method:
+\enumerate{
+\item Kalman filters: The time-step is used as the step-size in the
+numerical Forward-Euler scheme to compute the prior state mean and
+covariance estimate as the final time solution to the first and second
+order moment differential equations.
+\item TMB method: The time-step is used as the step-size in the Euler-Maruyama
+scheme for simulating a sample path of the stochastic differential equation,
+which serves to link together the latent (random effects) states.
+}}
+
 \item{return.covariance}{booelan value to indicate whether the covariance (instead of the correlation)
 should be returned.}
+
+\item{compile}{boolean value. The default (\code{FALSE}) is to not compile the C++ objective
+function but assume it is already compiled and corresponds to the specified model object. It is
+the user's responsibility to ensure correspondence between the specified model and the precompiled
+C++ object. If a precompiled C++ object is not found in the specified directory i.e.
+in \code{<cppfile_directory>/<modelname>/(dll/so)} then the compile flag is set to \code{TRUE}.
+If the user makes changes to system equations, observation equations, observation variances,
+algebraic relations or lamperi transformations then the C++ object should be recompiled.}
+
+\item{n.ahead}{integer specifying the desired number of time-steps (as determined by the provided
+data time-vector) for which predictions are made (integrating the moment ODEs forward in time without
+data updates).}
 }
 \value{
 State estimates and covariance/correlations

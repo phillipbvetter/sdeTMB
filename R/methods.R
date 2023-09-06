@@ -133,15 +133,22 @@ plot.ctsmrTMB.pred = function(pred.data,
 
 
 #' Basic summary of objects of class 'ctsmrTMB'
+#' @param plot.obs a vector to indicate which observations should be plotted for. If multiple
+#' are chosen a list of plots for each observation is returned.
+#' @param pacf logical to indicate whether or not the partial autocorrelations should be returned.
+#' The default is FALSE in which case a histogram is returned instead.
 #' @param extended logical. if TRUE additional information is printed
+#' @param ggtheme ggplot2 theme to use for creating the ggplot.
 #' @returns A huge amount of information
 #' @export
 plot.ctsmrTMB = function(object,
                          plot.obs=1,
+                         pacf=FALSE,
                          extended=FALSE,
-                         use.ggplot=FALSE,
                          ggtheme=getggplot2theme()) {
-  object$plot(plot.obs=plot.obs, use.ggplot=use.ggplot, extended=extended, ggtheme=ggtheme)
+  
+  object$plot(plot.obs=plot.obs, pacf=pacf, extended=extended, ggtheme=ggtheme)
+  
   return(invisible(NULL))
 }
 
@@ -412,22 +419,32 @@ plot.ctsmrTMB.fit = function(fit,
 #' @export
 predict.ctsmrTMB = function(object,
                             data,
-                            pars=NULL,
-                            n.ahead=1,
-                            ode.timestep=NULL, 
-                            compile=FALSE,
-                            method="ekf",
-                            return.covariance=TRUE
+                            pars = NULL,
+                            k.ahead = 1,
+                            return.k.ahead = NULL,
+                            method = "ekf",
+                            ode.timestep = min(diff(data$t)),
+                            ode.solver = "euler",
+                            x0 = NULL,
+                            p0 = NULL,
+                            return.covariance = TRUE,
+                            compile = FALSE,
+                            silent = FALSE
 ){
   
   # Call predict method function
   df.out = object$predict(data=data, 
                           pars=pars, 
-                          n.ahead=n.ahead,
-                          ode.timestep=ode.timestep,
-                          compile=compile,
+                          k.ahead=k.ahead,
+                          return.k.ahead=return.k.ahead,
                           method=method,
-                          return.covariance=return.covariance)
+                          ode.timestep=ode.timestep,
+                          ode.solver=ode.solver,
+                          x0=x0,
+                          p0=p0,
+                          return.covariance=return.covariance,
+                          compile=compile,
+                          silent=silent)
   return(invisible(df.out))
 }
 
