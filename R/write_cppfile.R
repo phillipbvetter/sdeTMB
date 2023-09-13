@@ -316,7 +316,7 @@ matrix<Type> construct_F__(matrix<Type> Xsp, %s){
   hvars2.tmb = hvars0
   if(length(private$input.names)>0){
     for(i in 1:length(private$input.names)){
-      hvars2 = sub(pattern=sprintf("^%s$",private$input.names[i]), replacement=sprintf("%s(i)",private$input.names[i]), x=hvars2)
+      hvars2 = sub(pattern=sprintf("^%s$",private$input.names[i]), replacement=sprintf("%s(i+1)",private$input.names[i]), x=hvars2)
       hvars2.tmb = sub(pattern=sprintf("^%s$",private$input.names[i]), replacement=sprintf("%s(i)",private$input.names[i]), x=hvars2.tmb)
       hvars2.withoutStates = sub(pattern=sprintf("^%s$",private$input.names[i]), replacement=sprintf("%s(i)",private$input.names[i]), x=hvars2.withoutStates)
     }
@@ -356,7 +356,7 @@ matrix<Type> construct_F__(matrix<Type> Xsp, %s){
   dhdxvars2 = dhdxvars0
   if(length(private$input.names)>0){
     for(i in 1:length(private$input.names)){
-      dhdxvars2 = sub(pattern=sprintf("^%s$",private$input.names[i]), replacement=sprintf("%s(i)",private$input.names[i]), x=dhdxvars2)
+      dhdxvars2 = sub(pattern=sprintf("^%s$",private$input.names[i]), replacement=sprintf("%s(i+1)",private$input.names[i]), x=dhdxvars2)
     }
   }
   for(i in 1:private$n){
@@ -623,6 +623,8 @@ paste(fvars2_new,collapse=", "), paste(dfdxvars2_new,collapse=", "), paste(dfdxv
   txt = c(txt, "\t vector<matrix<Type>> pPost(t.size());")
   txt = c(txt, "\t vector<vector<Type>> Innovation(t.size());")
   txt = c(txt, "\t vector<matrix<Type>> InnovationCovariance(t.size());")
+  # txt = c(txt, "\t vector<Type> savelogdet(t.size());")
+  # txt = c(txt, "\t vector<matrix<Type>> saveRi(t.size());")
   
   txt = c(txt, "\n//////////// set initial value ///////////")
   txt = c(txt, "\t vector<Type> x0__ = X0__;")
@@ -684,6 +686,8 @@ paste(fvars2_new,collapse=", "), paste(dfdxvars2_new,collapse=", "), paste(dfdxv
   txt = c(txt, "\t\t\t nll__ += Type(0.5)*atomic::logdet(R__) + Type(0.5)*lossfunction__((e__*(Ri__*e__)).sum(),tukey_pars__,loss_c_value__,which_loss__) + half_log2PI * asDouble(s__);")
   txt = c(txt, "\t\t\t Innovation(i+1) = e__;")
   txt = c(txt, "\t\t\t InnovationCovariance(i+1) = R__;")
+  # txt = c(txt, "\t\t\t savelogdet(i) = atomic::logdet(R__);")
+  # txt = c(txt, "\t\t\t saveRi(i) = Ri__;")
   txt = c(txt, "\t\t }")
   # end if statement for observations
   txt = c(txt, "\t\t xPost(i+1) = x0__;")
@@ -723,6 +727,8 @@ paste(fvars2_new,collapse=", "), paste(dfdxvars2_new,collapse=", "), paste(dfdxv
   txt = c(txt ,"\t REPORT(xPost);")
   txt = c(txt, "\t REPORT(pPrior);")
   txt = c(txt, "\t REPORT(pPost);")
+  # txt = c(txt, "\t REPORT(savelogdet);")
+  # txt = c(txt, "\t REPORT(saveRi);")
   
   
   txt = c(txt, "\n\t //////////// Prediction //////////////")

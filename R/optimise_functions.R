@@ -295,7 +295,7 @@ optimise_nll = function(self, private) {
   }
   message("\t Optimization finished!:
             Elapsed time: ", comp.time, " seconds.
-            The objetive value is: ",format(opt$objective,scientific=T),"
+            The objective value is: ",format(opt$objective,scientific=T),"
             The maximum gradient component is: ",format(outer_mgc,digits=2,scientific=T),"
             The convergence message is: ", opt$message,"
             Iterations: ",opt$iterations,"
@@ -555,30 +555,31 @@ construct_predict_dataframe = function(pars, rep, data, return.covariance, retur
     df.out[,disp_names[diag.ids]] = do.call(rbind,rep$pk__)[,diag.ids]
   }
   
-  # calculate inputs at every time-step in predict
-  inputs.df = c()
-  for(i in seq_along(private$input.names)){
-    input.df = cbind(inputs.df, private$data[df.out[,"j."]+1,private$input.names[i]])
-  }
+  # calculate observations at every time-step in predict
+  inputs.df = private$data[df.out[,"j."]+1,private$input.names]
+  
   env.list = c(
     as.list(df.out[private$state.names]),
     as.list(inputs.df),
     as.list(pars)
   )
+  
   obs.df.predict = as.data.frame(
     lapply(private$obs.eqs.trans, function(ls){eval(ls$rhs, envir = env.list)})
   )
-  names(obs.df.predict) = paste(private$obs.names,"",sep="")
+  names(obs.df.predict) = paste(private$obs.names,".predict",sep="")
   df.out = cbind(df.out, obs.df.predict)
   
-  # add observation to output data.frame 
-  obs.df = c()
-  for(i in seq_along(private$obs.names)){
-    obs.df = cbind(obs.df, private$data[df.out[,"j."]+1,private$obs.names[i]])
-  }
-  obs.df = as.data.frame(obs.df)
+  # add data observation to output data.frame 
+  # obs.df = c()
+  # for(i in seq_along(private$obs.names)){
+  #   obs.df = cbind(obs.df, private$data[df.out[,"j."]+1,private$obs.names[i]])
+  # }
+  obs.df = private$data[df.out[,"j."]+1, private$obs.names]
   names(obs.df) = paste(private$obs.names,".data",sep="")
   df.out = cbind(df.out, obs.df)
+  # obs.df = as.data.frame(obs.df)
+  
   
   # return only specific n.ahead
   df.out = df.out[df.out[,"k.ahead"] %in% return.k.ahead,]
