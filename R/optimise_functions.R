@@ -420,7 +420,7 @@ create_return_fit = function(self, private) {
   }
   
   # Set S3 class
-  class(private$fit) = "ctsmrTMB.fit"
+  class(private$fit) = "sdem.fit"
   
   return(invisible(self))
 }
@@ -483,7 +483,7 @@ construct_predict_dataframe = function(pars, rep, data, return.covariance, retur
   
   # return only specific n.ahead
   df.out = df.out[df.out[,"k.ahead"] %in% return.k.ahead,]
-  class(df.out) = c("ctsmrTMB.pred", "data.frame")
+  class(df.out) = c("sdem.pred", "data.frame")
   
   return(df.out)
 }
@@ -555,7 +555,7 @@ construct_predict_rcpp_dataframe = function(pars, predict.list, data, return.cov
   df.obs = df.obs[df.out[,"k.ahead"] %in% return.k.ahead,]
   
   list.out = list(states = df.out, observations = df.obs)
-  class(list.out) = c(class(list.out), "ctsmrTMB.pred")
+  class(list.out) = c(class(list.out), "sdem.pred")
   
   return(list.out)
 }

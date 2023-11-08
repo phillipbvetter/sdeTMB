@@ -5,7 +5,7 @@ date: ""
 output: html_document
 ---
 
-Let's get starting using `ctsmrTMB`!
+Let's get starting using `sdem`!
 
 We shall assume that you have some time series `data`, and a stochastic differential equation model which you believe can be used to model that data (or some latent variable that can be linked to your data). 
 
@@ -29,10 +29,10 @@ so that some observations have a larger variance than others, i.e. we believe th
 
 ---
 
-We initialise a `ctsmrTMB` model object using
+We initialise a `sdem` model object using
 ```{r}
-library(ctsmrTMB)
-obj = ctsmrTMB$new()
+library(sdem)
+obj = sdem$new()
 ```
 
 We can print the object to see what kind of model it contains
@@ -264,7 +264,7 @@ ggplot() +
 
 ---
 
-We can display a standard residual analysis for the observations by calling `plot` on the `fit` object, which invokes the `S3` `plot.ctsmrTMB.fit` method of `plot`. This includes a quantile-quantile plot, histogram, auto-correlations and cumulative periodogram.
+We can display a standard residual analysis for the observations by calling `plot` on the `fit` object, which invokes the `S3` `plot.sdem.fit` method of `plot`. This includes a quantile-quantile plot, histogram, auto-correlations and cumulative periodogram.
 
 ```{r, fig.height=7}
 plot(fit)

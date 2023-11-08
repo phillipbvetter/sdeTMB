@@ -3,11 +3,11 @@
 
 #'@ export
 execute_ekf_prediction <- function(f__R, g__R, dfdx__R, h__R, dhdx__R, hvar__R, obsMat, inputMat, parVec, covMat, stateVec, ode_timestep_size, ode_timesteps, bool_is_not_na_obsMat, number_of_available_obs, n, m, last_pred_id, k_step_ahead, ode_solver) {
-    .Call('_ctsmrTMB_execute_ekf_prediction', PACKAGE = 'ctsmrTMB', f__R, g__R, dfdx__R, h__R, dhdx__R, hvar__R, obsMat, inputMat, parVec, covMat, stateVec, ode_timestep_size, ode_timesteps, bool_is_not_na_obsMat, number_of_available_obs, n, m, last_pred_id, k_step_ahead, ode_solver)
+    .Call('_sdem_execute_ekf_prediction', PACKAGE = 'sdem', f__R, g__R, dfdx__R, h__R, dhdx__R, hvar__R, obsMat, inputMat, parVec, covMat, stateVec, ode_timestep_size, ode_timesteps, bool_is_not_na_obsMat, number_of_available_obs, n, m, last_pred_id, k_step_ahead, ode_solver)
 }
 
 #'@ export
 execute_ekf_simulation <- function(f__R, g__R, dfdx__R, h__R, dhdx__R, hvar__R, obsMat, inputMat, parVec, covMat, stateVec, ode_timestep_size, ode_timesteps, simulation_timestep_size, simulation_timesteps, bool_is_not_na_obsMat, number_of_available_obs, n, m, last_pred_id, k_step_ahead, ode_solver, nsims) {
-    .Call('_ctsmrTMB_execute_ekf_simulation', PACKAGE = 'ctsmrTMB', f__R, g__R, dfdx__R, h__R, dhdx__R, hvar__R, obsMat, inputMat, parVec, covMat, stateVec, ode_timestep_size, ode_timesteps, simulation_timestep_size, simulation_timesteps, bool_is_not_na_obsMat, number_of_available_obs, n, m, last_pred_id, k_step_ahead, ode_solver, nsims)
+    .Call('_sdem_execute_ekf_simulation', PACKAGE = 'sdem', f__R, g__R, dfdx__R, h__R, dhdx__R, hvar__R, obsMat, inputMat, parVec, covMat, stateVec, ode_timestep_size, ode_timesteps, simulation_timestep_size, simulation_timesteps, bool_is_not_na_obsMat, number_of_available_obs, n, m, last_pred_id, k_step_ahead, ode_solver, nsims)
 }
 

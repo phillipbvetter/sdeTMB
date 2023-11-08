@@ -7,6 +7,6 @@
 # * https://testthat.r-lib.org/reference/test_package.html#special-files
 
 library(testthat)
-library(ctsmrTMB)
+library(sdem)
 
-test_check("ctsmrTMB")
+test_check("sdem")

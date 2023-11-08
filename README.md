@@ -1,33 +1,42 @@
-# Continuous Time Stochastic Modelling for R using Template Model Builder (ctsmrTMB)
+# Stochastic Differential Equation Modelling (sdem)
 
-`ctsmrTMB` is an R package for parameter estimation, state filtration and forecasting in stochastic state space models, heavily inspired by [Continuous Time Stochastic Modelling](https://ctsm.info). 
+`sdem` is an R package for parameter estimation, state filtration and forecasting in stochastic state space models, heavily inspired by [Continuous Time Stochastic Modelling](https://ctsm.info). 
 The package is a user-friendly wrapper for [Template Model Builder](https://github.com/kaskr/adcomp) that frees the user from writing
-the required C++ file containing the (negative log) likelihood function themselves. Instead, the C++ script is generated automatically based on a model specified by the user using the provided R6 `ctsmrTMB` class object.  
+the required C++ file containing the (negative log) likelihood function themselves. Instead, the C++ script is generated automatically based on a model specified by the user using the provided R6 `sdem` class object. The package furthermore employs the `Rcpp` package universe to allow faster calculations of model predictions and stochastic simulation paths.
 
 The package implements the following methods 
+
+1. The (Continous-Discrete) Extended Kalman Filter, `ekf`
+
+2. The (Continous-Discrete) Extended Kalman Filter, `ukf` (currently disabled.)
  
-1. The `TMB`-style approach where latent states are considered random effects (see e.g. [this example]( https://github.com/kaskr/adcomp/blob/master/tmb_examples/sde_linear.cpp))
+3. The Laplace-style approach where latent states are considered random effects (see e.g. [this example]( https://github.com/kaskr/adcomp/blob/master/tmb_examples/sde_linear.cpp)), `laplace`
 
-2. The (Continous-Discrete) Extended Kalman Filter 
+The main advantage of the Kalman Filter implementations are a large increase in the computation speed, and access to the fixed effects hessian for improved convergence of the optimization. In these cases TMB just provides automatic differentiation.
 
-<!--
-3. The (Continous-Discrete) Unscented Kalman Filter
--->
+A district advantage of the `laplace`-style implementation is its use of the Laplace approximation for likelihood calculations which allows state space formulations where the density of the observation residuals are non-Gaussian.
 
-The main advantage of the Kalman Filter implementation is a large increase in the computation speed, and access to the fixed effects hessian for improved convergence of the optimization. In these cases TMB just provides automatic differentiation.
-
-A district advantage of the `TMB`-style implementation is its use of the Laplace approximation for likelihood calculations which allows state space formulations where the density of the observation residuals are non-Gaussian. This feature will be implemented in the future.
-
-The package is currently mostly tailored towards the Kalman Filter, with features such as `predict` method for simulations and k-step-ahead predictions without data updates, and `plot` of the fit object from `estimate` to display a basic residuals analysis. These features will eventually be available for the TMB method.
+The package is currently mostly tailored towards the Kalman Filter, with its available methods `predict` and `simulate`  for k-step-ahead predictions and simulations. It also has an `S3 method` implementation of `plot` to be called on the `ctsmrTMB.fit` class object returned from the `estimate` method, which plots a basic residuals analysis using the `ggplot2` package.
 
 ## Installation
 
 You can install the package by copying the command below into `R`.
 ``` r
-remotes::install_github(repo="phillipbvetter/ctsmrTMB", dependencies=TRUE)
+remotes::install_github(repo="phillipbvetter/sdem", dependencies=TRUE)
 ```
 
-Note that `ctsmrTMB` depends on the `TMB` package. Windows users must have Rtools intalled, and Mac users must have command line tools for C++ compilers etc. You can find the GitHub for TMB [here](https://github.com/kaskr/adcomp) and installation instructions [here](https://github.com/kaskr/adcomp/wiki/Download)
+We note that `sdem` depends on the following packages:
+1. `TMB`
+2. `Rcpp`
+3. `RcppEigen`
+4. `RcppXPtrUtils`
+5. `RcppZiggurat`
+6. `R6`
+7. `Deriv`
+8. `stringr`
+9. `stats`
+
+The user must therefore have a working C++ compiler. In particular windows users should install Rtools, and Mac users should install Command Line Tools to get working C++ compilers. For further information see the `TMB` GitHub [here](https://github.com/kaskr/adcomp) and associated installation instructions [here](https://github.com/kaskr/adcomp/wiki/Download)
 
 ## How to get started
 You can visit the package [webpage](https://phillipbvetter.github.io/ctsmrTMB/index.html) and browse the vignettes for example uses, in particular see [Getting Started](https://phillipbvetter.github.io/ctsmrTMB/articles/ctsmrTMB.html).
@@ -42,7 +51,7 @@ This methods documentation is also available on the [homepage](https://phillipbv
 ## Example Usage
 
 ```r
-library(ctsmrTMB)
+library(sdem)
 library(ggplot2)
 library(patchwork)
 
@@ -78,7 +87,7 @@ y = x[t.sim %in% t.obs] + pars[4] * rnorm(length(t.obs))
 ############################################################
 
 # Create model object
-obj = ctsmrTMB$new()
+obj = sdem$new()
 
 # Set name of model (and the created .cpp file)
 obj$set_modelname("ornstein_uhlenbeck")
@@ -139,7 +148,10 @@ plot1 = ggplot() +
   theme_minimal()
 
 # Predict to obtain k-step-ahead predictions to see model forecasting ability
-pred = obj$predict(data=.data, k.ahead=10, method="ekf", ode.solver="rk4")
+pred = obj$predict(data=.data, k.ahead=10, method="ekf", ode.solver="euler", initial.state=model$get_initial_state())
+
+# Simulate to obtain k-step-ahead predictions to see more accurate model forecasting ability
+sim = obj$simulate(data=.data, k.ahead=10, method="ekf", ode.solver="euler", initial.state=model$get_initial_state())
 
 # Create plot all 10-step predictions against data
 pred10step = pred[pred$k.ahead==10,]

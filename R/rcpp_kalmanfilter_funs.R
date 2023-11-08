@@ -32,7 +32,8 @@ create_rcpp_statespace_functions = function(self, private){
                  return Rcpp::wrap(f);
                  }",private$number.of.states, paste(f,collapse=""))
   private$Rcppfunction_f <- RcppXPtrUtils::cppXPtr(code, 
-                                                   depends=c("RcppEigen","ctsmrTMB"),
+                                                   depends=c("RcppEigen",
+                                                             "sdem"),
                                                    verbose=TRUE)
   
   ##################################################

@@ -13,7 +13,7 @@ Rcpp::Rostream<false>& Rcpp::Rcerr = Rcpp::Rcpp_cerr_get();
 
 // execute_ekf_prediction
 List execute_ekf_prediction(SEXP f__R, SEXP g__R, SEXP dfdx__R, SEXP h__R, SEXP dhdx__R, SEXP hvar__R, Eigen::MatrixXd obsMat, Eigen::MatrixXd inputMat, Eigen::VectorXd parVec, Eigen::MatrixXd covMat, Eigen::VectorXd stateVec, Eigen::VectorXd ode_timestep_size, Eigen::VectorXd ode_timesteps, Eigen::MatrixXi bool_is_not_na_obsMat, Eigen::VectorXi number_of_available_obs, int n, int m, int last_pred_id, int k_step_ahead, int ode_solver);
-RcppExport SEXP _ctsmrTMB_execute_ekf_prediction(SEXP f__RSEXP, SEXP g__RSEXP, SEXP dfdx__RSEXP, SEXP h__RSEXP, SEXP dhdx__RSEXP, SEXP hvar__RSEXP, SEXP obsMatSEXP, SEXP inputMatSEXP, SEXP parVecSEXP, SEXP covMatSEXP, SEXP stateVecSEXP, SEXP ode_timestep_sizeSEXP, SEXP ode_timestepsSEXP, SEXP bool_is_not_na_obsMatSEXP, SEXP number_of_available_obsSEXP, SEXP nSEXP, SEXP mSEXP, SEXP last_pred_idSEXP, SEXP k_step_aheadSEXP, SEXP ode_solverSEXP) {
+RcppExport SEXP _sdem_execute_ekf_prediction(SEXP f__RSEXP, SEXP g__RSEXP, SEXP dfdx__RSEXP, SEXP h__RSEXP, SEXP dhdx__RSEXP, SEXP hvar__RSEXP, SEXP obsMatSEXP, SEXP inputMatSEXP, SEXP parVecSEXP, SEXP covMatSEXP, SEXP stateVecSEXP, SEXP ode_timestep_sizeSEXP, SEXP ode_timestepsSEXP, SEXP bool_is_not_na_obsMatSEXP, SEXP number_of_available_obsSEXP, SEXP nSEXP, SEXP mSEXP, SEXP last_pred_idSEXP, SEXP k_step_aheadSEXP, SEXP ode_solverSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -43,7 +43,7 @@ END_RCPP
 }
 // execute_ekf_simulation
 List execute_ekf_simulation(SEXP f__R, SEXP g__R, SEXP dfdx__R, SEXP h__R, SEXP dhdx__R, SEXP hvar__R, Eigen::MatrixXd obsMat, Eigen::MatrixXd inputMat, Eigen::VectorXd parVec, Eigen::MatrixXd covMat, Eigen::VectorXd stateVec, Eigen::VectorXd ode_timestep_size, Eigen::VectorXd ode_timesteps, Eigen::VectorXd simulation_timestep_size, Eigen::VectorXd simulation_timesteps, Eigen::MatrixXi bool_is_not_na_obsMat, Eigen::VectorXi number_of_available_obs, int n, int m, int last_pred_id, int k_step_ahead, int ode_solver, int nsims);
-RcppExport SEXP _ctsmrTMB_execute_ekf_simulation(SEXP f__RSEXP, SEXP g__RSEXP, SEXP dfdx__RSEXP, SEXP h__RSEXP, SEXP dhdx__RSEXP, SEXP hvar__RSEXP, SEXP obsMatSEXP, SEXP inputMatSEXP, SEXP parVecSEXP, SEXP covMatSEXP, SEXP stateVecSEXP, SEXP ode_timestep_sizeSEXP, SEXP ode_timestepsSEXP, SEXP simulation_timestep_sizeSEXP, SEXP simulation_timestepsSEXP, SEXP bool_is_not_na_obsMatSEXP, SEXP number_of_available_obsSEXP, SEXP nSEXP, SEXP mSEXP, SEXP last_pred_idSEXP, SEXP k_step_aheadSEXP, SEXP ode_solverSEXP, SEXP nsimsSEXP) {
+RcppExport SEXP _sdem_execute_ekf_simulation(SEXP f__RSEXP, SEXP g__RSEXP, SEXP dfdx__RSEXP, SEXP h__RSEXP, SEXP dhdx__RSEXP, SEXP hvar__RSEXP, SEXP obsMatSEXP, SEXP inputMatSEXP, SEXP parVecSEXP, SEXP covMatSEXP, SEXP stateVecSEXP, SEXP ode_timestep_sizeSEXP, SEXP ode_timestepsSEXP, SEXP simulation_timestep_sizeSEXP, SEXP simulation_timestepsSEXP, SEXP bool_is_not_na_obsMatSEXP, SEXP number_of_available_obsSEXP, SEXP nSEXP, SEXP mSEXP, SEXP last_pred_idSEXP, SEXP k_step_aheadSEXP, SEXP ode_solverSEXP, SEXP nsimsSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -76,12 +76,12 @@ END_RCPP
 }
 
 static const R_CallMethodDef CallEntries[] = {
-    {"_ctsmrTMB_execute_ekf_prediction", (DL_FUNC) &_ctsmrTMB_execute_ekf_prediction, 20},
-    {"_ctsmrTMB_execute_ekf_simulation", (DL_FUNC) &_ctsmrTMB_execute_ekf_simulation, 23},
+    {"_sdem_execute_ekf_prediction", (DL_FUNC) &_sdem_execute_ekf_prediction, 20},
+    {"_sdem_execute_ekf_simulation", (DL_FUNC) &_sdem_execute_ekf_simulation, 23},
     {NULL, NULL, 0}
 };
 
-RcppExport void R_init_ctsmrTMB(DllInfo *dll) {
+RcppExport void R_init_sdem(DllInfo *dll) {
     R_registerRoutines(dll, NULL, CallEntries, NULL, NULL);
     R_useDynamicSymbols(dll, FALSE);
 }
