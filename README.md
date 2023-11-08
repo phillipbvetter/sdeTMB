@@ -51,9 +51,9 @@ This methods documentation is also available on the [homepage](https://phillipbv
 ## Example Usage
 
 ```r
-library(sdem)
 library(ggplot2)
 library(patchwork)
+library(dplyr)
 
 ############################################################
 # Data simulation
@@ -66,20 +66,24 @@ pars = c(theta=10, mu=1, sigma_x=1, sigma_y=1e-2)
 dt.sim = 1e-3
 t.sim = seq(0,1,by=dt.sim)
 dw = rnorm(length(t.sim)-1,sd=sqrt(dt.sim))
+u.sim = rnorm(length(t.sim))
 x = 3
 for(i in 1:(length(t.sim)-1)) {
-  x[i+1] = x[i] + pars[1]*(pars[2]-x[i])*dt.sim + pars[3]*dw[i]
+  x[i+1] = x[i] + pars[1]*(pars[2]-x[i]+u.sim[i])*dt.sim + pars[3]*dw[i]
 }
 
 # Extract observations and add noise
 dt.obs = 1e-2
 t.obs = seq(0,1,by=dt.obs)
 y = x[t.sim %in% t.obs] + pars[4] * rnorm(length(t.obs))
+# forcing input
+u = u.sim[t.sim %in% t.obs]
 
 # Create data
 .data = data.frame(
   t = t.obs,
-  y = y
+  y = y,
+  u = u
 )
 
 ############################################################
@@ -98,7 +102,7 @@ obj$set_cppfile_directory("cppfiles")
 
 # Add system equations
 obj$add_systems(
-  dx ~ theta * (mu-x) * dt + sigma_x*dw
+  dx ~ theta * (mu-x+u) * dt + sigma_x*dw
 )
 
 # Add observation equations
@@ -118,19 +122,27 @@ obj$add_algebraics(
   sigma_y ~ exp(logsigma_y)
 )
 
+# Add vector input
+obj$add_inputs(u)
+
 # Specify parameter initial values and lower/upper bounds in estimation
 obj$add_parameters(
-  logtheta    = log(c(init = 1, lower=1e-5, upper=50)),
-  mu          = c(init=1.5, lower=0, upper=5),
-  logsigma_x  = log(c(init= 1e-1, lower=1e-10, upper=10)),
-  logsigma_y  = log(c(init=1e-1, lower=1e-10, upper=10))
+  logtheta    = log(c(initial = 1, lower=1e-5, upper=50)),
+  mu          = c(initial=1.5, lower=0, upper=5),
+  logsigma_x  = log(c(initial= 1e-1, lower=1e-10, upper=10)),
+  logsigma_y  = log(c(initial=1e-1, lower=1e-10, upper=10))
 )
 
 # Set initial state mean and covariance
 obj$set_initial_state(x[1], 1e-1*diag(1))
 
 # Carry out estimation using extended kalman filter method with stats::nlminb as optimizer
-fit <- obj$estimate(data=.data, method="ekf", ode.solver="rk4", use.hessian=TRUE)
+fit <- obj$estimate(data=.data, 
+                    method="ekf", 
+                    ode.solver="rk4", 
+                    use.hessian=TRUE,
+                    compile=FALSE
+)
 
 # Check parameter estimates against truth
 p0 = fit$par.fixed
@@ -145,30 +157,63 @@ plot1 = ggplot() +
   geom_line(aes(x=t.est, x.mean),col="steelblue",lwd=1) +
   geom_line(aes(x=t.sim,y=x)) + 
   geom_point(aes(x=t.obs,y=y),col="tomato",size=2) +
+  labs(title="1-Step State Estimates vs Observations", x="Time", y="") +
   theme_minimal()
 
 # Predict to obtain k-step-ahead predictions to see model forecasting ability
-pred = obj$predict(data=.data, k.ahead=10, method="ekf", ode.solver="euler", initial.state=model$get_initial_state())
-
-# Simulate to obtain k-step-ahead predictions to see more accurate model forecasting ability
-sim = obj$simulate(data=.data, k.ahead=10, method="ekf", ode.solver="euler", initial.state=model$get_initial_state())
+pred.list = obj$predict(data=.data, 
+                        k.ahead=10, 
+                        method="ekf", 
+                        ode.solver="euler", 
+                        initial.state=obj$get_initial_state()
+)
 
 # Create plot all 10-step predictions against data
-pred10step = pred[pred$k.ahead==10,]
+pred = pred.list$states
+pred10step = pred %>% dplyr::filter(k.ahead==10)
 plot2 = ggplot() +
-  geom_point(aes(x=t.obs,y=y),color="steelblue") +
-  geom_point(aes(x=pred10step$t.j,pred10step$x),color="tomato") +
-  geom_errorbar(aes(x=pred10step$t.j, 
-                    ymin=pred10step$x-2*sqrt(pred10step$var.x), 
-                    ymax=pred10step$x+2*sqrt(pred10step$var.x)),color="tomato") +
+  geom_ribbon(aes(x=pred10step$t.j, 
+                  ymin=pred10step$x-2*sqrt(pred10step$var.x),
+                  ymax=pred10step$x+2*sqrt(pred10step$var.x)),fill="grey", alpha=0.9) +
+  geom_line(aes(x=pred10step$t.j,pred10step$x),color="steelblue",lwd=1) +
+  geom_point(aes(x=t.obs,y=y),color="tomato",size=2) +
+  labs(title="10 Step Predictions vs Observations", x="Time", y="") +
   theme_minimal()
 
+# Perform full prediction without data update
+pred.list = obj$predict(data=.data, 
+                        k.ahead=1e6, 
+                        method="ekf", 
+                        ode.solver="euler", 
+                        initial.state=obj$get_initial_state()
+)
+
+# Perform full simulation without data update
+sim.list = obj$simulate(data=.data, 
+                        k.ahead=1e6, 
+                        method="ekf", 
+                        ode.solver="euler", 
+                        initial.state=obj$get_initial_state()
+)
+sim.df = sim.list$x$t0 %>% 
+  t %>% 
+  cbind(tj=sim.list$prediction_times$t0,.) %>%
+  reshape2::melt(., id.var="t.j")
+
+plot3 = ggplot() +
+  geom_line(data=sim.df, aes(x=t.j, y=value, group=variable),color="grey") +
+  geom_line(aes(x=pred.list$states$t.j,y=pred.list$states$x),color="steelblue") +
+  geom_point(aes(x=t.obs,y=y),color="tomato",size=2) +
+  labs(title="No Update Prediction and Simulations vs Observations", x="Time", y="") +
+  theme_minimal() + theme(legend.position = "none")
+
+# geom_line(aes(x=sim$prediction_times$t0, y=sim.plot.data$value, color=sim.plot.data$id)) 
+
 # Draw both plots
-plot1 / plot2
+plot1 / plot2 / plot3
 
-# Plot one-step-ahead residual analysis
-plot(fit)
-
+# Plot one-step-ahead residual analysis using the command below
+# plot(fit)
 ```
 
 
