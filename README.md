@@ -44,9 +44,9 @@ You can visit the package [webpage](https://phillipbvetter.github.io/ctsmrTMB/in
 ## Help
 You can access the documentation for the available methods via
 ``` r
-?ctsmrTMB
+?sdem
 ```
-This methods documentation is also available on the [homepage](https://phillipbvetter.github.io/ctsmrTMB/reference/ctsmrTMB.html).
+but it can't be accessed directly i.e. `?sdem::estimate` or similar will not work. The methods documentation is also available on the [homepage](https://phillipbvetter.github.io/ctsmrTMB/reference/ctsmrTMB.html).
 
 ## Example Usage
 
@@ -54,6 +54,7 @@ This methods documentation is also available on the [homepage](https://phillipbv
 library(ggplot2)
 library(patchwork)
 library(dplyr)
+library(sdem)
 
 ############################################################
 # Data simulation
