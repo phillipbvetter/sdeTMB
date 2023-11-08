@@ -19,18 +19,27 @@ License: GPL-3
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.2.1
+Config/testthat/edition: 3
 Depends:
 	R (>= 3.0.0)
-Imports: 
+Imports:
+	TMB,
+	R6,
 	Deriv,
-	patchwork,
-    	R6,
-    	stats,
-    	TMB,
 	stringr,
+    	stats,
+	Rcpp,
+	RcppEigen,
+	RcppXPtrUtils,
+	RcppZiggurat
+LinkingTo:
+	Rcpp,
+	RcppEigen,
+	RcppZiggurat
+Suggests:
+	testthat (>= 3.0.0),
+	patchwork,
 	ggplot2,
 	ggfortify
-Suggests: 
-    testthat (>= 3.0.0)
-URL: https://phillipbvetter.github.io/ctsmrTMB, https://github.com/phillipbvetter/ctsmrTMB
-Config/testthat/edition: 3
+URL: 
+	https://phillipbvetter.github.io/ctsmrTMB, https://github.com/phillipbvetter/ctsmrTMB

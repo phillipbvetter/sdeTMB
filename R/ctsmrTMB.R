@@ -1,38 +1,55 @@
-#' @title Constructor for R6 ctsmrTMB class
-#' @description Call ctsmrTMB$new() to construct a new instance of the class object
-#' for specifying a new stochastic state space model.
-#' @returns A model object of class 'ctsmrTMB'
+#' @title R6 Constructor for 'ctsmrTMB'
+#' 
+#' @description The constructor is used to create a new instance of the ctsmsrTMB.
+#'
+#' @details this is some detailed package information
+#' 
+#' \code{new.model = ctsmrTMB$new()}
+#' 
+#' @returns an object of class 'ctsmrTMB'
+#' 
+#' @docType package
+#' @name ctsmrTMB
 #' @export
 ctsmrTMB = R6::R6Class(
+  
+  # Class name
   classname = "ctsmrTMB",
-  # public fields
+  
+  
+  # Public Fields and Methods
   public = list(
-    #' @description Construct a new ctsmrTMB model object.
+    
+    ########################################################################
+    # INITIALIZE FIELDS
+    ########################################################################
+    #' @description 
+    #' Initialize private fields
     initialize = function() {
-      # public fields
-      # modelname
+      # modelname and path
       private$modelname = "sde_model"
       private$cppfile.directory = getwd()
       private$cppfile.path = paste(getwd(),"/",private$modelname,sep="")
       private$cppfile.path.with.method = NULL
       private$modelname.with.method = NULL
+      
       # model equations
       private$sys.eqs = NULL
       private$obs.eqs = NULL
       private$obs.var = NULL
       private$alg.eqs = NULL
-      private$inputs = list(list(input=quote(t)))
-      names(private$inputs) = "t"
-      private$constants = NULL
+      private$inputs = list(t=list(name="t",input=quote(t)))
       private$parameters = NULL
       private$initial.state = NULL
       private$pred.initial.state = list(mean=NULL,cov=NULL)
       private$tmb.initial.state.for.parameters = NULL
       private$iobs = NULL
+      
       # after algebraics
       private$sys.eqs.trans = NULL
       private$obs.eqs.trans = NULL
       private$obs.var.trans = NULL
+      
       # options
       private$method = "ekf"
       private$use.hessian = FALSE
@@ -44,82 +61,109 @@ ctsmrTMB = R6::R6Class(
       private$silent = FALSE
       private$map = NULL
       private$control.nlminb = list()
-      private$algo = NULL
+      private$ode.solver = NULL
+      
       # hidden
-      private$linear = NULL
+      private$lock.model = FALSE
       private$fixed.pars = NULL
       private$free.pars = NULL
-      private$trigger = NULL
+      
       # names
       private$state.names = NULL
       private$obs.names = NULL
       private$obsvar.names = NULL
       private$input.names = "t"
       private$parameter.names = NULL
-      private$constant.names = NULL
+      
       # lengths
-      private$n = 0
-      private$m = 0
-      private$ng = 0
+      private$number.of.states = 0
+      private$number.of.observations = 0
+      private$number.of.diffusions = 0
+      private$number.of.pars = 0
+      private$number.of.inputs = 0
+      
       # differentials
       private$diff.processes = NULL
       private$diff.terms = NULL
-      # build flag
-      private$build = FALSE
+      private$diff.terms.obs = NULL
+      
       # data, nll, opt
       private$data = NULL
       private$nll = NULL
       private$opt = NULL
       private$fit = NULL
+      
       # predict
       private$pred.bool = 0
       private$n.ahead = 0
       private$last.pred.index = 0
+      
+      # Rcpp Prediction
+      private$Rcppfunction_f = NULL
+      private$Rcppfunction_g = NULL
+      private$Rcppfunction_dfdx = NULL
+      private$Rcppfunction_h = NULL
+      private$Rcppfunction_dhdx = NULL
+      private$Rcppfunction_hvar = NULL
     },
+    
     ########################################################################
+    # ADD SYSTEMS
     ########################################################################
     #' @description 
-    #' Define and add multiple stochastic differential equation governing the process of individual state variables 
-    #' on the form 
+    #' Define and add multiple stochastic differential equation governing the 
+    #' process of individual state variables on the form 
     #' 
     #' \code{d<state> ~ f(t,<states>,<inputs>) * dt + g1(t,<states>,<inputs>) * dw1 
-    #'                                          + g2(t,<states>,<inputs>) * dw2 
-    #'                                            + ...}
+    #' + g2(t,<states>,<inputs>) * dw2 + ... + gN(t,<states>,<inputs>) * dwN}
     #'                                            
-    #' where \code{f} is the drift, and \code{g1, g2, ...} are diffusions, with differential brownian motions dw1, dw2, ...
+    #' where \code{f} is the drift, and \code{g1, g2, ..., gN} are diffusions, with 
+    #' differential brownian motions dw1, dw2, ..., dwN.
     #' 
     #' @examples 
     #' # Specify Ornstein-Uhlenbeck Process
-    #' add_systems(dX ~ theta * (mu - X + u) * dt + sigma * dw)
+    #' add_systems(dx ~ theta * (mu - x + u) * dt + sigma * dw)
+    #'              
+    #' @param form formula specifying the stochastic differential equation to be 
+    #' added to the system.
+    #' @param ... additional formulas similar to \code{form} for specifying 
+    #' multiple equations at once.
     #' 
-    #' # Specify Lokta-Volterra System of Equations
-    #' add_systems( dN ~ ( r * N * (1-N/K) - c*N*P/(N+Nbar) ) * dt + sigmaN * N * dw1,
-    #'              dP ~ ( eps*c*N*P/(N+Nbar) - mu * P ) * dt + sigmaP * P * dw2 )
-    #' @param form formula specifying the stochastic differential equation to be added to the system.
-    #' @param ... additional formulas similar to \code{form} for specifying multiple equations at once.
     add_systems = function(form,...) {
-      # lapply for multi-arguments
+      
+      if(private$lock.model){
+        stop("The model is locked after applying algebraics")
+      }
+      
+      # store each provided formula
       lapply(c(form,...), function(form) {
-        # Function Body
-        res = check_system_eqs(form, self, private)
-        check_name(names(res), "state", self, private)
-        private$sys.eqs[[names(res)]] = res[[1]]
+        
+        # Check if the system equation is valid
+        result = check_system_eqs(form, self, private)
+        
+        # Check if name is not used for something else
+        check_if_name_is_overwritable(result$name, "state", self, private)
+        
+        # Update equations and names
+        private$sys.eqs[[result$name]] = result
         private$state.names = names(private$sys.eqs)
-        # Function Body
+        
       })
-      #
       return(invisible(self))
     },
+    
     ########################################################################
+    # ADD OBSERVATIONS
     ########################################################################
     #' @description
-    #' Define and add a relationship between an observed variable and system states. The observation equation
-    #' takes the form
+    #' Define and add a relationship between an observed variable and system states. 
+    #' The observation equation takes the form
     #' 
     #' \code{<observation> ~ h(t,<states>,<inputs>) + e)}
     #' 
-    #' where \code{h} is the observation function, and \code{e} is normally distributed noise with zero mean and variance
-    #' to be specified. The observation variable should be present in the data provided when calling
+    #' where \code{h} is the observation function, and \code{e} is normally 
+    #' distributed noise with zero mean and variance to be specified. The 
+    #' observation variable should be present in the data provided when calling
     #' \code{estimate(.data)} for parameter estimation.
     #'  
     #' @examples
@@ -134,7 +178,12 @@ ctsmrTMB = R6::R6Class(
     #' consists of more than just a single variable name (when its class is 'call' instead of 'name') it will be 
     #' given a name on the form obs__# where # is a number, unless obsnames is provided.
     add_observations = function(form,...,obsnames=NULL) {
-      # check if obsnames is given
+      
+      if(private$lock.model){
+        stop("The model is locked after applying algebraics")
+      }
+      
+      # Check obsnames
       if(!is.null(obsnames)){
         if(length(c(form,...))!=length(obsnames)){
           stop("You must supply as many observation names as there are observation equations")
@@ -143,90 +192,126 @@ ctsmrTMB = R6::R6Class(
           stop("The observation names in obsnames must be characters")
         }
       }
-      # attach observation name to the each formula in list
+      
+      # attach observation names to the each formula in list
       formlist = lapply(c(form,...), function(form) list(form=form))
       for(i in seq_along(formlist)){formlist[[i]]$name = obsnames[i]}
       
-      # lapply over all provided formulas
-      lapply(formlist, function(form) {
-        # Function Body
-        res = check_observation_eqs(form, self, private)
-        check_name(names(res), "obs", self, private)
-        private$obs.eqs[[names(res)]] = res[[1]]
+      # store each provided formula
+      lapply(formlist, function(forms) {
+        # Check if the equation is valid
+        result = check_observation_eqs(forms, self, private)
+        
+        # Check if name is not used for something else
+        check_if_name_is_overwritable(result$name, "obs", self, private)
+        
+        # Update equations and names
+        private$obs.eqs[[result$name]] = result
         private$obs.names = names(private$obs.eqs)
-        private$obs.var[[names(res)]] = list()
-        # Function Body
+        
+        # Create space in the observation variances for the observation name
+        private$obs.var[[result$name]] = list()
       })
       
       return(invisible(self))
     },
+    
     ########################################################################
+    # ADD OBSERVATION VARIANCES
     ########################################################################
     #' @description Specify the variance of an observation equation.
     #' 
     #' A defined observation variable \code{y} in e.g. \code{add_observations(y ~ 
-    #' h(t,<states>,<inputs>)} is pertubed by Gaussian noise with zero mean and variance 
-    #' to-be specified using \code{add_observation_variances(y ~ p(t,<states>,<inputs>)}. We can
-    #' for instance declare \code{add_observation_variances(y ~ sigma_x^2} where \code{sigma_x} 
-    #' is a fixed effect parameter to be declared through \code{add_parameters}.
+    #' h(t,<states>,<inputs>)} is pertubed by Gaussian noise with zero mean and 
+    #' variance 
+    #' to-be specified using \code{add_observation_variances(y ~ p(t,<states>,<inputs>)}. 
+    #' We can for instance declare \code{add_observation_variances(y ~ sigma_x^2} 
+    #' where \code{sigma_x} is a fixed effect parameter to be declared through 
+    #' \code{add_parameters}.
     #' 
-    #' @param form formula class specifying the obsevation equation to be added to the system.
-    #' @param ... additional formulas identical to \code{form} to specify multiple observation equations at a time.
+    #' @param form formula class specifying the obsevation equation to be added 
+    #' to the system.
+    #' @param ... additional formulas identical to \code{form} to specify multiple 
+    #' observation equations at a time.
+    #' 
     add_observation_variances = function(form,...) {
-      # lapply for multi-arguments
+      
+      if(private$lock.model){
+        stop("The model is locked after applying algebraics")
+      }
+      
+      # store each provided formula
       lapply(c(form,...), function(form) {
-        # Function Body
-        res = check_observation_variance_eqs(form, self, private)
-        check_name(names(res), "obsvar", self, private)
-        private$obs.var[[names(res)]] = res[[1]]
+        # Check if the equation is valid
+        result = check_observation_variance_eqs(form, self, private)
+        
+        # Check if name is not used for something else
+        check_if_name_is_overwritable(result$name, "obsvar", self, private)
+        
+        # Update equations and names
+        private$obs.var[[result$name]] = result
         private$obsvar.names = names(private$obs.var)
-        # Function Body
+        
       })
       
       return(invisible(self))
     },
+    
     ########################################################################
+    # ADD INPUTS
     ########################################################################
     #' @description Declare variables as data inputs
     #' 
-    #' Declare whether a variable contained in system, observation or observation variance equations 
-    #' is an input variable. If e.g. the system equation contains an input variable \code{u} then it
-    #' is declared using \code{add_inputs(u)}. The input \code{u} must be contained in the 
-    #' data.frame \code{.data} provided when calling the \code{estimate} or \code{predict} methods.
+    #' Declare whether a variable contained in system, observation or observation 
+    #' variance equations is an input variable. If e.g. the system equation contains 
+    #' an input variable \code{u} then it is declared using \code{add_inputs(u)}. 
+    #' The input \code{u} must be contained in the data.frame \code{.data} provided 
+    #' when calling the \code{estimate} or \code{predict} methods.
     #' 
-    #' @param ... unquoted variable names that specifies the name of input variables in the defined system.
+    #' @param ... variable names that specifies the name of input variables in the defined system.
+    #' 
     add_inputs =  function(...) {
+      
+      # if(private$lock.model){
+      #   stop("The model is locked after applying algebraics")
+      # }
+      
       args = as.list(match.call()[-1])
-      # lapply for multi-arguments
+      
+      # lapply over all parsed inputs
       lapply(args, function(args) {
-        # Function Body
-        res = check_inputs(args, self, private)
-        check_name(names(res), "input", self, private)
-        private$trigger = is_this_a_new_name(names(res),private$input.names)
-        private$inputs[[names(res)]] = res[[1]]
+        
+        # Check if the equation is valid
+        result = check_inputs(args, self, private)
+        
+        # Check if name is not used for something else
+        check_if_name_is_overwritable(result$name, "input", self, private)
+        
+        # Update equations and names
+        private$inputs[[result$name]] = result
         private$input.names = names(private$inputs)
-        # Function Body
       })
       #
       return(invisible(self))
     },
+    
     ########################################################################
+    # ADD PARAMETERS
     ########################################################################
-    #' @description Declare variables as fixed effects and specify their initial value, lower and
-    #' upper bound used when calling the maximum likelihood optimization.
+    #' @description Declare which variables that are (fixed effects) parameters in
+    #' the specified model, and specify the initial optimizer value, as well as
+    #' lower / upper bounds during optimization. There are two ways to declare parameters:
     #' 
-    #' There are two ways to declare parameters. You can declare parameters using formulas i.e.
-    #' \code{add_parameters( theta = c(1,0,10), mu = c(0,-10,10) )}, where the values are initial,
-    #' lower and upper bound respectively. Alternatively you can provide a 3-column matrix where
-    #' rows corresponds to different parameters, and the parameter names are provided as rownames
-    #' of the matrix.
+    #' 1. You can declare parameters using formulas i.e. \code{add_parameters( 
+    #' theta = c(1,0,10), mu = c(0,-10,10) )}. The first value is the initial 
+    #' value for the optimizer, the second value is the lower optimization 
+    #' bound and the third value is the upper optimization bound. 
+    #' 
+    #' 2. You can provide a 3-column matrix where rows corresponds to different 
+    #' parameters, and the parameter names are provided as rownames of the matrix. 
+    #' The columns values corresponds to the description in the vector format above.
     #'
-    #' @param ... formula whose left-hand side is the parameter name, and right hand side is a vector
-    #' of length 3 with inital value, lower and upper bound respectively. You can provide multiple
-    #' parameters at once by seperating formulas with comma.
-    #' @param parameter.matrix matrix of 3 columns where rows correspond to variables. The variable
-    #' names must be provided as rownames to the matrix. The columns are initial value, lower and 
-    #' upper bound respectively.
+    #' @param ... a named vector or matrix as described above.
     add_parameters = function(...) {
       
       if(nargs()==0L){stop("No arguments received")}
@@ -238,50 +323,51 @@ ctsmrTMB = R6::R6Class(
       # run over each parameter argument either a vector or a matrix
       lapply(seq_along(arglist), function(i) {
         
+        # grab vector or matrix from list of parsed arguments
         par.entry = arglist[[i]]
         par.name = argnames[i]
         
-        #### for vector inputs ####
+        ##### VECTOR INPUTS #####
         if(is.vector(par.entry)){
-          check_parameter_vector(par.entry, par.name, self, private)
-          check_name(par.name, "pars", self, private)
-          # 
-          entry.names = c("initial","lower","upper")
-          if(length(par.entry)==3){
-            bool = all(entry.names %in% names(par.entry))
-            if(!bool){
-              names(par.entry) = c("initial","lower","upper")
-            }
-          } else if (length(par.entry)==1) {
-            length(par.entry) = 3
-            names(par.entry) = c("initial","lower","upper")
-          }
-          # 
-          private$trigger = is_this_a_new_name(par.name, private$parameter.names)
-          private$parameters[[par.name]] = list(initial=par.entry["initial"], lower=par.entry["lower"], upper=par.entry["upper"])
+          
+          # check basics
+          par.entry = check_parameter_vector(par.entry, par.name, self, private)
+          
+          # check name
+          check_if_name_is_overwritable(par.name, "pars", self, private)
+          
+          # set expected names names
+          expected.names = c("initial","lower","upper")
+          
+          # store in parameter list ordered
+          private$parameters[[par.name]] = as.list(par.entry[expected.names])
           
           # set or remove a fixed parameter (NA-bounds)
-          if(all(is.na(par.entry[c(2,3)]))){
+          private$fixed.pars[[par.name]] = NULL
+          if (all(is.na(par.entry[c("lower","upper")]))){
+            
             private$fixed.pars[[par.name]] = factor(NA)
-          } else {
-            private$fixed.pars[[par.name]] = NULL
+            
           }
           
           # update parameter names
           private$parameter.names = names(private$parameters)
           
-          #### for matrix inputs ####  
+          ##### MATRIX/DATA.FRAME INPUTS #####  
         } else if (is.matrix(par.entry) | is.data.frame(par.entry)){
+          
           check_parameter_matrix(par.entry, self, private)
+          
           parnames = rownames(par.entry)
-          par.entry = par.entry[,c("initial","lower","upper")]
+          # par.entry = par.entry[,c("initial","lower","upper")]
           
           # lapply over all matrix rows
           lapply( 1:nrow(par.entry), function(i) {
             parname = parnames[i]
-            check_name(parname, "pars", self, private)
-            private$trigger = is_this_a_new_name(parname, private$parameter.names)
-            private$parameters[[parname]] = list(initial=par.entry[i,"initial"], lower=par.entry[i,"lower"], upper=par.entry[i,"upper"])
+            check_if_name_is_overwritable(parname, "pars", self, private)
+            private$parameters[[parname]] = list(initial = par.entry[i,"initial"], 
+                                                 lower = par.entry[i,"lower"], 
+                                                 upper = par.entry[i,"upper"])
             
             # set or remove a fixed parameter (NA-bounds)
             if(all(is.na(par.entry[i,c("lower","upper")]))){
@@ -293,8 +379,12 @@ ctsmrTMB = R6::R6Class(
             # update parameter names
             private$parameter.names = names(private$parameters)
           })
+          
+          ##### ELSE STOP #####  
         } else {
+          
           stop("You can only supply parameter vectors or matrices/data.frames")
+          
         }
         
       })
@@ -302,7 +392,9 @@ ctsmrTMB = R6::R6Class(
       # return
       return(invisible(self))
     },
+    
     ########################################################################
+    # ADD ALGEBRAICS
     ########################################################################
     #' @description Add algebraic relations.
     #' 
@@ -318,57 +410,27 @@ ctsmrTMB = R6::R6Class(
     #' @param form formula specifying the stochastic differential equation(s) to be added to the system.
     #' @param ... additional formulas similar to \code{form} for specifying multiple equations at once.
     add_algebraics = function(form,...) {
+      
+      # You are not allowed to change the model after you add algebraics
+      private$lock.model = TRUE
+      
       lapply(c(form,...), function(form) {
-        # Function Body
-        res = check_algebraics(form, self, private)
-        private$alg.eqs[[names(res)]] = res[[1]]
         
-        # Check if algebraic redefines a parameter, and if yes; remove that parameter
-        remove_parameter(names(res), self, private)
-        # Function Body
+        # Check if the equation is valid
+        result = check_algebraics(form, self, private)
+        
+        # Update equations
+        private$alg.eqs[[result$name]] = result
+        
+        # Remove potentially redefined parameters
+        remove_parameter(result$name, self, private)
       })
       
       return(invisible(self))
     },
+    
     ########################################################################
-    ########################################################################
-    #' @description Declare variables as scalar constants.
-    #'
-    #' @param form formula whose left-hand side is the constant variable name, and the right-hand side
-    #' is its numeric value.
-    #' @param ... additional formulas similar to \code{form} for specifying multiple constants at once.
-    # add_constants = function(form,...) {
-    #   lapply(c(form,...), function(form) {
-    #     # Function Body
-    #     res = check_constants(form, self, private)
-    #     check_name(names(res), "constants", self, private)
-    #     private$trigger = is_this_a_new_name(names(res),private$constant.names)
-    #     private$constants[[names(res)]] = res[[1]]
-    #     private$constant.names = names(private$constants)
-    #     # Function Body
-    #   })
-    #   #
-    #   return(invisible(self))
-    # },
-    add_constants = function(...) {
-      if(nargs()==0L){stop("No arguments received")}
-      # 
-      arglist = list(...)
-      argnames = names(arglist)
-      lapply(seq_along(arglist), function(i) {
-        par.entry = arglist[[i]]
-        par.name = argnames[i]
-        # Function Body
-        check_constants(par.entry, self, private)
-        check_name(par.name, "constants", self, private)
-        # private$trigger = is_this_a_new_name(par.name, private$constant.names)
-        private$constants[[par.name]] = par.entry
-        private$constant.names = names(private$constants)
-        # Function Body
-      })
-      return(invisible(self))
-    },
-    ########################################################################
+    # SET INITIAL STATE
     ########################################################################
     #' @description Declare the initial state values i.e. mean and covariance for the system states.
     #' 
@@ -378,126 +440,188 @@ ctsmrTMB = R6::R6Class(
     #' shall be estimated as fixed effects parameters. The provided mean and covariance are then
     #' used as initial guesses
     #' 
-    set_initial_state = function(mean,cov, estimate=FALSE) {
+    set_initial_state = function(mean, cov, estimate=FALSE) {
       if (is.null(private$sys.eqs)) {
         stop("Please specify system equations first")
       }
+      
       if (!is.numeric(mean)) {
         stop("The mean vector is not a numeric")
       }
+      
       if (any(is.na(mean))) {
         stop("The mean vector contains NAs.")
       }
+      
       if (length(mean)!=length(private$sys.eqs)) {
         stop("The initial state vector should have length ",length(private$sys.eqs))
       }
+      
       if (!all(dim(cov)==c(length(private$sys.eqs),length(private$sys.eqs)))) {
         stop("The covariance matrix should be square with dimension ", length(private$sys.eqs))
       }
+      
       # convert scalar to matrix
       if(!is.matrix(cov) & is.numeric(cov) & length(cov)==1){
         cov = cov*diag(1)
       }
+      
       if (!is.numeric(cov)) {
         stop("The covariance matrix is not a numeric")
       }
+      
       if (any(is.na(cov))) {
         stop("The covariance matrix contains NAs")
       }
+      
       if (any(eigen(cov)$values < 0)){
         stop("The covariance matrix is not positive semi-definite")
       }
+      
       if (!isSymmetric.matrix(cov)){
         stop("The covariance matrix is symmetric")
       }
-      private$initial.state = list(mean=mean,cov=as.matrix(cov))
       
-      if(estimate){
-        # then we should add the states as fixed effects parameters?
-      }
+      # private$initial.state = list(mean=mean,cov=as.matrix(cov))
+      private$initial.state = list(x0=mean,p0=as.matrix(cov))
+      
+      # if(estimate){
+      # then we should add the states as fixed effects parameters?
+      # }
       
       return(invisible(self))
     },
+    
     ########################################################################
+    # SET LAMPERTI TRANSFORMATION
     ########################################################################
     #' @description Set a Lamperti Transformation
     #'
-    #' If the provided system equations have state dependent diffusion in of a few available ways
+    #' If the provided system equations have state dependent diffusion in a few available ways
     #' then it is advantageous to perform a transformation to remove the state dependence. This 
     #' comes at the cost of a more complicated drift function. The following types of state-dependence
     #' is currently supported
     #'
-    #' 0. If no transformation is desired choose 'identity' (default).
-    #'
-    #' 1. If the diffusion term is proportional to x * dw, then a log-transform is available
+    #' 1. 'identity' - when the diffusion is state-independent (default)
+    #' 2. 'log' - when the diffusion is proportional to to x * dw
+    #' 3. 'logit' - when the diffusion is proportional to x * (1-x) * dw
+    #' 4. 'sqrt-logit' - when the diffusion is proportional to sqrt(x * (1-x)) * dw
     #' 
-    #' 2. If the diffusion term is proportional to x * (1-x) * dw, then a logit-transform is available
-    #' 
-    #' 3. If the diffusion term is proportional to sqrt(x * (1-x)) * dw, then a sqrt-logit-transform 
-    #' is available
-    #' 
-    #' 4. If the diffusion term is proportional to x * (1-x^a) * dw, for a>0 then a power-logit
-    #' transform is available
-    #' 
-    #' @param transform character vector - one of either "identity, "log", "logit", "sqrt-logit", or "power-logit"
-    #' @param states a vector of the state names for which the chosen transformation is desired. The
-    #' default (NULL) is to apply the transformation to all state equations.
-    set_lamperti = function(transform,states=NULL) {
-      # must be a string
-      if (!(is.character(transform))) {
-        stop("You must pass a string")
+    #' @param transforms character vector - one of either "identity, "log", "logit", "sqrt-logit"
+    #' @param states a vector of the state names for which the specified transformations should be applied to. 
+    set_lamperti = function(transforms, states=NULL) {
+      
+      # remove repeated entries
+      states = unique(states)
+      
+      # Check if transformation is a string
+      if (!(is.character(transforms))) {
+        stop("Error: You must pass a (vector of) string(s)")
       }
-      if (!is.null(states)){
-        if (!(is.character(states))) {
-          stop("You must pass a vector of state names")
+      
+      # select all states if states=NULL
+      if(is.null(states)){
+        states = private$state.names
+      }
+      
+      # check if parsed state names are strings
+      if (!(is.character(states))) {
+        stop("Error: You must pass a vector of state names")
+      }
+      
+      #  do state names exist?
+      bool = !(states %in% names(private$sys.eqs))
+      if (any(bool)) {
+        stop("The following state names don't exist: \n\t ",paste(states[bool],collapse=", "))
+      }
+      
+      # The length of states and transformations must be equal
+      if( length(transforms) != length(states)){
+        
+        # Recycle if 1 transformation is supplied
+        if(length(transforms)==1){
+          
+          warning("You provided fewer transforms than states - recycling transformation")
+          transforms = rep(transforms,length(states))
+          
+        } else {
+          
+          # else throw an error
+          stop("Error: Mismatching number of transformations and states. You must pass either 
+               1) one transformation for all states, 
+               2) as many transformations as states - one for each of them.")
         }
-        bool = states %in% names(private$sys.eqs)
-        if (!all(bool)) {
-          stop("The following state names don't exist: \n\t ",states[!bool])
-        }
+        
       }
-      # available transforms
-      available_transforms = c("identity","log","logit","sqrt-logit","power-logit")
-      if (!(transform %in% available_transforms)) {
-        stop("That method is not available. Please choose one of the following instead: \n
-                  1. For 'dw' use no transform = 'identity' (default)
-                  2. For 'x * dw' use transform = 'log'
-                  3. For 'x * (1 - x) * dw' use transform = 'logit'
-                  4. For 'sqrt( x * (1 - x) ) * dw' use transform = 'sqrt-logit'
-                  5. For 'x * (1 - x^a) * dw' for a>0 use transform 'power-logit'")
+      
+      if(length(transforms) < length(states)){
+        
+        warning("You provided fewer transforms than states - recycling transformation")
+        transforms = rep(transforms,length(states))
+        
       }
-      private$lamperti = list(transform=transform,states=states)
+      
+      # check if requested transform is valid
+      available_transforms = c("identity","log","logit","sqrt-logit")
+      if (!all(transforms %in% available_transforms)) {
+        
+        stop("You requested a transform that is not available. Choose among these:
+             1. 'identity'
+             2. 'log'
+             3. 'logit'
+             4. 'sqrt-logit'")
+        
+      }
+      
+      # Store the transformation
+      private$lamperti = list(transforms=transforms, states=states)
+      
+      # return
       return(invisible(self))
     },
+    
     ########################################################################
+    # SET MODEL NAME
     ########################################################################
     #' @description Set modelname used to create the C++ file for TMB
     #'
-    #' When calling \code{TMB::MakeADFun} the (negative log) likelihood function is created in the
-    #' directory specified by the \code{set_cppfile_directory} method with name \code{<modelname>.cpp}
+    #' When calling \code{TMB::MakeADFun} the (negative log) likelihood function 
+    #' is created in the directory specified by the \code{set_cppfile_directory} 
+    #' method with name \code{<modelname>.cpp}
     #' 
     #' @param name string defining the model name.
     set_modelname = function(name) {
+      
       # was a string passed?
       if (!is.character(name)) {
         stop("The modelname must be a string")
       }
+      
+      # set options
       private$modelname = name
       private$cppfile.path = paste(private$cppfile.directory,"/",name,sep="")
+      
+      # return
+      return(invisible(self))
     },
+    
     ########################################################################
+    # SET CPP FILE DIRECTORY
     ########################################################################
     #' @description Set the path directory where the constructed C++ file is created.
     #' You should specify the entire path, unless you want to construct a subfolder
-    #' in the current working directory - then you can call e.g. \code{set_cppfile_directory("folder_in_current_wd")}.
+    #' in the current working directory - then you can call e.g. 
+    #' \code{set_cppfile_directory("folder_in_current_wd")}.
     #'
     #' @param directory string specifying a local directory
     set_cppfile_directory = function(directory) {
-      # was a string passed?
+      
+      # Check if string
       if (!is.character(directory)) {
         stop("You must pass a string")
       }
-      # create directory if it does not exist?
+      
+      # create directory if it does not exist
       if (!dir.exists(directory)) {
         message("The specified directory does not exist - creating it")
         dir.create(directory)
@@ -506,9 +630,13 @@ ctsmrTMB = R6::R6Class(
       
       # update private$cppfile.path by calling set_modelname
       self$set_modelname(private$modelname)
+      
+      # return
       return(invisible(self))
     },
+    
     ########################################################################
+    # SET MAXIMUM A POSTERIORI 
     ########################################################################
     #' @description Enable maximum a posterior (MAP) estimation.
     #'
@@ -519,86 +647,150 @@ ctsmrTMB = R6::R6Class(
     #' @param mean mean vector of the Gaussian prior parameter distribution
     #' @param cov covariance matrix of the Gaussian prior parameter distribution
     set_map = function(mean,cov) {
+      
+      # Test the inputs
       if (!is.numeric(mean)) {
         stop("The MAP mean vector is not numeric")
       }
+      
       if (length(mean)!=length(private$parameters)) {
         stop("The MAP parameter vector should have length ",length(private$parameters))
       }
+      
       if (!is.matrix(cov)) {
         stop("The MAP covariance matrix is not of class matrix")
       }
+      
       if (!all(dim(cov)==rep(length(private$parameters),2))) {
         stop("The MAP covariance matrix should be square with dimension ", length(private$parameters))
       }
+      
+      # Store the mean and covariance
       private$map = list(mean=mean,cov=cov)
+      
+      # Return
       return(invisible(self))
     },
+    
     ########################################################################
+    # GET SYSTEMS
     ########################################################################
     #' @description Retrieve system equations.
     get_systems = function() {
+      
+      # extract system formulas
       syseqs = lapply(private$sys.eqs,function(x) x$form)
+      
+      # return
       return(syseqs)
     },
+    
     ########################################################################
+    # GET OBSERVATIONS
     ########################################################################
     #' @description Retrieve observation equations.
     get_observations = function() {
+      
+      # extract observation formulas
       obseqs = lapply(private$obs.eqs,function(x) x$form)
+      
+      # return
       return(obseqs)
     },
+    
     ########################################################################
+    # GET OBSERVATION VARIANCES
     ########################################################################
     #' @description Retrieve observation variances
     get_observation_variances = function() {
+      
+      # extract observation variance formulas
       obsvar = lapply(private$obs.var,function(x) x$form)
+      
+      # return
       return(obsvar)
     },
+    
     ########################################################################
+    # GET ALGEBRAICS
     ########################################################################
     #' @description Retrieve algebraic relations
     get_algebraics = function() {
+      
+      # extract algebraic relation formulas
       algs = lapply(private$alg.eqs,function(x) x$form)
+      
+      # return
       return(algs)
     },
+    
     ########################################################################
+    # GET ALGEBRAICS
+    ########################################################################
+    #' @description Retrieve initially set state and covariance
+    get_initial_state = function() {
+      
+      
+      # extract algebraic relation formulas
+      initial.state = private$initial.state
+      
+      # return
+      return(initial.state)
+    },
+    
+    ########################################################################
+    # GET PARAMETER MATRIX
     ########################################################################
     #' @description Get initial (and estimated) parameters.
     get_parameters = function() {
       
+      # create return matrix
       .df = data.frame(matrix(NA,nrow=length(private$parameters),ncol=5))
       names(.df) = c("type","estimate", "initial","lower","upper")
       rownames(.df) = private$parameter.names
-      for(i in 1:nrow(.df)){
-        .df[i,3:5] = unlist(private$parameters[[i]])
-      }
-      .df[,"type"] = "free"
+      
+      # put parameters into it
+      .df[,c("initial","lower","upper")] = t(sapply(private$parameters,unlist))
+      .df[["type"]] = "free"
+      .df[["estimate"]] = .df[["initial"]]
       .df[names(private$fixed.pars),"type"] = "fixed"
-      .df[,"estimate"] = .df[,"initial"]
       
       if(is.null(private$fit)){
-        remove.names = "estimate"
-        .df = .df[,-(1:ncol(.df))[names(.df) %in% remove.names]]
+        # remove estimate if not fit has been generated
+        .df = .df[,-2]
       } else {
+        # if the fit exists then assign the free (estimate) parameters the estimated values
+        # from fit$par.fixed
         .df[names(private$free.pars),"estimate"] = private$fit$par.fixed[names(private$free.pars)]
       }
       
+      # return
       return(.df)
     },
+    
     ########################################################################
+    # CONSTRUCT NEG. LIKELIHOOD FUNCTION HANDLERS FROM TMB
     ########################################################################
     #' @description Construct and extract function handlers for the negative
     #' log likelihood function.
     #'
     #' The handlers from \code{TMB}'s \code{MakeADFun} are constructed and returned. 
-    #' This enables the user to e.g. determine their own optimization algorithm to use
-    #' for estimation.
+    #' This enables the user to e.g. choose their own optimization algorithm, or just
+    #' have more control of the optimization workflow.
     #' 
-    #' @param data data.frame containing time-vector 't', observations and inputs. The observations
-    #' can take \code{NA}-values.  
-    #' @param ode.timestep numeric value. Sets the time step-size in numerical filtering schemes. 
-    #' The defined step-size is used to calculate the number of steps between observation time-points as 
+    #' @param data a data.frame containing time-vector 't', observations and inputs. 
+    #' The observations can take \code{NA}-values.  
+    #' @param ode.timestep the time-step used in the filtering schemes. The
+    #' time-step has two different uses depending on the chosen method.
+    #' 
+    #' 1. Kalman Filters: The time-step is used when numerically solving the 
+    #' moment differential equations.
+    #' 2. Laplace Approximation: The time-step is used in the Euler-Maruyama
+    #' simulation scheme for simulating a sample path of the stochastic differential 
+    #' equation, which serves to link together the latent (random effects) states.
+    #' 
+    #' The defined step-size is used to calculate the number of steps between 
+    #' observation time-points as 
     #' defined by the provided \code{data}. If the calculated number of steps is larger than N.01 where N 
     #' is an integer, then the time-step is reduced such that exactly N+1 steps is taken between observations  
     #' The step-size is used in the two following ways depending on the
@@ -657,8 +849,8 @@ ctsmrTMB = R6::R6Class(
     #' 'Building Model', etc. Default behaviour (FALSE) is to print the messages.
     construct_nll = function(data,
                              method="ekf",
-                             ode.solver="euler",
-                             ode.timestep=min(diff(data$t)),
+                             ode.solver="rk4",
+                             ode.timestep=NULL,
                              loss="quadratic",
                              loss_c=3,
                              compile=FALSE,
@@ -669,25 +861,29 @@ ctsmrTMB = R6::R6Class(
       private$set_compile(compile)
       private$set_method(method)
       private$set_loss(loss,loss_c)
-      private$set_algo(ode.solver)
-      
-      # build model
-      if(!silent) message("Building model...")
-      private$build_model()
+      private$set_ode_solver(ode.solver)
       
       # check and set data
       if(!silent) message("Checking data...")
       check_and_set_data(data, self, private)
       
+      # build model
+      if(!silent) message("Building model...")
+      build_model(self, private)
+      # private$build_model()
+      
+      
       # construct neg. log-likelihood
       if(!silent) message("Constructing objective function...")
-      construct_nll(self, private)
+      construct_makeADFun(self, private)
       
       # return
       if(!silent) message("Succesfully returned function handlers")
       return(private$nll)
     },
+    
     ########################################################################
+    # ESTIMATE FUNCTION
     ########################################################################
     #' @description Estimate the fixed effects parameters in the specified model.
     #' 
@@ -758,49 +954,51 @@ ctsmrTMB = R6::R6Class(
     #' @param silent logical value whether or not to suppress printed messages such as 'Checking Data',
     #' 'Building Model', etc. Default behaviour (FALSE) is to print the messages.
     estimate = function(data, 
-                        method="ekf",
-                        ode.solver="euler",
-                        ode.timestep=min(diff(data$t)),
-                        loss="quadratic",
-                        loss_c=3,
-                        use.hessian=FALSE,
-                        compile=FALSE,
-                        control=list(trace=1),
-                        silent=FALSE){
+                        method = "ekf",
+                        ode.solver = "rk4",
+                        ode.timestep = NULL,
+                        loss = "quadratic",
+                        loss_c = 3,
+                        use.hessian = FALSE,
+                        control = list(trace=1,iter.max=1e4,eval.max=1e4),
+                        compile = FALSE,
+                        silent = FALSE){
       
-      # set flags
       if(method=="ukf"){
         stop("The Unscented Kalman Filter method is currently disabled. Please try 'ekf' or 'tmb'")
       }
-      private$use_hessian(use.hessian)
-      private$set_timestep(ode.timestep)
+      
+      # settings and flags
       private$set_compile(compile)
       private$set_method(method)
-      private$set_loss(loss,loss_c)
+      private$set_ode_solver(ode.solver)
+      private$set_timestep(ode.timestep)
+      private$use_hessian(use.hessian)
+      private$set_loss(loss, loss_c)
       private$set_control(control)
-      private$set_algo(ode.solver)
-      private$pred.bool = 0
-      
-      
-      # build model
-      if(!silent) message("Building model...")
-      private$build_model()
+      private$set_predict(FALSE)
       
       # check and set data
       if(!silent) message("Checking data...")
       check_and_set_data(data, self, private)
       
+      # build model
+      if(!silent) message("Building model...")
+      build_model(self ,private)
+      
       # construct neg. log-likelihood function
       if(!silent) message("Constructing objective function...")
-      construct_nll(self, private)
+      construct_makeADFun(self, private)
       
       # estimate
       if(!silent) message("Minimizing the negative log-likelihood...")
-      optimise_nll(self, private)
+      optimize_negative_loglikelihood(self, private)
+      
+      # exit if optimization failed
       if(is.null(private$opt)){
         return(invisible(NULL))
       }
-        
+      
       # create return fit
       create_return_fit(self, private)
       
@@ -808,6 +1006,7 @@ ctsmrTMB = R6::R6Class(
       return(invisible(private$fit))
     },
     ########################################################################
+    # PREDICT FUNCTION
     ########################################################################
     #' @description Perform prediction/filtration to obtain state mean and covariance estimates. The predictions are
     #' obtained by solving the moment equations \code{n.ahead} steps forward in time when using the current step posterior 
@@ -829,8 +1028,7 @@ ctsmrTMB = R6::R6Class(
     #' should be returned.
     #' @param return.covariance booelan value to indicate whether the covariance (instead of the correlation) 
     #' should be returned.
-    #' @param x0 numeric vector containing the initial expected state values 
-    #' @param p0 numeric matrix contianing the initial state covariances
+    #' @param initial.state whatever
     #' @param ode.timestep numeric value. Sets the time step-size in numerical filtering schemes. 
     #' The defined step-size is used to calculate the number of steps between observation time-points as 
     #' defined by the provided \code{data}. If the calculated number of steps is larger than N.01 where N 
@@ -847,18 +1045,168 @@ ctsmrTMB = R6::R6Class(
     #' @param ode.solver Sets the ODE solver used in the Kalman Filter methods for solving the moment 
     #' differential equations. The default "euler" is the Forward Euler method, alternatively the classical
     #' 4th order Runge Kutta method is available via "rk4".
-    #' @param compile boolean value. The default (\code{FALSE}) is to not compile the C++ objective
-    #' function but assume it is already compiled and corresponds to the specified model object. It is
-    #' the user's responsibility to ensure correspondence between the specified model and the precompiled
-    #' C++ object. If a precompiled C++ object is not found in the specified directory i.e. 
-    #' in \code{<cppfile_directory>/<modelname>/(dll/so)} then the compile flag is set to \code{TRUE}.
-    #' If the user makes changes to system equations, observation equations, observation variances, 
-    #' algebraic relations or lamperi transformations then the C++ object should be recompiled.
-    #' @param method character vector - one of either "ekf", "ukf" or "tmb". Sets the estimation 
-    #' method. The package has three available methods implemented:
+    #' @param method
+    #' 1. The natural TMB-style formulation where latent states are considered random effects
+    #' and are integrated out using the Laplace approximation. This method only yields the gradient
+    #' of the (negative log) likelihood function with respect to the fixed effects for optimization.
+    #' The method is slower although probably has some precision advantages, and allows for non-Gaussian
+    #' observation noise (not yet implemented). One-step / K-step residuals are not yet available in
+    #' the package.
+    #' 2. (Continous-Discrete) Extended Kalman Filter where the system dynamics are linearized
+    #' to handle potential non-linearities. This is computationally the fastest method.
+    #' 3. (Continous-Discrete) Unscented Kalman Filter. This is a higher order non-linear Kalman Filter
+    #' which improves the mean and covariance estimates when the system display high nonlinearity, and
+    #' circumvents the necessity to compute the jacobian of the drift and observation functions.
     #' 
-    #' ONLY EKF IS IMPLEMENTED CURRENTLY!!
+    #' All package features are currently available for the kalman filters, while TMB is limited to
+    #' parameter estimation. In particular, it is straight-forward to obtain k-step-ahead predictions
+    #' with these methods (use the \code{predict} S3 method), and stochastic simulation is also available 
+    #' in the cases where long prediction horizons are sought, where the normality assumption will be 
+    #' inaccurate.
+    #' @param silent logical value whether or not to suppress printed messages such as 'Checking Data',
+    #' 'Building Model', etc. Default behaviour (FALSE) is to print the messages.
+    #' @param n.sims number of simulations
+    #' @param simulation.timestep timestep used in the euler-maruyama scheme
     #' 
+    simulate = function(data,
+                        initial.state = NULL,
+                        pars = NULL,
+                        k.ahead = 1,
+                        n.sims = 100,
+                        return.k.ahead = NULL,
+                        method = "ekf",
+                        ode.timestep = NULL,
+                        simulation.timestep = NULL,
+                        ode.solver = "euler",
+                        return.covariance = TRUE,
+                        silent = FALSE){
+      
+      
+      
+      if(method!="ekf"){ stop("The predict function is currently only implemented for method = 'ekf'.") }
+      
+      ###### SET FLAGS #######
+      private$set_method(method)
+      private$set_ode_solver(ode.solver)
+      private$set_timestep(ode.timestep)
+      private$set_simulation_timestep(simulation.timestep)
+      
+      ###### CHECK DATA #######
+      if(is.null(data)){
+        if(is.null(private$data)){
+          stop("Please supply data to perform prediction.")
+        } else {
+          message("No data provided. Reusing the data provided in the lastest call to 'estimate' or 'construct_nll")
+          data = private$data
+        }
+      }
+      
+      ###### SET INITIAL STATE AND COVARIANCE VALUES #######
+      if(is.null(initial.state)){
+        stop("Please set provide an initial value for the state and covariance as a list with entries 'x0' and 'p0'")
+        # initial.state = list(x0=private$initial.state$mean, p0=private$initial.state$cov)
+      }
+      if(!is.list(initial.state)){
+        stop("The initial state argument must be a list with entries 'x0' and 'p0'")
+      }
+      if(length(initial.state) != 2){
+        stop("The initial state should only contain an entry x0 for the initial state, and p0 for the initial covariance")
+      }
+      private$set_pred_initial_state(initial.state$x0, initial.state$p0)
+      
+      
+      ###### CHECK AND SET DATA  #######
+      if(!silent) message("Checking data...")
+      check_and_set_data(data, self, private)
+      set_simulation_timestep(data, self, private)
+      
+      ###### BUILD MODEL #######
+      if(!silent) message("Building model...")
+      build_model_rcpp_pred(self, private)
+      
+      ###### SET PRED AHEAD FLAGS #######
+      private$set_n_ahead_and_last_pred_index(data, k.ahead)
+      if(is.null(return.k.ahead)){
+        return.k.ahead = 0:k.ahead
+      }
+      
+      ###### PARAMETERS #######
+      if(is.null(pars)){
+        if(!silent) message("No parameters were supplied - using estimated or initial values")
+        # if the estimation has been run, then use these parameters
+        if(!is.null(private$fit)){
+          pars = self$get_parameters()[,"estimate"]
+        } else {
+          pars = self$get_parameters()[,"initial"]
+        }
+      }
+      
+      ###### PERFORM PREDICTION #######
+      if(!silent) message("Compiling state space C++ functions...")
+      create_rcpp_statespace_functions(self, private)
+      
+      if(!silent) message("Simulating...")
+      predict.list = perform_rcpp_ekf_simulation(self, 
+                                                 private, 
+                                                 pars, 
+                                                 initial.state, 
+                                                 n.sims)
+      
+      # construct return data.frame
+      if(!silent) message("Constructing return data.frame...")
+      list.out = construct_simulate_rcpp_dataframe(pars,
+                                                   predict.list,
+                                                   data,
+                                                   return.covariance,
+                                                   return.k.ahead,
+                                                   self,
+                                                   private)
+      
+      # return
+      if(!silent) message("Finished.")
+      return(invisible(list.out))
+    },
+    ########################################################################
+    # PREDICT FUNCTION
+    ########################################################################
+    #' @description Perform prediction/filtration to obtain state mean and covariance estimates. The predictions are
+    #' obtained by solving the moment equations \code{n.ahead} steps forward in time when using the current step posterior 
+    #' state estimate as the initial condition. 
+    #' 
+    #' @return A data.frame that contains for each time step the posterior state estimate at that time.step (\code{k = 0}), and the
+    #' prior state predictions (\code{k = 1,...,n.ahead}). If \code{return.covariance = TRUE} then the state covariance/correlation 
+    #' matrix is returned, otherwise only the marginal variances are returned.
+    #' 
+    #' @param data data.frame containing time-vector 't', observations and inputs. The observations
+    #' can take \code{NA}-values.
+    #' @param pars fixed parameter vector parsed to the objective function for prediction/filtration. The default
+    #' parameter values used are the initial parameters provided through \code{add_parameters}, unless the \code{estimate}
+    #' function has been run, then the default values will be those at the found optimum.
+    #' @param k.ahead integer specifying the desired number of time-steps (as determined by the provided
+    #' data time-vector) for which predictions are made (integrating the moment ODEs forward in time without 
+    #' data updates).
+    #' @param return.k.ahead numeric vector of integers specifying which n.ahead predictions to that
+    #' should be returned.
+    #' @param return.covariance booelan value to indicate whether the covariance (instead of the correlation) 
+    #' should be returned.
+    #' @param initial.state whatever
+    #' @param ode.timestep numeric value. Sets the time step-size in numerical filtering schemes. 
+    #' The defined step-size is used to calculate the number of steps between observation time-points as 
+    #' defined by the provided \code{data}. If the calculated number of steps is larger than N.01 where N 
+    #' is an integer, then the time-step is reduced such that exactly N+1 steps is taken between observations  
+    #' The step-size is used in the two following ways depending on the
+    #' chosen method:
+    #' 1. Kalman filters: The time-step is used as the step-size in the
+    #' numerical Forward-Euler scheme to compute the prior state mean and
+    #' covariance estimate as the final time solution to the first and second
+    #' order moment differential equations.
+    #' 2. TMB method: The time-step is used as the step-size in the Euler-Maruyama
+    #' scheme for simulating a sample path of the stochastic differential equation,
+    #' which serves to link together the latent (random effects) states.
+    #' @param ode.solver Sets the ODE solver used in the Kalman Filter methods for solving the moment 
+    #' differential equations. The default "euler" is the Forward Euler method, alternatively the classical
+    #' 4th order Runge Kutta method is available via "rk4".
+    #' @param method
     #' 1. The natural TMB-style formulation where latent states are considered random effects
     #' and are integrated out using the Laplace approximation. This method only yields the gradient
     #' of the (negative log) likelihood function with respect to the fixed effects for optimization.
@@ -880,27 +1228,26 @@ ctsmrTMB = R6::R6Class(
     #' 'Building Model', etc. Default behaviour (FALSE) is to print the messages.
     #' 
     predict = function(data,
+                       initial.state = NULL,
                        pars = NULL,
                        k.ahead = 1,
                        return.k.ahead = NULL,
                        method = "ekf",
-                       ode.timestep = min(diff(data$t)),
+                       ode.timestep = NULL,
                        ode.solver = "euler",
-                       x0 = NULL,
-                       p0 = NULL,
                        return.covariance = TRUE,
-                       compile = FALSE,
                        silent = FALSE){
+      
+      
       
       if(method!="ekf"){ stop("The predict function is currently only implemented for method = 'ekf'.") }
       
-      # set flags
-      private$set_compile(compile)
+      ###### SET FLAGS #######
       private$set_method(method)
-      private$set_algo(ode.solver)
+      private$set_ode_solver(ode.solver)
       private$set_timestep(ode.timestep)
       
-      # check data
+      ###### CHECK DATA #######
       if(is.null(data)){
         if(is.null(private$data)){
           stop("Please supply data to perform prediction.")
@@ -910,60 +1257,73 @@ ctsmrTMB = R6::R6Class(
         }
       }
       
-      # set initial values
-      if(!is.null(x0) & !is.null(p0)){
-        private$set_pred_initial_state(x0,p0)
-      } else {
-        private$set_pred_initial_state(private$initial.state$mean,private$initial.state$cov)
+      ###### SET INITIAL STATE AND COVARIANCE VALUES #######
+      if(is.null(initial.state)){
+        stop("Please set provide an initial value for the state and covariance as a list with entries 'x0' and 'p0'")
+        # initial.state = list(x0=private$initial.state$mean, p0=private$initial.state$cov)
       }
+      if(!is.list(initial.state)){
+        stop("The initial state argument must be a list with entries 'x0' and 'p0'")
+      }
+      if(length(initial.state) != 2){
+        stop("The initial state should only contain an entry x0 for the initial state, and p0 for the initial covariance")
+      }
+      private$set_pred_initial_state(initial.state$x0, initial.state$p0)
       
-      # build model
-      if(!silent) message("Building model...")
-      private$build_model()
       
-      # check and set data
+      ###### CHECK AND SET DATA  #######
       if(!silent) message("Checking data...")
       check_and_set_data(data, self, private)
       
-      # set flags
+      ###### BUILD MODEL #######
+      if(!silent) message("Building model...")
+      build_model_rcpp_pred(self, private)
+      
+      ###### SET PRED AHEAD FLAGS #######
       private$set_n_ahead_and_last_pred_index(data, k.ahead)
-      private$pred.bool = 1
+      private$set_predict(TRUE)
       if(is.null(return.k.ahead)){
         return.k.ahead = 0:k.ahead
       }
       
-      # construct neg. log-likelihood function (stored in private$nll)
-      if(!silent) message("Constructing objective function...")
-      construct_nll(self, private)
-      
-      # check parameters
+      ###### PARAMETERS #######
       if(is.null(pars)){
-        pars = private$nll$par
+        if(!silent) message("No parameters were supplied - using estimated or initial values")
+        # if the estimation has been run, then use these parameters
         if(!is.null(private$fit)){
-          pars = private$fit$par.fixed
+          pars = self$get_parameters()[,"estimate"]
+        } else {
+          pars = self$get_parameters()[,"initial"]
         }
       }
       
-      # get predictions
+      ###### PERFORM PREDICTION #######
+      if(!silent) message("Compiling state space C++ functions...")
+      create_rcpp_statespace_functions(self, private)
+      
       if(!silent) message("Predicting...")
-      rep = private$nll$rep(pars)
+      predict.list = perform_rcpp_ekf_prediction(self, private, pars, initial.state)
       
       # construct return data.frame
       if(!silent) message("Constructing return data.frame...")
-      df.out = construct_predict_dataframe(pars, rep, data, return.covariance, return.k.ahead, self, private)
-
-      # reset prediction variable such that estimate and nll works fine
-      private$pred.bool = 0
+      df.out = construct_predict_rcpp_dataframe(pars,
+                                                predict.list,
+                                                data,
+                                                return.covariance,
+                                                return.k.ahead,
+                                                self,
+                                                private)
       
       # return
-      if(!silent) message("Succesfully returned predictions")
+      if(!silent) message("Finished.")
       return(invisible(df.out))
     },
     ########################################################################
+    # PRINT
     ########################################################################
-    # PRINT FUNCTION
     #' @description Function to print the model object
     print = function() {
+      
       n = length(private$sys.eqs)
       m = length(private$obs.eqs)
       p = length(private$inputs)-1
@@ -971,6 +1331,7 @@ ctsmrTMB = R6::R6Class(
       q = length(private$alg.eqs)
       par = length(private$parameters)
       fixedpars = length(private$fixed.pars)
+      
       # If the model is empty
       cat("Stochastic State Space Model:")
       basic.data = c(private$modelname,n,ng,m,p,par)
@@ -979,12 +1340,14 @@ ctsmrTMB = R6::R6Class(
                     "Parameters")
       mat=data.frame(basic.data,row.names=row.names,fix.empty.names=F)
       print(mat,quote=FALSE)
-      #
-      # if there are any state equations
+      
+      # STATE EQUATIONS
       if (n>0) {
         cat("\nSystem Equations:\n\n")
         lapply(private$sys.eqs,function(x) cat("\t",deparse1(x$form),"\n"))
       }
+      
+      # OBS EQUATIONS
       if (m>0) {
         cat("\nObservation Equations:\n\n")
         for (i in 1:length(private$obs.eqs)) {
@@ -996,46 +1359,40 @@ ctsmrTMB = R6::R6Class(
           }
         }
       }
+      
+      # ALGEBRAICS
       if (q>0) {
         cat("\nAlgebraic Relations:\n\n")
         for(i in 1:length(private$alg.eqs)){
           cat("\t",deparse1(private$alg.eqs[[i]]$form),"\n")
         }
       }
-      # if the algebraic transformations have occured
-      # if (!is.null(private$sys.eqs.trans)) {
-      #   cat("\nTransformed System Equations:\n\n")
-      #   lapply(private$sys.eqs.trans,function(x) cat("\t",deparse1(x$form),"\n"))
-      # }
-      # if the algebraic transformations have occured
-      # if (!is.null(private$obs.eqs.trans) | !is.null(private$obs.var.trans)) {
-      #   cat("\nTransformed Observation Equations:\n\n")
-      #   for (i in 1:length(private$obs.eqs)) {
-      #     bool = private$obs.names[i] %in% private$obsvar.names
-      #     if (bool) {
-      #       cat("\t",paste(names(private$obs.eqs)[i],": ",sep=""),deparse1(private$obs.eqs.trans[[i]]$form),"+ e", "\t","e ~ N(0,",paste0(deparse1(private$obs.var.trans[[i]]$rhs),")"),"\n")
-      #     } else {
-      #       cat("\t",paste(names(private$obs.eqs)[i],": ",sep=""),deparse1(private$obs.eqs[[i]]$form),"+ e", "\t","e ~ N(0,?)","\n")
-      #     }
-      #   }
-      # }
+      
+      # INPUTS
       if (p>1) {
         cat("\nInputs:\n")
         cat("\t", paste(private$input.names[!private$input.names %in% "t"],collapse=", "))
       }
+      
+      # PARAMETERS
       if (par>0) {
         cat("\n\nParameters:\n")
         cat("\t", paste(private$parameter.names,collapse=", "))
       }
+      
+      # FIXED PARAMETERS
       if (fixedpars>0) {
         cat("\n\nFixed Parameters:\n")
         cat("\t", paste(names(private$fixed.pars),collapse=", "))
       }
+      
+      # return
       return(invisible(self))
     },
+    
     ########################################################################
+    # SUMMARY
     ########################################################################
-    # SUMMARY FUNCTION
     #' @description Summary function for fit
     #' @param correlation boolean value. The default (\code{FALSE}) is to not provide the fixed effects parameter
     #' correlation matrix. 
@@ -1047,12 +1404,15 @@ ctsmrTMB = R6::R6Class(
         return(invisible(NULL))
       }
       
+      # return summary fit
       sumfit = summary(private$fit,correlation=correlation)
+      
       return(invisible(sumfit$parameters))
     },
+    
     ########################################################################
+    # PLOT USING GGPLOT
     ########################################################################
-    # PLOT FUNCTION
     #' @description Function to print the model object
     #' @param plot.obs a vector to indicate which observations should be plotted for. If multiple
     #' are chosen a list of plots for each observation is returned.
@@ -1076,40 +1436,48 @@ ctsmrTMB = R6::R6Class(
                       pacf=pacf,
                       extended=extended, 
                       ggtheme=ggtheme)
+      
+      # return
       return(invisible(plotlist))
     }
   ),
-  # private fields
+  
+  ########################################################################
+  # PRIVATE FIELDS
+  ########################################################################
   private = list(
-    # modelname
+    
+    # Model
     modelname = character(0),
     cppfile.directory = NULL,
     cppfile.path = character(0),
     cppfile.path.with.method = NULL,
     modelname.with.method = NULL,
-    # model equations
+    
+    # Equations
     sys.eqs = NULL,
     obs.eqs = NULL,
     obs.var = NULL,
     alg.eqs = NULL,
     inputs = NULL,
-    constants = NULL,
     parameters = NULL,
     initial.state = NULL,
     pred.initial.state = NULL,
     tmb.initial.state.for.parameters = NULL,
     iobs = NULL,
+    
     # after algebraics
     sys.eqs.trans = NULL,
     obs.eqs.trans = NULL,
     obs.var.trans = NULL,
+    
     # names
     state.names = NULL,
     obs.names = NULL,
     obsvar.names = NULL,
     input.names = NULL,
     parameter.names = NULL,
-    constant.names = NULL,
+    
     # options
     method = NULL,
     use.hessian = NULL,
@@ -1120,169 +1488,324 @@ ctsmrTMB = R6::R6Class(
     tukey.pars = NULL,
     silent = NULL,
     map = NULL,
-    ode.timestep = NULL,
-    ode.dt = NULL,
-    ode.N = NULL,
-    ode.Ncumsum = NULL,
     control.nlminb = NULL,
-    algo = NULL,
+    ode.timestep = NULL,
+    ode.timestep.size = NULL,
+    ode.timesteps = NULL,
+    ode.timesteps.cumsum = NULL,
+    simulation.timestep = NULL,
+    simulation.timesteps = NULL,
+    simulation.timestep.size = NULL,
+    ode.solver = NULL,
+    
     # hidden
-    linear = NULL,
+    lock.model = FALSE,
     fixed.pars = NULL,
     free.pars = NULL,
-    trigger = NULL,
+    
     # lengths
-    n = NULL,
-    m = NULL,
-    ng = NULL,
+    number.of.states = NULL,
+    number.of.observations = NULL,
+    number.of.diffusions = NULL,
+    number.of.pars = NULL,
+    number.of.inputs = NULL,
+    
     # differentials
     diff.processes = NULL,
     diff.terms = NULL,
-    # build flag
-    build = NULL,
+    diff.terms.obs = NULL,
+    
     # data, nll, opt
     data = NULL,
     nll = NULL,
     opt = NULL,
     sdr = NULL,
     fit = NULL,
+    
     # predict
     pred.bool = NULL,
     n.ahead = NULL,
     last.pred.index = NULL,
+    
+    # Rcpp Prediction
+    Rcppfunction_f = NULL,
+    Rcppfunction_g = NULL,
+    Rcppfunction_dfdx = NULL,
+    Rcppfunction_h = NULL,
+    Rcppfunction_dhdx = NULL,
+    Rcppfunction_hvar = NULL,
+    
     ########################################################################
+    # ADD TRANSFORMED SYSTEM EQS
+    ########################################################################
+    add_trans_systems = function(formlist) {
+      
+      # result = check_system_eqs(form, self, private)
+      # private$sys.eqs.trans[[result$name]] = result
+      
+      form = formlist$form
+      rhs = form[[3]]
+      lhs = form[[2]]
+      name = formlist$name
+      
+      # extract all variables
+      bool = unique(all.vars(rhs)) %in% private$diff.processes
+      variables = unique(all.vars(rhs))[!bool]
+      
+      # create transformed system equation
+      private$sys.eqs.trans[[name]] = list(
+        name = name,
+        form = form,
+        rhs = rhs,
+        allvars = variables,
+        diff = private$sys.eqs[[name]]$diff
+      )
+      
+      # return
+      return(invisible(self))
+    },
+    
+    ########################################################################
+    # ADD TRANSFORMED OBS EQS
+    ########################################################################
+    add_trans_observations = function(formlist) {
+      
+      # result = check_observation_eqs(forms, self, private)
+      # private$obs.eqs.trans[[result$name]] = result
+      
+      form = formlist$form
+      name = formlist$name
+      
+      private$obs.eqs.trans[[name]] = list(
+        name = name,
+        form = form,
+        rhs = form[[3]],
+        lhs = form[[2]],
+        allvars = all.vars(form[[3]])
+      )
+      
+      # return
+      return(invisible(self))
+    },
+    
+    ########################################################################
+    # ADD TRANSFORMED OBS VAR EQS
     ########################################################################
     # lamperti transform functions
-    add_trans_systems = function(form) {
-      res = check_system_eqs(form, self, private, silent=T)
-      private$sys.eqs.trans[[names(res)]] = res[[1]]
+    add_trans_observation_variances = function(formlist) {
+      
+      # result = check_observation_variance_eqs(form, self, private)
+      # private$obs.var.trans[[result$name]] = result
+      
+      form = formlist$form
+      name = formlist$name
+      
+      private$obs.var.trans[[name]] = list(
+        name = name,
+        form = form,
+        rhs = form[[3]],
+        lhs = form[[2]],
+        allvars = all.vars(form[[3]])
+      )
+      
+      # return
       return(invisible(self))
     },
+    
     ########################################################################
+    # SET COMPILE
     ########################################################################
-    # lamperti transform functions
-    add_trans_observations = function(formz) {
-      res = check_observation_eqs(formz, self, private)
-      private$obs.eqs.trans[[names(res)]] = res[[1]]
-      return(invisible(self))
-    },
-    ########################################################################
-    ########################################################################
-    # lamperti transform functions
-    add_trans_observation_variances = function(form) {
-      res = check_observation_variance_eqs(form, self, private)
-      private$obs.var.trans[[names(res)]] = res[[1]]
-      return(invisible(self))
-    },
-    ########################################################################
-    ########################################################################
-    # build function
-    build_model = function() {
-      # basic checks for model, add class n, ng, m, diff procs
-      init_build(self, private)
-      
-      # apply algebraics
-      check_algebraics_before_applying(self, private)
-      apply_algebraics(self, private)
-      
-      # update diff.terms and apply lamperti
-      update_diffterms(self, private)
-      apply_lamperti(self, private)
-      update_diffterms(self, private)
-      
-      # last check and compile
-      lastcheck_before_compile(self, private)
-      compile_cppfile(self, private)
-
-      # set build
-      private$build = TRUE
-      
-      return(invisible(self))
-    },
-    ########################################################################
-    ########################################################################
-    # compile function
     set_compile = function(bool) {
-      # is bool logical
+      
+      # check logical
       if (!is.logical(bool)) {
         stop("You must pass a logical value")
       }
+      
+      # set flag
       private$compile = bool
+      
+      # return
       return(invisible(self))
     },
+    
     ########################################################################
+    # SET SILENT
     ########################################################################
-    # silent function
     set_silence = function(bool) {
-      # is bool logical
+      
+      # check logical
       if (!is.logical(bool)) {
         stop("You must pass a logical value")
       }
+      
+      # set flag
       private$silent = bool
+      
+      # return
       return(invisible(self))
     },
+    
     ########################################################################
+    # SET METHOD
     ########################################################################
     # set method
     set_method = function(method) {
-      # is the method a string?
+      
+      # check string
       if (!(is.character(method))) {
         stop("You must pass a string")
       }
-      # choose one of the available methods
-      available_methods = c("ekf","ukf","tmb")
+      
+      # check if method is available
+      available_methods = c("ekf", "ukf", "laplace")
       if (!(method %in% available_methods)) {
-        stop("That method is not available. Please choose one of the following instead: \n
-                  1. Extended Kalman Filter - method = 'ekf'
-                  2. Unscented Kalman Filter - method = 'ukf'
-                  3. Laplace Approx using Random Effects - method = 'tmb'")
+        stop("That method is not available. Please choose one of:
+             1. 'ekf' - Extended Kalman Filter
+             2. 'ukf' - Unscented Kalman Filter
+             3. 'laplace' - Laplace Approximation using Random Effects Formulation")
       }
+      
+      # set flag
       private$method = method
+      
+      # return
       return(invisible(self))
     },
+    
     ########################################################################
+    # SET PREDICT
     ########################################################################
-    # set time-step
+    # set predict
+    set_predict = function(bool) {
+      
+      # check string
+      if (!(is.logical(bool))) {
+        stop("You must pass a logical")
+      }
+      
+      # set flag
+      private$pred.bool = as.numeric(bool)
+      
+      # return
+      return(invisible(self))
+    },
+    
+    ########################################################################
+    # SET ODE TIME-STEP
+    ########################################################################
     set_timestep = function(dt) {
+      
       # OK if NULL
       if(is.null(dt)){
-        private$ode.timestep = dt
+        private$ode.timestep = NULL
         return(invisible(NULL))
       }
+      
       # must be numeric
       if (!is.numeric(dt)) {
         stop("The timestep should be a numeric value.")
       }
-      # must have length 1
-      if (length(dt)!=1) {
-        stop("Timestep must have length 1.")
-      }
+      
       private$ode.timestep = dt
     },
     ########################################################################
+    # SET SIMULATION TIME-STEP
+    ########################################################################
+    set_simulation_timestep = function(dt) {
+      
+      # OK if NULL
+      if(is.null(dt)){
+        private$simulation.timestep = NULL
+        return(invisible(NULL))
+      }
+      
+      # must be numeric
+      if (!is.numeric(dt)) {
+        stop("The timestep should be a numeric value.")
+      }
+      
+      private$simulation.timestep = dt
+    },
+    
+    ########################################################################
+    # UTILITY FUNCTION: FOR SETTING PREDICTION AHEAD AND LAST PRED INDEX
+    ########################################################################
+    # SET k step ahead and last pred index for obj$predict
+    set_n_ahead_and_last_pred_index = function(data, n.ahead) {
+      
+      # check if n.ahead is positive with length 1
+      if (!(is.numeric(n.ahead)) | !(length(n.ahead==1)) | !(n.ahead >= 1)) {
+        stop("n.ahead must be a non-negative numeric integer")
+      }
+      
+      # Find last prediction index to avoid exciting boundary
+      last.pred.index = nrow(data) - n.ahead
+      if(last.pred.index < 1){
+        message("The provided k.ahead is too large, setting it to the maximum value nrow(data)-1.")
+        n.ahead = nrow(data) - 1
+        last.pred.index = 1
+      }
+      
+      # set values
+      private$n.ahead = n.ahead
+      private$last.pred.index = nrow(data) - n.ahead
+      
+      # return values
+      return(invisible(self))
+    },
+    
+    ########################################################################
+    # SET USE OF HESSIAN
     ########################################################################
     # USE HESSIAN FUNCTION
     use_hessian = function(bool) {
+      
+      # check logical
       if (!is.logical(bool)) {
-        stop("This must be a logical")
+        stop("The entry must be logical")
       }
+      
+      # set flag
       private$use.hessian = bool
-    },
-    ########################################################################
-    ########################################################################
-    # SET ODE SOLVER
-    set_algo = function(ode.solver){
-      if(ode.solver=="rk4"){
-        private$algo = 2
-      } else {
-        private$algo = 1
-      }
+      
+      # return
       return(invisible(self))
     },
+    
     ########################################################################
+    # SET ODE SOLVER 
     ########################################################################
-    # SET PRED INITIAL STATE
+    set_ode_solver = function(ode.solver){
+      
+      if(length(ode.solver) != 1){
+        stop("Please select only one ODE solver algorithm")
+      }
+      
+      # is numeric
+      bool = ode.solver %in% c("euler","rk4")
+      if(!bool){
+        stop("Please select one of the following ODE solvers:
+             1. 'euler' - Forward Euler
+             2. 'rk4' - Runge-Kutta 4th Order")
+      }
+      
+      # set flag
+      switch(ode.solver,
+             euler = { private$ode.solver = 1},
+             rk4 = { private$ode.solver = 2 }
+      )
+      
+      # return
+      return(invisible(self))
+    },
+    
+    ########################################################################
+    # SET INITIAL PREDICTION STATE / COVARIANCE
+    ########################################################################
     set_pred_initial_state = function(mean,cov) {
+      
+      # perform basic checks
       if (is.null(private$sys.eqs)) {
         stop("Please specify system equations first")
       }
@@ -1312,84 +1835,97 @@ ctsmrTMB = R6::R6Class(
         stop("The covariance matrix is not positive semi-definite")
       }
       if (!isSymmetric.matrix(cov)){
-        stop("The covariance matrix is symmetric")
+        stop("The covariance matrix is not symmetric")
       }
-      private$pred.initial.state = list(mean=mean,cov=as.matrix(cov))
+      
+      # set field
+      private$pred.initial.state = list(mean=mean, cov=as.matrix(cov))
+      
+      # return
       return(invisible(self))
     },
-    ########################################################################
+    
     ########################################################################
     # SET LOSS FUNCTION
-    set_loss = function(loss,c=3) {
-      # is the method a string?
+    ########################################################################
+    # SET LOSS FUNCTION
+    set_loss = function(loss, loss_c=3) {
+      
+      # check for string
       if (!(is.character(loss))) {
         stop("You must pass a string")
       }
-      # choose one of the available methods
+      
+      # check if method is available
       available_losses = c("quadratic","huber","tukey")
       if (!(loss %in% available_losses)) {
-        stop("That method is not available. Please choose one of the following instead: \n
-                  1. Quadratic loss = 'quadratic' (default)
-                  2. Quadratic-Linear loss = 'huber'
-                  3. Quadratic-Constant loss = 'tukey'")
+        stop("That method is not available. Please choose one of the following:
+             1. 'quadratic' - default quadratic loss
+             2. 'huber' - quadratic-linear pseudo-huber loss
+             3. 'tukey' - quadratic-constant tukey loss")
       }
+      
+      # IF QUADRATIC:
+      loss.flag = 0L
+      
+      # IF HUBER:
+      if(loss=="huber"){
+        loss.flag = 2L
+      } 
+      
+      # IF TUKEY: compute tukey parameters by nonlinear optimization
+      # we simplify choose tukey parameters that minimize the distance to a
+      # sigmoid function
       if (loss=="tukey") {
-        l = 1L
+        
+        loss.flag = 1L
+        
         # compute tukey approx coefficients
         rtukey = seq(0,100,by=1e-2)
-        ctukey = c
+        ctukey = loss_c
+        
+        # define tukey function
         funtukey = function(r){
           ifelse(r^2 <= ctukey^2,
                  ctukey^2/6 * (1-(1-(r/ctukey)^2)^3),
                  ctukey^2/6
           )
         }
+        
+        # define least squares loss function between tukey and sigmoid function
         tukeyloss = function(.pars){
-          # res = sum((funtukey(rtukey) - .pars[4]*(sigmoid(rtukey,a=.pars[1],b=.pars[2])+.pars[3]))^2)
-          res = sum((funtukey(rtukey) - .pars[4]*(invlogit2(rtukey,a=.pars[1],b=.pars[2])+.pars[3]))^2)
+          res = sum((funtukey(rtukey) - .pars[4]*(ctsmrTMB:::invlogit2(rtukey,a=.pars[1],b=.pars[2])+.pars[3]))^2)
         }
-        tukeyopt = nlminb(start=rep(1,4),objective=tukeyloss)
+        
+        # minimize least squares between tukey and sigmoid
+        tukeyopt = stats::nlminb(start=rep(1,4),objective=tukeyloss)
+        
+        # set the found parameters
         private$tukey.pars = tukeyopt$par
-      } else if (loss=="huber") {
-        l = 2L
-      } else {
-        l = 0L
-      }
-      private$loss = list(loss=l,c=c)
+      } 
+      
+      # set flag
+      private$loss = list(loss=loss.flag, c=loss_c)
+      
+      # return
       return(invisible(self))
     },
+    
     ########################################################################
+    # SET NLMIN CONTROL OPTIONS
     ########################################################################
-    # SET CONTROL FOR NLMINB
     set_control = function(control) {
+      
       # is the control a list?
       if (!(is.list(control))) {
-        stop("The control argument must be a list")
+        stop("The control argument must be a list. See ?stats::nlminb for control options")
       }
+      
+      # set flag
       private$control.nlminb = control
-      return(invisible(self))
-    },
-    ########################################################################
-    ########################################################################
-    # SET k step ahead and last pred index for obj$predict
-    set_n_ahead_and_last_pred_index = function(data, n.ahead) {
-      # is integer numeric length 1 and positive?
-      if (!(is.numeric(n.ahead)) | !(length(n.ahead==1)) | n.ahead <= 0.5) {
-        stop("n.ahead must be a non-negative numeric integer")
-      }
       
-      last.pred.index = nrow(data) - n.ahead
-      if(last.pred.index < 1){
-        message("The provided k.ahead is too large, setting it to the maximum value nrow(data)-1.")
-        n.ahead = nrow(data)-1
-        last.pred.index = 1
-      }
-      
-      # return values
-      private$n.ahead = n.ahead
-      private$last.pred.index = nrow(data) - n.ahead
+      # return
       return(invisible(self))
     }
   )
 )
-

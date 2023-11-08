@@ -1,69 +1,103 @@
+# These functions are helper functions used when calling the ctsmrTMB method
+# 'build_model'.
+
+#######################################################
+# MAIN BUILDING FUNCTION THAT CALLS ALL OTHER FUNCTIONS
+#######################################################
+
+build_model = function(self, private) {
+  
+  # check_model
+  basic_model_check(self, private)
+  
+  # set dimensions, diff processes, etc...
+  set_model_settings(self, private)
+  
+  # 1) apply algebraics, and define new trans_system
+  # 2) calculate new diff terms
+  apply_algebraics_and_define_trans_equations(self, private)
+  calculate_diff_terms(self, private)
+  
+  # apply lamperti and update diff terms
+  apply_lamperti(self, private) 
+  calculate_diff_terms(self, private)
+  
+  # last check and compile
+  final_build_check(self, private)
+  compile_cppfile(self, private)
+  
+  # return
+  return(invisible(self))
+}
+
+build_model_rcpp_pred = function(self, private) {
+  
+  # check_model
+  basic_model_check(self, private)
+  
+  # set dimensions, diff processes, etc...
+  set_model_settings(self, private)
+  
+  # 1) apply algebraics, and define new trans_system
+  # 2) calculate new diff terms
+  apply_algebraics_and_define_trans_equations(self, private)
+  calculate_diff_terms(self, private)
+  
+  # apply lamperti and update diff terms
+  apply_lamperti(self, private) 
+  calculate_diff_terms(self, private)
+  
+  # last check and compile
+  final_build_check(self, private)
+
+  # return
+  return(invisible(self))
+}
+
+
 #######################################################
 # FIRST FUNCTION TO RUN WHEN BUILDING
 #######################################################
 
-init_build = function(self, private) {
+basic_model_check = function(self, private) {
   
-  # basic checks
+  # Check if the model basics are in order
   if (length(private$sys.eqs) == 0) {
-    stop("Need at least one system equation")
+    stop("There were no specified system equations - use 'add_systems'")
   }
   if (length(private$obs.eqs) == 0) {
-    stop("Need at least one observation equation")
+    stop("There were no specified observation equations - use 'add_observations'")
   }
-  missing.var = sapply(private$obs.var, function(x) length(x)==0)
+  missing.var = sapply(private$obs.var, length) == 0
   if (any(missing.var)) {
     missing.names = paste(private$obs.names[missing.var],collapse=", ")
-    stop("The observation variances for the following observation(s) have not been specified: ", missing.names)
+    stop("There are no observation variances specified for the observation(s): \n\t", missing.names)
   }
+  
   if (is.null(private$initial.state)) {
     stop("You must set an initial state estimate and covariance")
   }
-  
-  # set system size variables
-  private$diff.processes = unique(unlist(lapply(private$sys.eqs, function(x) x$diff)))
-  private$n = length(private$sys.eqs)
-  private$m = length(private$obs.eqs)
-  # Count dw diffusion proceses (minus 1 to remove 'dt')
-  private$ng = length(private$diff.processes) - 1
-  
-  # add method to filepath and modelname to reflect 'method'
-  private$cppfile.path.with.method = paste(private$cppfile.path,"_",private$method,sep="")
-  private$modelname.with.method = paste(private$modelname,"_",private$method,sep="")
   
   return(invisible(self))
 }
 
 #######################################################
-# CHECK IF ALGEBRAIC EQUATIONS ARE OK
+# SET SYSTEM VARIABLES
 #######################################################
-
-check_algebraics_before_applying = function(self, private) {
+set_model_settings = function(self, private){
   
-  # We must check the algebraic since some are not allowed.
-  # 1. You can't change a state
-  # 2. You can't change an input
-  # 3. 
+  # set system size variables
+  private$diff.processes = unique(unlist(lapply(private$sys.eqs, function(x) x$diff)))
+  private$number.of.states = length(private$sys.eqs)
+  private$number.of.observations = length(private$obs.eqs)
+  private$number.of.diffusions =  length(private$diff.processes) - 1 # minus 1 to remove 'dt'
+  private$number.of.pars = length(private$parameters)
+  private$number.of.inputs = length(private$inputs)
   
-  for (i in 1:length(private$alg.eqs)) {
-    obj = private$alg.eqs[[i]]$form
-    
-    # You can not apply algebraics to a state
-    if (deparse(obj[[2]]) %in% names(private$sys.eqs)) {
-      stop("You can't redefine a state: ", deparse(obj))
-    }
-    
-    # You can't apply algebraics to an input
-    if (deparse(obj[[2]]) %in% names(private$inputs)) {
-      stop("You can't redefine an input: ", deparse(obj))
-    }
-    
-    # You can't apply algebraics to an observation
-    if (deparse(obj[[2]]) %in% private$obs.names) {
-      stop("You can't redefine an observation: ", deparse(obj))
-    }
-    
-  }
+  
+  # update free parameter list contains: initial, lower, upper for each parameter
+  private$free.pars = private$parameters[!(private$parameter.names %in% names(private$fixed.pars))]
+  
   return(invisible(self))
 }
 
@@ -71,51 +105,44 @@ check_algebraics_before_applying = function(self, private) {
 # APPLY ALGEBRAIC TRANSFORMATIONS
 #######################################################
 
-apply_algebraics = function(self, private) {
+apply_algebraics_and_define_trans_equations = function(self, private) {
   
-  # copy lists and apply algebraics
-  sys.eqs = lapply(private$sys.eqs,function(x) x$rhs)
-  obs.eqs = lapply(private$obs.eqs,function(x) x$rhs)
-  obs.var = lapply(private$obs.var,function(x) x$rhs)
+  # extract rhs's
+  sys.rhs = lapply(private$sys.eqs,function(x) x$rhs)
+  obs.rhs = lapply(private$obs.eqs,function(x) x$rhs)
+  obs.var.rhs = lapply(private$obs.var,function(x) x$rhs)
+  alg.rhs = lapply(private$alg.eqs, function(x) x$rhs)
   
-  algs = private$alg.eqs
-  # if algs is empty just create a single fake entry to get model into
-  if (is.null(algs)){
-    algs = list(list(rhs=NULL))
-    names(algs) = "////....i_dont_match_any_variable....////"
-  }
-  for (i in 1:length(algs)){
-    temp_list = list()
-    temp_list[[names(algs)[i]]] = algs[[i]]$rhs
-    sys.eqs = lapply(sys.eqs, function(x) do.call("substitute",list(x,temp_list)))
-    obs.eqs = lapply(obs.eqs, function(x) do.call("substitute",list(x,temp_list)))
-    obs.var = lapply(obs.var, function(x) do.call("substitute",list(x,temp_list)))
-  }
+  # apply algebraics with substitute
+  sys.rhs = lapply(sys.rhs, function(x) do.call(substitute, list(x,alg.rhs)))
+  obs.rhs = lapply(obs.rhs, function(x) do.call(substitute, list(x,alg.rhs)))
+  obs.var.rhs = lapply(obs.var.rhs, function(x) do.call(substitute, list(x,alg.rhs)))
   
-  # overload form and rhs, and re-add the system, observations and variances
-  # systems
-  sys = private$sys.eqs
-  for(i in 1:length(sys.eqs)) {
-    sys[[i]]$form[[3]] = sys.eqs[[i]]
-    new_eq = sys[[i]]$form
-    private$add_trans_systems(new_eq)
+  # replace rhs in the already defined system, obs, obs.var equations and
+  # add these to the transformed systems/obs/obs.var private fields
+  
+  # system
+  for(i in seq_along(private$sys.eqs)) {
+    temp.form = private$sys.eqs[[i]]$form
+    temp.form[[3]] = sys.rhs[[i]] #[[3]] is rhs of a formula
+    temp.list = list(form=temp.form, name=private$state.names[i])
+    private$add_trans_systems(temp.list)
   }
   
   # observations
-  obs = private$obs.eqs
-  for(i in 1:length(obs.eqs)) {
-    obs[[i]]$form[[3]] = obs.eqs[[i]]
-    new_form = list(form=obs[[i]]$form, name=names(obs)[i])
-    private$add_trans_observations(new_form)
-    # 
+  for(i in seq_along(private$obs.eqs)) {
+    temp.form = private$obs.eqs[[i]]$form
+    temp.form[[3]] = obs.rhs[[i]] #[[3]] is rhs of a formula
+    temp.list = list(form=temp.form, name=private$obs.names[i])
+    private$add_trans_observations(temp.list)
   }
   
   # observation variances
-  var = private$obs.var
-  for(i in 1:length(obs.var)) {
-    var[[i]]$form[[3]] = obs.var[[i]]
-    new_eq = var[[i]]$form
-    private$add_trans_observation_variances(new_eq)
+  for(i in seq_along(private$obs.var)) {
+    temp.form = private$obs.var[[i]]$form
+    temp.form[[3]] = obs.var.rhs[[i]] #[[3]] is rhs of a formula
+    temp.list = list(form=temp.form, name=private$obs.names[i])
+    private$add_trans_observation_variances(temp.list)
   }
   
   return(invisible(self))
@@ -125,84 +152,197 @@ apply_algebraics = function(self, private) {
 # UPDATE DIFF TERMS TO FIT ALGEBRAIC EQUATIONS
 #######################################################
 
-update_diffterms = function(self, private) {
+calculate_diff_terms = function(self, private) {
   
-  for (i in 1:length(private$sys.eqs.trans)) {
-    private$diff.terms[[i]] = lapply(private$diff.processes, function(x) Deriv::Deriv(private$sys.eqs.trans[[i]]$rhs, x, cache.exp=FALSE))
+  # SYSTEM EQUATIONS
+  # Calculate the differential terms in front of 'dt' and diffusion 'dw...'
+  for (i in seq_along(private$sys.eqs.trans)) {
+    
+    # must use cache.exp=FALSE to prevent renaming variables
+    private$diff.terms[[i]] = lapply(private$diff.processes, 
+                                     function(x) Deriv::Deriv(private$sys.eqs.trans[[i]]$rhs, x, cache.exp=FALSE))
     names(private$diff.terms[[i]]) = private$diff.processes
   }
-  names(private$diff.terms) = names(private$sys.eqs.trans)
+  names(private$diff.terms) = private$state.names
   
+  # OBSERVATION EQUATIONS WRT STATES
+  for(i in seq_along(private$obs.eqs.trans)){
+    private$diff.terms.obs[[i]] = lapply(private$state.names,
+                                         function(x) Deriv::Deriv(private$obs.eqs.trans[[i]]$rhs, x, cache.exp=F))
+    names(private$diff.terms.obs[[i]]) = private$state.names
+  }
+  names(private$diff.terms.obs) = private$obs.names
 }
 
 #######################################################
 # APPLY LAMPERTI TRANSFORM IF SPECIFIED
 #######################################################
 
+# This function applies the set lampeti transformation to each state of the
+# system, but only states that have 1 diffusion process.
+#
+# Note: The observation equation is not transformed - should we also do that?
+# i.e. the states that are present in the observations should be transformed
 apply_lamperti = function(self, private) {
   
-  transform = private$lamperti$transform
-  if (transform=="identity") {
-    # do nothing
-    return(NULL)
-  }
   
-  if (is.null(private$lamperti$states)){
-    private$lamperti$states = private$state.names
-  }
+  
+  ##### Extract ####
+  # get the states to transform, and the transformations to use on those states
+  transforms =  private$lamperti$transforms
   states = private$lamperti$states
   
-  # remove those states that can't have lamperti transform
-  dw.bool.list = lapply(private$diff.terms, function(x) unlist(lapply(x, function(y) y!=0)))
-  states_bool = rep(TRUE,length(states))
-  for (i in 1:length(states)) {
-    if (sum(dw.bool.list[[states[i]]]) > 2) {
-      warning("Unable to perform Lamperti transformation for ",states[i], " because there are multiple diffusion terms")
-      states_bool[i] = FALSE
+  if(all(transforms == "identity")){
+    return(invisible(self))
+  }
+  
+  ##### Initial Filtering ####
+  
+  # Remove states with multiple diffusion terms (lamperti only works in 1D)
+  # check how many diff.terms is non-zero. Each non-zero is a diffusion process
+  nonzero.diffterms = lapply(private$diff.terms, 
+                             function(x) unlist(lapply(x, function(y) y==0))) #state names are retained
+  number.of.diffterms = lapply(nonzero.diffterms, sum)
+  diffusion.id = numeric(private$number.of.states)
+  bool = transforms != "identity" #this removes identity transforms altogether
+  
+  for(i in seq_along(states)){
+    #remove states with more than one dw process (2 because dt and 1 dw process)
+    if(number.of.diffterms[[states[i]]] > 2.5){
+      warning("The lamperti transformation on ", states[i], " was aborted, because there are multiple diffusion terms")
+      bool[i] = FALSE
+    } else {
+      # which dw diffusion process was active?
+      diffusion.id[i] = which(!nonzero.diffterms[[states[i]]])[2]
+      
     }
   }
-  states = states[states_bool]
-  dw.bool.list = dw.bool.list[states_bool]
-  diff.terms = private$diff.terms[states_bool]
+  states = states[bool]
+  transforms = transforms[bool]
+  diffusion.id = diffusion.id[bool]
   
-  # define and select lamperti transform from list below
-  psi = list(
-    log = list( quote(exp(x)), quote(1/x),quote(-1/x^2)),
-    logit = list( quote(exp(x/(1+x))), quote(1/(x*(1-x))), quote((2*x-1)/(x^2*(x-1)^2))),
-    'sqrt-logit' = list( quote(0.5*(sin(x)+1)), quote(1/(sqrt(x*(1-x)))), quote(0.5*(2*x-1)/(x*(1-x)*sqrt(x*(1-x)))))
-    # 'power-logit' = quote(1/(x*(1-x^a)))
-  )[[transform]]
-  names(psi) = c("..psi..","..dpsidx..","..d2psidx2..")
+  ##### List of Available Transformations ####
+  # Define and select lamperti transform and 1st and 2nd derivative: list( x(z) , dzdz(x) , dz2/dx2(x) )
+  # Note that the first entry is in terms of z, not x. We must therefore
+  # substitute x(z) into dzdx(x) and d2z/dx2(x) to get the expression in terms of the new state variable z.
+  psi.all = list(
+    "log" = list( quote(exp(x)), 
+                  quote(1/x), 
+                  quote(-1/x^2)
+    ),
+    # 
+    "logit" = list( 
+      quote(exp(x/(1+x))), 
+      quote(1/(x*(1-x))), 
+      quote((2*x-1)/(x^2*(x-1)^2))
+    ),
+    # 
+    "sqrt-logit" = list( 
+      quote(0.5*(sin(x)+1)), 
+      quote(1/(sqrt(x*(1-x)))), 
+      quote(0.5*(2*x-1)/(x*(1-x)*sqrt(x*(1-x))))
+    )
+  )
+  # name each list in psi.all
+  for(i in seq_along(psi.all)){ 
+    names(psi.all[[i]]) = c("..psi..","..dpsidx..","..d2psidx2..") 
+  }
   
-  if (length(states)>0) {
+  
+  ############### MAIN LOOP FOR STATES ###############
+  # Perform lamperti transformation with substitutions
+  for(i in seq_along(states)){
     
-    # We first need to sub in the state name in the transformation
-    for (i in 1:length(states)) {
-      psi = lapply(psi, function(x) do.call("substitute",list(x,list(x=parse(text=states[i])[[1]]))))
-      
-      dw = parse(text=names(diff.terms[[i]][dw.bool.list[[i]]])[2])[[1]]
-      
-      # apply lamperti
-      lamperti_eq = do.call("substitute", list( quote((f * ..dpsidx.. + 0.5 * g^2 * ..d2psidx2.. ) * dt + g * ..dpsidx.. * dw),
-                                                c(psi,list(f=diff.terms[[states[i]]]$dt, g=diff.terms[[states[i]]][[dw]], dw=dw))))
-      # simplify causes 'dt' to be put in front of the expression
-      lamperti_eq = Deriv::Simplify(lamperti_eq)
-      
-      # apply transformation to all instances of the state
-      mylist = list(psi[['..psi..']])
-      names(mylist) = states[i]
-      final_eq = do.call("substitute", list(lamperti_eq,mylist))
-      
-      # convert to formula and parse to add_systems
-      form = as.formula(paste(
-        parse(text=paste("d",states[i],sep=""))[[1]],
-        paste(deparse(final_eq),collapse=""),
-        sep ="~"
-      ))
-      private$add_trans_systems(form)
-    }
+    # select current state and transformation
+    state = states[i]
+    transform = transforms[i]
+    
+    # get the current transformation
+    psi = psi.all[[transform]]
+    
+    # substitute the state name into the psi_transformation list instead of the placeholder 'x'
+    templist = list(x=parse(text=state)[[1]])
+    psi.correct.state = lapply(psi, function(x) do.call(substitute, list(x, templist)))
+    
+    # get the single diffusion process used in the current system equation
+    dw.list = list(dw=parse(text=private$diff.processes[diffusion.id[i]])[[1]])
+    
+    # get drift and diffusion
+    fg.list = list(
+      f = private$diff.terms[[state]][["dt"]],
+      g = private$diff.terms[[state]][[dw.list$dw]]
+    )
+    
+    # apply the lamperti substitution
+    lamperti.formula = quote((f * ..dpsidx.. + 0.5 * g^2 * ..d2psidx2.. ) * dt + g * ..dpsidx.. * dw)
+    substitute.list = c(psi.correct.state[-1], dw.list, fg.list)
+    lamperti.equation = do.call(substitute, list(lamperti.formula, substitute.list))
+    lamperti.simplified = Deriv::Simplify(lamperti.equation)
+    
+    # The state equation is now in terms of the original state variable 'x', but we want it
+    # in terms of the new state variable 'z'
+    templist = psi.correct.state[1]
+    names(templist) = state
+    lamperti.complete = do.call(substitute, list(lamperti.simplified, templist))
+    
+    # replace the original SDE RHS with the new transformed one
+    form = as.formula(paste(
+      parse(text=paste("d",state,sep=""))[[1]],
+      paste(deparse1(lamperti.complete),collapse=""),
+      sep ="~"
+    ))
+    
+    # add the new transformed equation to trans_system
+    private$add_trans_systems(form)
   }
   
+  ############### MAIN LOOP FOR OBSERVATIONS AND VARIANCES ###############
+  # Transform the state entries in observation equations from e.g. x to exp(x)
+  for(j in seq_along(private$obs.eqs)){
+    
+    # Get observation and variance rhs
+    obs.rhs = private$obs.eqs.trans[[j]]$rhs
+    obs.var.rhs = private$obs.var.trans[[j]]$rhs
+    
+    # copy rhs for repeated substitutions
+    transformed.obs.rhs = obs.rhs
+    transformed.obs.var.rhs = obs.var.rhs
+    
+    for(i in seq_along(states)){
+      
+      # select current state and transformation
+      state = states[i]
+      transform = transforms[i]
+      
+      # get the current transformation
+      psi = psi.all[[transform]][1]
+      names(psi) = state
+      
+      # substitute the state name into the psi_transformation list instead of the placeholder 'x'
+      templist = list(x=parse(text=state)[[1]])
+      psi.correct.state = lapply(psi, function(x) do.call(substitute, list(x, templist)))
+      
+      # substitute into new obs rhs
+      transformed.obs.rhs = do.call(substitute, list(transformed.obs.rhs, psi.correct.state))
+      transformed.obs.var.rhs = do.call(substitute, list(transformed.obs.var.rhs, psi.correct.state))
+    }
+    
+    # obsname
+    obsname = private$obs.names[j]
+    # get lhs of observation (not the same as obsname for "complex" obs e.g. log(y))
+    obslhs = private$obs.eqs[[j]]$lhs
+    
+    # Create formula and add the new observation rhs
+    transformed.form.obs = as.formula(paste(c(obslhs, "~", transformed.obs.rhs),collapse=" "))
+    private$add_trans_observations(list(form=transformed.form.obs, name=obsname))
+    
+    # Create formula and add the new observation variance rhs
+    transformed.form.obs.var = as.formula(paste(c(obslhs, "~", transformed.obs.var.rhs),collapse=" "))
+    private$add_trans_observation_variances(list(form=transformed.form.obs.var, name=obsname))
+    
+  }
+  
+  # return
   return(invisible(self))
 }
 
@@ -210,41 +350,49 @@ apply_lamperti = function(self, private) {
 # LAST CHECK BEFORE COMPILING
 #######################################################
 
-lastcheck_before_compile = function(self, private) {
+# We perform a series of basics checks to see if the model satisfies assumings e.g.
+# 1. The observation equation must have at least one state on the rhs
+# 2. There are no observations on the rhs of an observation equation
+# 3. We check that all variables in the model are declared as states, inputs or parameters
+
+
+final_build_check = function(self, private) {
   
-  # CHECK IF OBS RHS CONTAINS AT LEAST ONE STATE
+  # Verify that all observations relate to a state (have a state on their rhs)
   bool = unlist(lapply(private$obs.eqs.trans, function(x) any(private$state.names %in% x$allvars)))
   if (any(!bool)) {
-    stop("The following observation(s) do not relate to any states: \n\t ",paste(private$obs.names[!bool],collapse=", "))
+    stop("Error: There are no states on the right-hand side of the following observation equation(s) : \n\t ",paste(private$obs.names[!bool],collapse=", "))
   }
   
-  # CHECK IF OBS RHS DO NOT CONTAIN OBS
+  # Verify that observations dont have other observations on their rhs
   bool = unlist(lapply(private$obs.eqs.trans, function(x) any(private$obs.names %in% x$allvars)))
   if (any(bool)) {
     stop("The following observation(s) attempt to observe other observations! \n\t ",paste(private$obs.names[!bool],collapse=", "))
   }
   
-  # CHECK IF ALL RHS VARIABLES ARE PROVIDED BY USER
+  # Verify that all variables on the rhs of system, obs and obs.variance equations
+  # have been provided. They can either be inputs, parameters and states
   vars = list()
   vars[[1]] = unlist(lapply(private$sys.eqs.trans, function(x) x$allvars))
   vars[[2]] = unlist(lapply(private$obs.eqs.trans, function(x) x$allvars))
   vars[[3]] = unlist(lapply(private$obs.var.trans, function(x) x$allvars))
   rhs.vars = unique(unlist(vars))
-  given.vars = c( private$parameter.names, private$input.names, private$state.names, private$constant.names)
+  given.vars = c( private$parameter.names, private$input.names, private$state.names)
   bool = rhs.vars %in% given.vars
   if (any(!bool)) {
-    stop("The following variables(s) are unaccounted for: \n\t ",
+    stop("Error: The following variables(s) in the model have not been declared as parameters, inputs or states: \n\t ",
          paste(rhs.vars[!bool],collapse=", "))
   }
   
-  # CHECK IF ANY PROVIDED VARIABLES ARE UNUSED
-  given.vars = c( private$parameter.names, private$input.names[-1], private$constant.names)
+  ##### NOTE::: Do we need to remove this? doesnt really matter right? ####
+  # Verify that all input and parameters are used in the model
+  given.vars = c( private$parameter.names, private$input.names[-1])
   bool = given.vars %in% rhs.vars
   if (any(!bool)) {
-    stop("The following variables(s) are unused: \n\t ",
-         paste(given.vars[!bool],collapse=", "))
+    stop("The following variables(s) are unused: \n\t ", paste(given.vars[!bool],collapse=", "))
   }
   
+  # return
   return(invisible(self))
 }
 
@@ -252,46 +400,72 @@ lastcheck_before_compile = function(self, private) {
 # COMPILE CPP FUNCTION
 #######################################################
 
+# This function decides whether to compile the C++ function, and performs
+# reloading of the dynamic library.
+# NOTE::: The manual dyn.unload dyn.load must be performed, otherwise TMB
+# will reuse the old model. This is a TMB bug. 
+
+# IMRPOVE FOR THE FUTURE - AUTODETECT IF COMPILATION IS NEEDED?
+# Is there a way to save an R object when we compile, and then use this object
+# to check whether a compilation is necessary at all?
+# We would have to verify that all model parts are identical
+# Can we generate a sequence of numbers unique to that model?
+
 compile_cppfile = function(self, private) {
   
+  # If the user requested a compilaton
   if(private$compile){
+    
+    # Create the C++ file
     write_cppfile(self, private)
+    
+    # Compile the C++ file with TMB
+    message("Compiling C++ likelihood function...")
     TMB::compile(paste(private$cppfile.path,".cpp",sep=""))
-    # reload shared libraries - we use capture.output to remove tmb message "removing X pointers"
-    capture.output(try(dyn.unload(TMB::dynlib(private$cppfile.path)),silent=T))
-    capture.output(try(dyn.load(TMB::dynlib(private$cppfile.path)),silent=T))
+    
+    # reload shared libraries
+    # Suppress TMB output 'removing X pointers' with capture.output
+    utils::capture.output(try(dyn.unload(TMB::dynlib(private$cppfile.path)),silent=T))
+    utils::capture.output(try(dyn.load(TMB::dynlib(private$cppfile.path)),silent=T))
   }
   
-  # If compile=FALSE then the shared library must exist
+  # If compilation not requested
   if (!private$compile) {
     
-    # mac : check that files exist
+    # Unix/MAC-OS platforms: check that the C++ file exists
     if (.Platform$OS.type=="unix") {
+      
+      # get the compiled dynamic library file
       modelpath.so = paste(private$cppfile.path,".so",sep="")
+      
+      # If the model does not exist, then set compile flag and call function again
       if (!file.exists(modelpath.so)) {
-        message("Compiling model...")
-        private$compile = TRUE
+        private$set_compile(TRUE)
         compile_cppfile(self, private)
       }
     }
     
-    #windows: check that files exist
+    # Windows platforms : check that the C++ file exists
     if (.Platform$OS.type=="windows") {
+      
+      # get the compiled dynamic library file
       modelpath.dll = paste(private$cppfile.path,".dll",sep="")
+      
+      # If the model does not exist, then set compile flag and call function again
       if (!file.exists(modelpath.dll)) {
-        message("Compiling model...")
-        private$compile = TRUE
+        private$set_compile(TRUE)
         compile_cppfile(self, private)
       }
     }
     
-    # reload libraries
-    # message("Loading existing compiled model...")
+    # reload shared libraries
+    # Suppress TMB output 'removing X pointers' with capture.output
     utils::capture.output(try(dyn.unload(TMB::dynlib(private$cppfile.path)),silent=T))
     utils::capture.output(try(dyn.load(TMB::dynlib(private$cppfile.path)),silent=T))
   }
   return(invisible(self))
 }
+
 
 
 

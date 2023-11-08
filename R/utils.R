@@ -1,4 +1,11 @@
 #######################################################
+# PASTE WITH COLLAPSE
+#######################################################
+paste00 = function(str_vec){
+  paste(str_vec,collapse=", ")
+}
+
+#######################################################
 # SIMPLIFY FORMULA
 #######################################################
 
@@ -6,7 +13,6 @@ simplify_formula = function(form) {
 
   form = as.formula(paste(
     form[[2]],
-    # paste(deparse(Deriv::Simplify(form[[2]])),collapse=""),
     paste(deparse(Deriv::Simplify(form[[3]])),collapse=""),
     sep="~"
   ))
