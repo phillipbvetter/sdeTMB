@@ -4,12 +4,12 @@ create_rcpp_statespace_functions = function(self, private){
   
   # Create substitution translation list
   obsList = lapply(seq_along(private$obs.names), function(id) substitute(obsVec(i),list(i=as.numeric(id-1))))
-  names(obsList) = private$obs.names
   parList = lapply(seq_along(private$parameter.names), function(id) substitute(parVec(i),list(i=as.numeric(id-1))))
-  names(parList) = private$parameter.names
   stateList = lapply(seq_along(private$state.names), function(id) substitute(stateVec(i),list(i=as.numeric(id-1))))
-  names(stateList) = private$state.names
   inputList = lapply(seq_along(private$input.names), function(id) substitute(inputVec(i),list(i=as.numeric(id-1))))
+  names(obsList) = private$obs.names
+  names(parList) = private$parameter.names
+  names(stateList) = private$state.names
   names(inputList) = private$input.names
   subsList = c(obsList, parList, stateList, inputList)
   

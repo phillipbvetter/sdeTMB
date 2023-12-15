@@ -5,9 +5,9 @@ using namespace Rcpp;
 using namespace Eigen;
 // [[Rcpp::depends(RcppEigen)]]
 
-double invlogit(double x){
+/*double invlogit(double x){
   return 1/(1+exp(-x));
-}
+}*/
 
 Eigen::MatrixXd construct_permutation_matrix(int number_of_available_obs, int number_of_obs_eqs, Eigen::VectorXi bool_is_not_na_obsVec){
   Eigen::MatrixXd E(number_of_available_obs, number_of_obs_eqs);
@@ -90,10 +90,10 @@ List ekf_prediction(
       //////////// TIME-UPDATE: SOLVE MOMENT ODES ///////////
       // Integrate moments between two time points
       for(int j=0 ; j < ode_timesteps(i+k) ; j++){
-        ode_1step_integration = ode_integrator(f__, g__, dfdx__, covMat, stateVec, parVec, inputVec, ode_timestep_size(i+k), ode_solver);
+        ode_1step_integration = ode_integrator(f__, g__, dfdx__, covMat, stateVec, parVec, inputVec, dinputVec, ode_timestep_size(i+k), ode_solver);
         stateVec = ode_1step_integration["X1"];
         covMat = ode_1step_integration["P1"];
-        inputVec += dinputVec;
+        //inputVec += dinputVec;
       }
 
       // Save the prediction
@@ -122,15 +122,17 @@ List ekf_prediction(
       obsVec = remove_NAs(obsVec_all, number_of_available_obs(i+1), bool_is_not_na_obsVec);
       E = construct_permutation_matrix(number_of_available_obs(i+1), m, bool_is_not_na_obsVec);
 
-      // Kalman Filter
+      // Call funs and transform from Rcpp to Eigen
       H = h__(stateVec, parVec, inputVec);
-      Eigen::Map<Eigen::VectorXd> H_eigen = Rcpp::as<Eigen::Map<Eigen::VectorXd>>(H);
       dHdX = dhdx__(stateVec, parVec, inputVec);
+      Hvar = hvar__(stateVec, parVec, inputVec);
+      Eigen::Map<Eigen::VectorXd> H_eigen = Rcpp::as<Eigen::Map<Eigen::VectorXd>>(H);
       Eigen::Map<Eigen::MatrixXd> dHdX_eigen = Rcpp::as<Eigen::Map<Eigen::MatrixXd>>(dHdX);
+      Eigen::Map<Eigen::MatrixXd> Hvar_eigen = Rcpp::as<Eigen::Map<Eigen::MatrixXd>>(Hvar);
+      
+      // Kalman Filter
       C = E * dHdX_eigen;
       e = obsVec - E * H_eigen;
-      Hvar = hvar__(stateVec, parVec, inputVec);
-      Eigen::Map<Eigen::MatrixXd> Hvar_eigen = Rcpp::as<Eigen::Map<Eigen::MatrixXd>>(Hvar);
       V = E * Hvar_eigen * E.transpose();
       R = C * covMat * C.transpose() + V;
       Ri = R.inverse();

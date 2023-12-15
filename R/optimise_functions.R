@@ -48,7 +48,10 @@ construct_makeADFun = function(self, private){
     number_of_diffusions = private$number.of.diffusions,
     
     # inputs
-    inputMat = as.matrix(private$data[private$input.names])
+    inputMat = as.matrix(private$data[private$input.names]),
+    
+    # observations
+    obsMat = as.matrix(private$data[private$obs.names])
   )
   
   # if using method obj$predict then set the initial state as requested there
@@ -72,10 +75,7 @@ construct_makeADFun = function(self, private){
   }
   
   # construct final data list
-  data = c(private$data[private$obs.names], 
-           tmb.data,
-           private$iobs,
-           tmb.map.data)
+  data = c(tmb.data, private$iobs, tmb.map.data)
   
   ################################################
   # Parameters
@@ -429,64 +429,64 @@ create_return_fit = function(self, private) {
 # CREATE DATA.FRAME FOR PREDICT METHOD
 #######################################################
 
-construct_predict_dataframe = function(pars, rep, data, return.covariance, return.k.ahead, self, private){
-  
-  # Simlify variable names
-  n = private$number.of.states
-  n.ahead = private$n.ahead
-  state.names = private$state.names
-  last.pred.index = private$last.pred.index
-  
-  df.out = data.frame(matrix(nrow=last.pred.index*(n.ahead+1), ncol=5+n+n^2))
-  disp_names = sprintf(rep("cor.%s.%s",n^2),rep(state.names, each=n),rep(state.names,n))
-  disp_names[seq.int(1,n^2,by=n+1)] = sprintf(rep("var.%s",n),state.names)
-  var_bool = !stringr::str_detect(disp_names,"cor")
-  if(return.covariance){
-    disp_names = sprintf(rep("cov.%s.%s",n^2),rep(state.names,each=n),rep(state.names,n))
-    disp_names[seq.int(1,n^2,by=n+1)] = sprintf(rep("var.%s",n),state.names)
-  }
-  names(df.out) = c("i.","j.","t.i","t.j","k.ahead",state.names,disp_names)
-  ran = 0:(last.pred.index-1)
-  df.out["i."] = rep(ran,each=n.ahead+1)
-  df.out["j."] = df.out["i."] + rep(0:n.ahead,last.pred.index)
-  df.out["t.i"] = rep(data$t[ran+1],each=n.ahead+1)
-  df.out["t.j"] = data$t[df.out[,"i."]+1+rep(0:n.ahead,last.pred.index)]
-  df.out["k.ahead"] = rep(0:n.ahead,last.pred.index)
-  df.out[,state.names] = do.call(rbind,rep$xk__)
-  if(return.covariance){
-    df.out[,disp_names] = do.call(rbind,rep$pk__)
-  } else {
-    df.out[,disp_names] = do.call(rbind, lapply(rep$pk__,function(x) do.call(rbind, apply(x,1, function(y) as.vector(cov2cor(matrix(y,ncol=2,byrow=T))),simplify=FALSE))))
-    diag.ids = seq(from=1,to=n^2,by=n+1)
-    df.out[,disp_names[diag.ids]] = do.call(rbind,rep$pk__)[,diag.ids]
-  }
-  
-  # calculate observations at every time-step in predict
-  inputs.df = private$data[df.out[,"j."]+1,private$input.names]
-  
-  env.list = c(
-    as.list(df.out[state.names]),
-    as.list(inputs.df),
-    as.list(pars)
-  )
-  
-  obs.df.predict = as.data.frame(
-    lapply(private$obs.eqs.trans, function(ls){eval(ls$rhs, envir = env.list)})
-  )
-  names(obs.df.predict) = paste(private$obs.names,".predict",sep="")
-  df.out = cbind(df.out, obs.df.predict)
-  
-  # add data observation to output data.frame 
-  obs.df = private$data[df.out[,"j."]+1, private$obs.names, drop=F]
-  names(obs.df) = paste(private$obs.names,".data",sep="")
-  df.out = cbind(df.out, obs.df)
-  
-  # return only specific n.ahead
-  df.out = df.out[df.out[,"k.ahead"] %in% return.k.ahead,]
-  class(df.out) = c("sdem.pred", "data.frame")
-  
-  return(df.out)
-}
+# construct_predict_dataframe = function(pars, rep, data, return.covariance, return.k.ahead, self, private){
+#   
+#   # Simlify variable names
+#   n = private$number.of.states
+#   n.ahead = private$n.ahead
+#   state.names = private$state.names
+#   last.pred.index = private$last.pred.index
+#   
+#   df.out = data.frame(matrix(nrow=last.pred.index*(n.ahead+1), ncol=5+n+n^2))
+#   disp_names = sprintf(rep("cor.%s.%s",n^2),rep(state.names, each=n),rep(state.names,n))
+#   disp_names[seq.int(1,n^2,by=n+1)] = sprintf(rep("var.%s",n),state.names)
+#   var_bool = !stringr::str_detect(disp_names,"cor")
+#   if(return.covariance){
+#     disp_names = sprintf(rep("cov.%s.%s",n^2),rep(state.names,each=n),rep(state.names,n))
+#     disp_names[seq.int(1,n^2,by=n+1)] = sprintf(rep("var.%s",n),state.names)
+#   }
+#   names(df.out) = c("i.","j.","t.i","t.j","k.ahead",state.names,disp_names)
+#   ran = 0:(last.pred.index-1)
+#   df.out["i."] = rep(ran,each=n.ahead+1)
+#   df.out["j."] = df.out["i."] + rep(0:n.ahead,last.pred.index)
+#   df.out["t.i"] = rep(data$t[ran+1],each=n.ahead+1)
+#   df.out["t.j"] = data$t[df.out[,"i."]+1+rep(0:n.ahead,last.pred.index)]
+#   df.out["k.ahead"] = rep(0:n.ahead,last.pred.index)
+#   df.out[,state.names] = do.call(rbind,rep$xk__)
+#   if(return.covariance){
+#     df.out[,disp_names] = do.call(rbind,rep$pk__)
+#   } else {
+#     df.out[,disp_names] = do.call(rbind, lapply(rep$pk__,function(x) do.call(rbind, apply(x,1, function(y) as.vector(cov2cor(matrix(y,ncol=2,byrow=T))),simplify=FALSE))))
+#     diag.ids = seq(from=1,to=n^2,by=n+1)
+#     df.out[,disp_names[diag.ids]] = do.call(rbind,rep$pk__)[,diag.ids]
+#   }
+#   
+#   # calculate observations at every time-step in predict
+#   inputs.df = private$data[df.out[,"j."]+1,private$input.names]
+#   
+#   env.list = c(
+#     as.list(df.out[state.names]),
+#     as.list(inputs.df),
+#     as.list(pars)
+#   )
+#   
+#   obs.df.predict = as.data.frame(
+#     lapply(private$obs.eqs.trans, function(ls){eval(ls$rhs, envir = env.list)})
+#   )
+#   names(obs.df.predict) = paste(private$obs.names,".predict",sep="")
+#   df.out = cbind(df.out, obs.df.predict)
+#   
+#   # add data observation to output data.frame 
+#   obs.df = private$data[df.out[,"j."]+1, private$obs.names, drop=F]
+#   names(obs.df) = paste(private$obs.names,".data",sep="")
+#   df.out = cbind(df.out, obs.df)
+#   
+#   # return only specific n.ahead
+#   df.out = df.out[df.out[,"k.ahead"] %in% return.k.ahead,]
+#   class(df.out) = c("sdem.pred", "data.frame")
+#   
+#   return(df.out)
+# }
 
 construct_predict_rcpp_dataframe = function(pars, predict.list, data, return.covariance, return.k.ahead, self, private){
   
@@ -566,18 +566,22 @@ construct_simulate_rcpp_dataframe = function(pars, predict.list, data, return.co
   list.out = vector("list",length=private$number.of.states)
   names(list.out) = private$state.names
   
+  setRownames = function(obj, nm){rownames(obj) = nm; return(obj)}
+  setColnames = function(obj, nm){colnames(obj) = nm; return(obj)}
+  
+  
   for(i in seq_along(list.out)){
     list.out[[i]] = stats::setNames(
       lapply(predict.list, function(ls.outer){
-        stats::setNames(
-          as.data.frame(do.call(cbind, lapply(ls.outer, function(ls.inner) ls.inner[,i]))),
+        setRownames(
+          t(do.call(cbind, lapply(ls.outer, function(ls.inner) ls.inner[,i]))),
           paste0("k.ahead", 0:private$n.ahead)
-          )
-    }),
-    paste0("t", head(data$t, private$last.pred.index))
+        )}),
+      paste0("t", head(data$t, private$last.pred.index))
     )
   }
-  
+
+  # Compute the prediction times for each horizon
   ran = 0:(private$last.pred.index-1)
   t.j = data$t[rep(ran,each=private$n.ahead+1)+1+rep(0:private$n.ahead,private$last.pred.index)]
   t.j.splitlist = split(t.j, ceiling(seq_along(t.j)/(private$n.ahead+1)))

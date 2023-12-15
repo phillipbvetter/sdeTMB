@@ -1139,10 +1139,23 @@ sdem = R6::R6Class(
         } else {
           pars = self$get_parameters()[,"initial"]
         }
+      } else {
+        # check if parameters is with or without fixed parameters
+        lp = length(private$parameter.names)
+        fp = length(private$fixed.pars)
+        # if not correct length give error
+        if(!any(length(pars) == c(lp,lp-fp))){
+          stop("Incorrect number of parameters supplied (",length(pars),"). ", "Please supply either ",lp," or ", lp-fp, ", i.e. with or without fixed parameters.")
+        }
+        # if not contain fixed parameters, add these
+        if(length(pars)==lp-fp){
+          fp.id = self$get_parameters()[,"type"] == "fixed"
+          pars = c(pars, self$get_parameters()[fp.id,"initial"] )
+        }
       }
       
       ###### PERFORM PREDICTION #######
-      if(!silent) message("Compiling state space C++ functions...")
+      if(!silent) message("Compiling C++ prediction functions...")
       create_rcpp_statespace_functions(self, private)
       
       if(!silent) message("Simulating...")
@@ -1289,16 +1302,29 @@ sdem = R6::R6Class(
       ###### PARAMETERS #######
       if(is.null(pars)){
         if(!silent) message("No parameters were supplied - using estimated or initial values")
-        # if the estimation has been run, then use these parameters
+        # if the estimation has been run, then use estimated parameters, else use initial
         if(!is.null(private$fit)){
           pars = self$get_parameters()[,"estimate"]
         } else {
           pars = self$get_parameters()[,"initial"]
         }
+      } else {
+        # check if parameters is with or without fixed parameters
+        lp = length(private$parameter.names)
+        fp = length(private$fixed.pars)
+        # if not correct length give error
+        if(!any(length(pars) == c(lp,lp-fp))){
+          stop("Incorrect number of parameters supplied (",length(pars),"). ", "Please supply either ",lp," or ", lp-fp, ", i.e. with or without fixed parameters.")
+        }
+        # if not contain fixed parameters, add these
+        if(length(pars)==lp-fp){
+          fp.id = self$get_parameters()[,"type"] == "fixed"
+          pars = c(pars, self$get_parameters()[fp.id,"initial"] )
+        }
       }
       
       ###### PERFORM PREDICTION #######
-      if(!silent) message("Compiling state space C++ functions...")
+      if(!silent) message("Compiling C++ prediction functions...")
       create_rcpp_statespace_functions(self, private)
       
       if(!silent) message("Predicting...")
@@ -1742,7 +1768,7 @@ sdem = R6::R6Class(
       # Find last prediction index to avoid exciting boundary
       last.pred.index = nrow(data) - n.ahead
       if(last.pred.index < 1){
-        message("The provided k.ahead is too large, setting it to the maximum value nrow(data)-1.")
+        # message("The provided k.ahead is too large, setting it to the maximum value nrow(data)-1.")
         n.ahead = nrow(data) - 1
         last.pred.index = 1
       }

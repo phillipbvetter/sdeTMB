@@ -34,29 +34,70 @@ List ode_integrator(
   Eigen::MatrixXd covMat, 
   Eigen::VectorXd stateVec, 
   Eigen::VectorXd parVec, 
-  Eigen::VectorXd inputVec, 
-  double timestep, 
+  Eigen::VectorXd inputVec,
+  Eigen::VectorXd dinputVec, 
+  double dt, 
   int ode_solver)
 {
 
-  // Call drift and convert from Rcpp::NumericMatrix to Eigen::MatrixXd
-  Rcpp::NumericVector F = f__(stateVec, parVec, inputVec);
-  Eigen::Map<Eigen::VectorXd> F_eigen = Rcpp::as<Eigen::Map<Eigen::VectorXd>>(F);
-  Eigen::MatrixXd P_rhs = cov_ode_1step(g__, dfdx__, covMat, stateVec, parVec, inputVec);
-
-
   // Initialize return values
   Eigen::VectorXd X1;
-  X1.setZero();
   Eigen::MatrixXd P1;
-  P1.setZero();
 
   // Forward Euler
-  if(ode_solver == 1){
-    X1 = stateVec + F_eigen * timestep;
-    P1 = covMat + P_rhs * timestep;
+  if(ode_solver == 1)
+  {
+
+    Rcpp::NumericVector F = f__(stateVec, parVec, inputVec);
+    Eigen::Map<Eigen::VectorXd> F_eigen = Rcpp::as<Eigen::Map<Eigen::VectorXd>>(F);
+    Eigen::MatrixXd P_rhs = cov_ode_1step(g__, dfdx__, covMat, stateVec, parVec, inputVec);
+
+    X1 = stateVec + F_eigen * dt;
+    P1 = covMat + P_rhs * dt;
   }
-  if(ode_solver==2){}
+
+  // 4th Order Runge-Kutta
+  if(ode_solver==2)
+  {
+
+    // Initialize
+    Eigen::VectorXd X0 = stateVec;
+    Eigen::MatrixXd P0 = covMat;
+    NumericVector k1_rcpp, k2_rcpp, k3_rcpp, k4_rcpp;
+    Eigen::MatrixXd c1,c2,c3,c4;
+
+    // /*1. Approx Slope at Initial Point*/
+    k1_rcpp = f__(stateVec, parVec, inputVec);
+    Eigen::Map<Eigen::VectorXd> k1 = Rcpp::as<Eigen::Map<Eigen::VectorXd>>(k1_rcpp);
+    c1 = cov_ode_1step(g__, dfdx__, covMat, stateVec, parVec, inputVec);
+
+    /*2. First Approx Slope at Midpoint*/
+    //inputVec += 0.5 * dinputVec;
+    stateVec = X0 + 0.5 * dt * k1;
+    covMat   = P0 + 0.5 * dt * c1;
+    k2_rcpp  = f__(stateVec, parVec, inputVec); 
+    Eigen::Map<Eigen::VectorXd> k2 = Rcpp::as<Eigen::Map<Eigen::VectorXd>>(k2_rcpp);
+    c2       = cov_ode_1step(g__, dfdx__, covMat, stateVec, parVec, inputVec);
+
+    /*3. Second Approx Slope at Midpoint*/
+    stateVec = X0 + 0.5 * dt * k2;
+    covMat   = P0 + 0.5 * dt * c2;
+    k3_rcpp  = f__(stateVec, parVec, inputVec);
+    Eigen::Map<Eigen::VectorXd> k3 = Rcpp::as<Eigen::Map<Eigen::VectorXd>>(k3_rcpp); 
+    c3       = cov_ode_1step(g__, dfdx__, covMat, stateVec, parVec, inputVec);
+
+    /*4. Approx Slope at End Point*/
+    //inputVec += 0.5 * dinputVec;
+    stateVec = X0 + dt * k3;
+    covMat   = P0 + dt * c3;
+    k4_rcpp  = f__(stateVec, parVec, inputVec); 
+    Eigen::Map<Eigen::VectorXd> k4 = Rcpp::as<Eigen::Map<Eigen::VectorXd>>(k4_rcpp); 
+    c4       = cov_ode_1step(g__, dfdx__, covMat, stateVec, parVec, inputVec);
+
+    /*ODE UPDATE*/
+    X1 = X0 + dt * (k1 + 2.0*k2 + 2.0*k3 + k4)/6.0;
+    P1 = P0 + dt * (c1 + 2.0*c2 + 2.0*c3 + c4)/6.0;
+  }
 
   // Return
   return Rcpp::List::create(Named("X1")=X1, Named("P1")=P1);

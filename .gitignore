@@ -7,3 +7,7 @@ vignettes/ornstein_uhlenbeck.o
 vignettes/sde_model.cpp
 vignettes/sde_model.so
 vignettes/sde_model.o
+src/simulation_functions.o
+src/ekf_prediction_functions.o
+src/RcppExport.o
+src/sdem.so

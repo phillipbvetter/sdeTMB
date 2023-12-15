@@ -321,56 +321,54 @@ write_ekf_functions = function(self, private){
   newtxt = "\n//////////// ODE SOLVER ///////////
   template<class Type>
   struct ode_integration {
+  
 	  vector<Type> X1;
 	  matrix<Type> P1;
-	  ode_integration(matrix<Type> covMat, vector<Type> stateVec, vector<Type> parVec, vector<Type> inputVec, Type timestep, int ode_solver){
+  
+	  ode_integration(matrix<Type> covMat, vector<Type> stateVec, vector<Type> parVec, vector<Type> inputVec, vector<Type> dinputVec, Type dt, int ode_solver){
       /*Initial State and Cov Values*/
       vector<Type> X0 = stateVec;
       matrix<Type> P0 = covMat;
   
+		  /*Forward Euler*/
 		  if(ode_solver == 1){
-		   /*Forward Euler*/
   
-		   X1 = X0 + f__(stateVec, parVec, inputVec) * timestep;
-       P1 = P0 + cov_ode_1step(covMat, stateVec, parVec, inputVec) * timestep;
+		   X1 = X0 + f__(stateVec, parVec, inputVec) * dt;
+       P1 = P0 + cov_ode_1step(covMat, stateVec, parVec, inputVec) * dt;
   
+		  /*4th Order Runge-Kutta 4th*/
 		  } else if (ode_solver == 2){
-		   /*4th Order Runge-Kutta 4th*/
   
-		   vector<Type> k1,k2,k3,k4;
-		   matrix<Type> c1,c2,c3,c4;
+		   vector<Type> k1, k2, k3, k4;
+		   matrix<Type> c1, c2, c3, c4;
   
-		   /*SOLVE ODE*/
 		   /*1. Approx Slope at Initial Point*/
-       // calculate initial slopes
        k1 = f__(stateVec, parVec, inputVec);
        c1 = cov_ode_1step(covMat, stateVec, parVec, inputVec);
   
 		   /*2. First Approx Slope at Midpoint*/
-       inputVec(0) += 0.5 * timestep; // time update
-       stateVec = X0 + 0.5 * timestep * k1; // state update to midpoint
-       covMat = P0 + 0.5 * timestep * c1;  // cov update to midpoint
-       // calculate midpoint slopes
-       k2 = f__(stateVec, parVec, inputVec); 
-       c2 = cov_ode_1step(covMat, stateVec, parVec, inputVec);        
+       // inputVec += 0.5 * dinputVec;
+       stateVec = X0 + 0.5 * dt * k1;
+       covMat   = P0 + 0.5 * dt * c1;
+       k2       = f__(stateVec, parVec, inputVec); 
+       c2       = cov_ode_1step(covMat, stateVec, parVec, inputVec);        
   
 		   /*3. Second Approx Slope at Midpoint*/
-       stateVec = X0 + 0.5 * timestep * k2; // state update to midpoint
-       covMat = P0 + 0.5 * timestep * c2;  // cov update to midpoint
-       // calculate midpoint slopes
-       k3 = f__(stateVec, parVec, inputVec); 
-       c3 = cov_ode_1step(covMat, stateVec, parVec, inputVec);
+       stateVec = X0 + 0.5 * dt * k2;
+       covMat   = P0 + 0.5 * dt * c2;
+       k3       = f__(stateVec, parVec, inputVec); 
+       c3       = cov_ode_1step(covMat, stateVec, parVec, inputVec);
   
 		   /*4. Approx Slope at End Point*/
-       inputVec(0) += 0.5 * timestep; // time update
-       stateVec = X0 + timestep * k3; // state update to midpoint
-       covMat = P0 + timestep * c3;  // cov update to midpoint
-       k4 = f__(stateVec, parVec, inputVec); 
-       c4 = cov_ode_1step(covMat, stateVec, parVec, inputVec);
+       // inputVec += 0.5 * dinputVec;
+       stateVec = X0 + dt * k3;
+       covMat   = P0 + dt * c3;
+       k4       = f__(stateVec, parVec, inputVec); 
+       c4       = cov_ode_1step(covMat, stateVec, parVec, inputVec);
   
 		   /*ODE UPDATE*/
-		   X1 = X0 + timestep * (k1 + 2.0*k2 + 2.0*k3 + k4)/6.0;
-		   P1 = P0 + timestep * (c1 + 2.0*c2 + 2.0*c3 + c4)/6.0;
+		   X1 = X0 + dt * (k1 + 2.0*k2 + 2.0*k3 + k4)/6.0;
+		   P1 = P0 + dt * (c1 + 2.0*c2 + 2.0*c3 + c4)/6.0;
   
 		 } else {
 		 /*nothing*/
@@ -389,16 +387,11 @@ write_ekf_estimate = function(self, private){
   
   # Observation Vectors
   txt = c(txt, "\n//// observations ////")
-  for(i in 1:length(private$obs.names)){
-    txt = c(txt, sprintf("DATA_VECTOR(%s);",private$obs.names[i]))
-  }
-  
+  txt = c(txt, "DATA_MATRIX(obsMat)")
+
   # Input Vectors
   txt = c(txt, "\n//// inputs ////")
   txt = c(txt, "DATA_MATRIX(inputMat)")
-  # for(i in 1:length(private$input.names)){
-  # txt = c(txt, sprintf("DATA_VECTOR(%s);",private$input.names[i]))
-  # }
   
   # Initialize State
   txt = c(txt, "\n//// initial state ////")
@@ -433,25 +426,22 @@ write_ekf_estimate = function(self, private){
   
   # state, par, input, obs
   txt = c(txt, "\n//// state, par, input, obs vectors ////")
-  txt = c(txt, sprintf("vector<Type> parVec(%s);", private$number.of.pars))
-  txt = c(txt, sprintf("parVec << %s;", paste(private$parameter.names,collapse=", ")))
-  txt = c(txt, sprintf("vector<Type> obsVec(%s);", private$number.of.observations))
-  txt = c(txt, sprintf("vector<Type> inputVec(%s), dinputVec(%s);", 
+  txt = c(txt, sprintf("vector<Type> inputVec(%s), dinputVec(%s), obsVec(%s), parVec(%s);", 
                        private$number.of.inputs, 
-                       private$number.of.inputs))
+                       private$number.of.inputs,
+                       private$number.of.observations,
+                       private$number.of.pars
+                       ))
+  txt = c(txt, sprintf("parVec << %s;", paste(private$parameter.names,collapse=", ")))
   
   # Storage variables
   txt = c(txt, "\n//////////// storage variables ///////////")
-  txt = c(txt, "vector<vector<Type>> xPrior(tsize);")
-  txt = c(txt, "vector<matrix<Type>> pPrior(tsize);")
-  txt = c(txt, "vector<vector<Type>> xPost(tsize);")
-  txt = c(txt, "vector<matrix<Type>> pPost(tsize);")
-  txt = c(txt, "vector<vector<Type>> Innovation(tsize);")
-  txt = c(txt, "vector<matrix<Type>> InnovationCovariance(tsize);")
+  txt = c(txt, "vector<vector<Type>> xPrior(tsize), xPost(tsize), Innovation(tsize);")
+  txt = c(txt, "vector<matrix<Type>> pPrior(tsize), pPost(tsize), InnovationCovariance(tsize);")
   
   txt = c(txt, "\n//////////// set initial value ///////////")
-  txt = c(txt, "xPrior(0) = stateVec; xPost(0) = stateVec;")
-  txt = c(txt, "pPrior(0) = covMat; pPost(0) = covMat;")
+  txt = c(txt, "xPrior(0) = stateVec, xPost(0) = stateVec;")
+  txt = c(txt, "pPrior(0) = covMat, pPost(0) = covMat;")
   
   # Initiaze variables
   txt = c(txt, "\n //////////// initialize variables ///////////")
@@ -470,20 +460,16 @@ write_ekf_estimate = function(self, private){
   
   # Time for-loop
   txt = c(txt, "for(int i=0 ; i < tsize - 1 ; i++){")
-  
   # Set inputs
   txt = c(txt, "inputVec = inputMat.row(i);")
   txt = c(txt, "dinputVec = (inputMat.row(i+1) - inputMat.row(i))/ode_timesteps(i);")
-  
-  
   # Solve Moment ODEs
   txt = c(txt, "\n //////////// TIME-UPDATE: SOLVE MOMENT ODES ///////////")
   txt = c(txt, "for(int j=0 ; j < ode_timesteps(i) ; j++){")
-  txt = c(txt, "ode_integration<Type> odelist = {covMat, stateVec, parVec, inputVec, ode_timestep_size(i), ode_solver};")
+  txt = c(txt, "ode_integration<Type> odelist = {covMat, stateVec, parVec, inputVec, dinputVec, ode_timestep_size(i), ode_solver};")
   txt = c(txt, "stateVec = odelist.X1;")
   txt = c(txt, "covMat = odelist.P1;")
-  # txt = c(txt, sprintf("inputVec(0) += ode_timestep_size(i);"))
-  txt = c(txt, "inputVec += dinputVec;") #update first order time inputs
+  # txt = c(txt, "inputVec += dinputVec;")
   txt = c(txt, "}")
   txt = c(txt, "xPrior(i+1) = stateVec;")
   txt = c(txt, "pPrior(i+1) = covMat;")
@@ -492,8 +478,7 @@ write_ekf_estimate = function(self, private){
   txt = c(txt, "\n //////////// DATA-UPDATE ///////////")
   
   # Set observation indices (i+1)
-  obs.ids = paste0( private$obs.names, "(i+1)", collapse=", ")
-  txt = c(txt, sprintf("obsVec << %s;", obs.ids))
+  txt = c(txt, "obsVec = obsMat.row(i+1);")
   
   # Check the number of NAs in the observation vector
   txt = c(txt, "is_not_na_obsVec = is_not_na(obsVec);")
@@ -501,15 +486,8 @@ write_ekf_estimate = function(self, private){
   
   ########## <OBS IF STATEMENT>  ##########
   txt = c(txt, "if( number_of_nonNA_observations > 0 ){")
-  
-  # Indice input indices (i+1)
-  txt = c(txt, sprintf("inputVec = inputMat.row(i+1);"))
-  
-  
-  # Remove NAs in the observation vector
+  txt = c(txt, "inputVec = inputMat.row(i+1);")
   txt = c(txt, "y__ = remove_nas__(obsVec, number_of_nonNA_observations, is_not_na_obsVec);")
-  
-  # Permutation matrix to filter out NA observation indices
   txt = c(txt, "E__ = construct_permutation_matrix(number_of_nonNA_observations, number_of_obs_eqs, is_not_na_obsVec);")
   txt = c(txt, "H__ = h__(stateVec, parVec, inputVec);")
   txt = c(txt, "C__ = E__ * dhdx__(stateVec, parVec, inputVec);")
@@ -526,22 +504,23 @@ write_ekf_estimate = function(self, private){
   txt = c(txt, "InnovationCovariance(i+1) = R__;")
   txt = c(txt, "}")
   ########## </OBS IF STATEMENT>  ##########
+  
+  # Store posterior values
   txt = c(txt, "xPost(i+1) = stateVec;")
   txt = c(txt, "pPost(i+1) = covMat;")
+  
   txt = c(txt, "}")
   ########## </MAIN LOOP>  ##########
   
-  
   # Maximum-A-Posterior
   txt = c(txt, "\n//////////// MAP CONTRIBUTION ///////////")
-  #
   txt = c(txt, "if(MAP_bool == 1){")
   txt = c(txt, "DATA_VECTOR(map_mean__);")
   txt = c(txt, "DATA_MATRIX(map_cov__);")
   txt = c(txt, "DATA_IVECTOR(map_ints__);")
   txt = c(txt, "DATA_INTEGER(sum_map_ints__);")
   txt = c(txt, "vector<Type> map_pars__;")
-  txt = c(txt, sprintf("map_pars__ = get_free_pars__(map_ints__, sum_map_ints__, parVec);"))
+  txt = c(txt, "map_pars__ = get_free_pars__(map_ints__, sum_map_ints__, parVec);")
   txt = c(txt, "vector<Type> pars_eps__ = map_pars__ - map_mean__;")
   txt = c(txt, "matrix<Type> map_invcov__ = map_cov__.inverse();")
   txt = c(txt, "Type map_nll__ = Type(0.5) * atomic::logdet(map_cov__) + Type(0.5) * (pars_eps__ * (map_invcov__ * pars_eps__)).sum();")
@@ -552,8 +531,7 @@ write_ekf_estimate = function(self, private){
   txt = c(txt, "}")
   
   # Report variables
-  txt = c(txt, "\n//////////// Return/Report //////////////")
-  #
+  txt = c(txt, "\n//////////// Report //////////////")
   txt = c(txt, "REPORT(Innovation);")
   txt = c(txt, "REPORT(InnovationCovariance);")
   txt = c(txt, "REPORT(xPrior);")

@@ -90,10 +90,10 @@ List ekf_simulation(
     inputVec = inputMat.row(i);
     dinputVec = (inputMat.row(i+1) - inputMat.row(i))/ode_timesteps(i);
     for(int j=0 ; j < ode_timesteps(i) ; j++){
-      ode_1step_integration = ode_integrator(f__, g__, dfdx__, covMat, stateVec, parVec, inputVec, ode_timestep_size(i), ode_solver);
+      ode_1step_integration = ode_integrator(f__, g__, dfdx__, covMat, stateVec, parVec, inputVec, dinputVec, ode_timestep_size(i), ode_solver);
       stateVec = ode_1step_integration["X1"];
       covMat = ode_1step_integration["P1"];
-      inputVec += dinputVec;
+      //inputVec += dinputVec;
     }
 
     //////////// DATA-UPDATE ///////////

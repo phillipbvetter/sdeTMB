@@ -54,6 +54,7 @@ but it can't be accessed directly i.e. `?sdem::estimate` or similar will not wor
 library(ggplot2)
 library(patchwork)
 library(dplyr)
+library(reshape2)
 library(sdem)
 
 ############################################################
@@ -196,19 +197,20 @@ sim.list = obj$simulate(data=.data,
                         ode.solver="euler", 
                         initial.state=obj$get_initial_state()
 )
-sim.df = sim.list$x$t0 %>% 
-  t %>% 
-  cbind(tj=sim.list$prediction_times$t0,.) %>%
+
+# Collapse simulation data for easy use with ggplot 
+sim.df = sim.list$x[[1]] %>%
+  cbind(tj=sim.list$prediction_times[[1]],.) %>%
   reshape2::melt(., id.var="t.j")
 
+# Plot all full simulations and the full prediction against observations
+# (full means no data-update at all)
 plot3 = ggplot() +
   geom_line(data=sim.df, aes(x=t.j, y=value, group=variable),color="grey") +
   geom_line(aes(x=pred.list$states$t.j,y=pred.list$states$x),color="steelblue") +
   geom_point(aes(x=t.obs,y=y),color="tomato",size=2) +
   labs(title="No Update Prediction and Simulations vs Observations", x="Time", y="") +
   theme_minimal() + theme(legend.position = "none")
-
-# geom_line(aes(x=sim$prediction_times$t0, y=sim.plot.data$value, color=sim.plot.data$id)) 
 
 # Draw both plots
 plot1 / plot2 / plot3
