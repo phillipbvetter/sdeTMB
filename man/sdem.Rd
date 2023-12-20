@@ -574,6 +574,7 @@ Estimate the fixed effects parameters in the specified model.
   use.hessian = FALSE,
   control = list(trace = 1, iter.max = 10000, eval.max = 10000),
   unscented_hyperpars = NULL,
+  calculate.laplace.onestep.residuals = FALSE,
   compile = FALSE,
   silent = FALSE
 )}\if{html}{\out{</div>}}
@@ -654,6 +655,9 @@ See \code{?stats::nlminb} for more information}
 
 \item{\code{unscented_hyperpars}}{the three hyper-parameters \code{alpha}, \code{beta} and \code{kappa} defining
 the unscented transformation.}
+
+\item{\code{calculate.laplace.onestep.residuals}}{boolean - whether or not to calculate one-step ahead residuls
+using the method of \linkto{TMB::oneStepPredict}.}
 
 \item{\code{compile}}{boolean value. The default (\code{FALSE}) is to not compile the C++ objective
 function but assume it is already compiled and corresponds to the specified model object. It is

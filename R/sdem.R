@@ -959,6 +959,8 @@ sdem = R6::R6Class(
     #' The cutoff for the Huber and Tukey loss functions are determined from a provided cutoff 
     #' parameter \code{loss_c}. The implementations of these losses are approximations (pseudo-huber and sigmoid 
     #' approxmation respectively) for smooth derivatives.
+    #' @param calculate.laplace.onestep.residuals boolean - whether or not to calculate one-step ahead residuls
+    #' using the method of \linkto{TMB::oneStepPredict}.
     #' @param loss_c cutoff value for huber and tukey loss functions. Defaults to \code{c=3}
     #' @param control list of control parameters parsed to \code{nlminb} as its \code{control} argument. 
     #' See \code{?stats::nlminb} for more information
@@ -973,6 +975,7 @@ sdem = R6::R6Class(
                         use.hessian = FALSE,
                         control = list(trace=1,iter.max=1e4,eval.max=1e4),
                         unscented_hyperpars = NULL,
+                        calculate.laplace.onestep.residuals = FALSE,
                         compile = FALSE,
                         silent = FALSE){
       
@@ -1013,7 +1016,7 @@ sdem = R6::R6Class(
       }
       
       # create return fit
-      create_return_fit(self, private)
+      create_return_fit(self, private, calculate.laplace.onestep.residuals)
       
       # return fit
       return(invisible(private$fit))

@@ -129,19 +129,19 @@ construct_rtmb_laplace_makeADFun = function(self, private)
   ode_timestep_size = private$ode.timestep.size
   ode_timesteps = private$ode.timesteps
   ode_cumsum_timesteps = private$ode.timesteps.cumsum
-  # loss function
-  loss_function = private$loss$loss
-  loss_threshold_value = private$loss$c
-  tukey_loss_parameters = private$tukey.pars
+  
   # system size
   number_of_state_eqs = private$number.of.states
   number_of_obs_eqs = private$number.of.observations
   number_of_diffusions = private$number.of.diffusions
+  
   # inputs
   inputMat = as.matrix(private$data[private$input.names])
+  
   # observations
   obsMat = as.matrix(private$data[private$obs.names])
-  # iobs
+  
+  # indices in state parameter vectors corresponding to indices in observations / inputs
   iobs = lapply(private$iobs,function(x) x+1)
   
   ################################################
@@ -182,26 +182,26 @@ ans = c(HVAR_ELEMENTS)
 return(ans)
 }')
   sde.functions.txt = stringr::str_replace_all(sde.functions.txt, 
-                                           pattern="NUMBER_OF_STATES", 
-                                           replacement=deparse(as.numeric(private$number.of.states)))
+                                               pattern="NUMBER_OF_STATES", 
+                                               replacement=deparse(as.numeric(private$number.of.states)))
   sde.functions.txt = stringr::str_replace_all(sde.functions.txt, 
-                                           pattern="NUMBER_OF_DIFFUSIONS", 
-                                           replacement=deparse(as.numeric(private$number.of.diffusions)))
+                                               pattern="NUMBER_OF_DIFFUSIONS", 
+                                               replacement=deparse(as.numeric(private$number.of.diffusions)))
   sde.functions.txt = stringr::str_replace_all(sde.functions.txt, 
-                                           pattern="NUMBER_OF_OBSERVATIONS", 
-                                           replacement=deparse(as.numeric(private$number.of.observations)))
+                                               pattern="NUMBER_OF_OBSERVATIONS", 
+                                               replacement=deparse(as.numeric(private$number.of.observations)))
   sde.functions.txt = stringr::str_replace_all(sde.functions.txt, 
-                                           pattern="F_ELEMENTS", 
-                                           replacement=paste(elements$f,collapse=","))
+                                               pattern="F_ELEMENTS", 
+                                               replacement=paste(elements$f,collapse=","))
   sde.functions.txt = stringr::str_replace_all(sde.functions.txt, 
-                                           pattern="G_ELEMENTS", 
-                                           replacement=paste(elements$g,collapse=","))
+                                               pattern="G_ELEMENTS", 
+                                               replacement=paste(elements$g,collapse=","))
   sde.functions.txt = stringr::str_replace_all(sde.functions.txt, 
-                                           pattern="H_ELEMENTS", 
-                                           replacement=paste(elements$h,collapse=","))
+                                               pattern="H_ELEMENTS", 
+                                               replacement=paste(elements$h,collapse=","))
   sde.functions.txt = stringr::str_replace_all(sde.functions.txt, 
-                                           pattern="HVAR_ELEMENTS", 
-                                           replacement=paste(elements$hvar,collapse=","))
+                                               pattern="HVAR_ELEMENTS", 
+                                               replacement=paste(elements$hvar,collapse=","))
   eval(parse(text=sde.functions.txt))
   
   main.function.txt = paste('laplace.nll = function(p){
@@ -246,6 +246,7 @@ nll = nll - RTMB::dmvnorm(z, Sigma=v, log=TRUE)
 }
 ###### TIME LOOP END #######
 
+obsMat = RTMB::OBS(obsMat)
 ###### DATA UPDATE START #######
 for(i in 1:NUMBER_OF_OBSERVATIONS){
 for(j in 1:length(iobs[[i]])){
@@ -272,20 +273,20 @@ return(invisible(nll))
 }')
   
   main.function.txt = stringr::str_replace_all(main.function.txt, 
-                                           pattern="NUMBER_OF_STATES", 
-                                           replacement=deparse(as.numeric(private$number.of.states)))
+                                               pattern="NUMBER_OF_STATES", 
+                                               replacement=deparse(as.numeric(private$number.of.states)))
   main.function.txt = stringr::str_replace_all(main.function.txt, 
-                                           pattern="NUMBER_OF_DIFFUSIONS", 
-                                           replacement=deparse(as.numeric(private$number.of.diffusions)))
+                                               pattern="NUMBER_OF_DIFFUSIONS", 
+                                               replacement=deparse(as.numeric(private$number.of.diffusions)))
   main.function.txt = stringr::str_replace_all(main.function.txt, 
-                                           pattern="NUMBER_OF_OBSERVATIONS", 
-                                           replacement=deparse(as.numeric(private$number.of.observations)))
+                                               pattern="NUMBER_OF_OBSERVATIONS", 
+                                               replacement=deparse(as.numeric(private$number.of.observations)))
   main.function.txt = stringr::str_replace_all(main.function.txt, 
-                                           pattern="STATE_NAMES", 
-                                           replacement=paste("p$",private$state.names,sep="",collapse=","))
+                                               pattern="STATE_NAMES", 
+                                               replacement=paste("p$",private$state.names,sep="",collapse=","))
   main.function.txt = stringr::str_replace_all(main.function.txt, 
-                                           pattern="FIXED_PARAMETERS", 
-                                           replacement=paste("p$",private$parameter.names,sep="",collapse=","))
+                                               pattern="FIXED_PARAMETERS", 
+                                               replacement=paste("p$",private$parameter.names,sep="",collapse=","))
   eval(parse(text=main.function.txt))
   
   ################################################
@@ -407,7 +408,7 @@ optimize_negative_loglikelihood = function(self, private) {
 # MAKE RETURN DATA NICE AFTER OPTIMIZATION
 #######################################################
 
-create_return_fit = function(self, private) {
+create_return_fit = function(self, private, calculate.laplace.onestep.residuals) {
   
   if (is.null(private$opt)) {
     return(NULL)
@@ -588,11 +589,8 @@ create_return_fit = function(self, private) {
     private$fit$cov.fixed = private$sdr$cov.fixed
     
     # Posterior States (Smoothed)
-    states.at.timepoints = cumsum(c(1,private$ode.N))
-    temp = cbind(
-      matrix(private$sdr$par.random, ncol=n),
-      matrix(sqrt(private$sdr$diag.cov.random), ncol=n)
-    )[states.at.timepoints,]
+    temp = cbind(matrix(private$sdr$par.random, ncol=n),
+                 matrix(sqrt(private$sdr$diag.cov.random), ncol=n))[private$ode.timesteps.cumsum+1, ]
     temp.states = cbind(private$data$t, matrix(temp[,1:n],nrow=length(private$data$t)))
     temp.sd = cbind(private$data$t, matrix(temp[,(n+1):(2*n)],nrow=length(private$data$t)))
     #
@@ -605,10 +603,15 @@ create_return_fit = function(self, private) {
     rowNAs = as.matrix(!is.na(do.call(cbind,private$data[private$obs.names]))[-1,])
     sumrowNAs = rowSums(rowNAs)
     
-    # still need to figure out how to get residuals
-    # TMB::oneStepPredict(private$nll,
-    #                     observation.name=private$obs.names[1],
-    #                     method="fullGaussian")
+    # compute one-step residuals
+    if(calculate.laplace.onestep.residuals){
+    message("Calculating one-step ahead residuls...")
+    osa = RTMB::oneStepPredict(private$nll,
+                        observation.name="obsMat",
+                        method="oneStepGaussian",
+                        trace=TRUE)
+    private$fit$one_step_residuals = osa
+    }
     
     # t-values and Pr( t > t_test )
     private$fit$tvalue = private$fit$par.fixed / private$fit$sd.fixed
