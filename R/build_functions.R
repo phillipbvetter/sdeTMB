@@ -413,6 +413,10 @@ final_build_check = function(self, private) {
 
 compile_cppfile = function(self, private) {
   
+  if(private$method == "laplace"){
+    return(invisible(self))
+  }
+  
   # If the user requested a compilaton
   if(private$compile){
     
