@@ -196,7 +196,7 @@ set_data_for_laplace_method = function(data, self, private){
     
     if(any(bool)){
       data[private$state.names[bool]] =
-        matrix(rep(private$initial.state$mean[bool], times=length(data$t)),ncol=sum(bool))
+        matrix(rep(private$initial.state$x0[bool], times=length(data$t)),ncol=sum(bool))
     }
     
     # save state values as tmb initial state values
@@ -212,45 +212,6 @@ set_data_for_laplace_method = function(data, self, private){
   
   # return
   return(invisible(self))
-}
-
-
-check_and_set_data = function(data, self, private) {
-  
-  basic_data_check(data, self, private)
-  
-  # convert to data.frame
-  data = as.data.frame(data)
-  
-  # calculate observations in 'call' form e.g. if complex obs lhs e.g:
-  # log(y) ~ ... , then we are given y in the data, and must compute log(y)
-  data = calculate_complex_observation_lefthandsides(data, self, private)
-  
-  # calculate and set ODE time-step size and number of steps
-  set_ode_timestep(data, self, private)
-  
-  # various calculations for tmb's laplace method
-  set_data_for_laplace_method(data, self, private)
-  
-  # only store the obs.names, not the parsed data 
-  # example: if we have obs eq log(y) ~ y with name log_y, then we store log_y, but not y itself.
-  private$data = data[c(private$obs.names, private$input.names)]
-  
-  # Return
-  return(invisible(self))
-}
-
-set_simulation_timestep = function(self, private, simulation.timestep){
-  
-  # if no simulation.timestep was provided
-  if(is.null(simulation.timestep)){
-    private$simulation.timesteps = private$ode.timesteps
-    private$simulation.timestep.size = private$ode.timestep.size
-    return(invisible(self))
-  }
-  
-  #otherwise compute as ode.timestep
-  
 }
 
 #######################################################
@@ -329,5 +290,85 @@ set_simulation_timestep = function(data, self, private){
   private$simulation.timesteps = simulation.timesteps
   
   # return
+  return(invisible(self))
+}
+
+set_ukf_parameters = function(unscented_hyperpars, self, private)
+{
+  if(is.null(unscented_hyperpars))
+  {
+    unscented_hyperpars = list(alpha=1,beta=0,kappa=3-private$number.of.states)
+  }
+  private$set_ukf_hyperpars(unscented_hyperpars)
+  
+  return(invisible(self))
+}
+
+
+set_pred_initial_state = function(initial.state, self, private)
+{
+  ###### SET INITIAL STATE AND COVARIANCE VALUES #######
+  if(is.null(initial.state)){
+    stop("Please set provide an initial value for the state and covariance as a named list with entries 'x0' and 'p0'")
+  }
+  if(!is.list(initial.state)){
+    stop("The initial state argument must be a named list with entries 'x0' and 'p0'")
+  }
+  if(length(initial.state) != 2){
+    stop("The initial state should only contain an entry x0 for the initial state, and p0 for the initial covariance")
+  }
+  if(length(initial.state$x0) != private$number.of.states){
+    stop("The length of the initial state for x0 should be equal to the number of states")
+  }
+  if(any(dim(initial.state$p0) != rep(private$number.of.states,2))){
+    stop("The length of the initial state for x0 should be equal to the number of states")
+  }
+  
+  private$set_pred_initial_state(initial.state[["x0"]], initial.state[["p0"]])
+  
+  return(invisible(self))
+}
+
+
+was_any_data_provided = function(data, self, private)
+{
+  ###### CHECK DATA #######
+  if(is.null(data)){
+    if(is.null(private$data)){
+      stop("Please supply data.")
+    } else {
+      message("No new data was provided, reusing the lastest provided data.")
+      data = private$data
+    }
+  }
+  
+  return(invisible(self))
+}
+
+check_and_set_data = function(data, self, private) {
+  
+  was_any_data_provided(data, self, private)
+  
+  basic_data_check(data, self, private)
+  
+  # convert to data.frame
+  data = as.data.frame(data)
+  
+  # calculate observations in 'call' form e.g. if complex obs lhs e.g:
+  # log(y) ~ ... , then we are given y in the data, and must compute log(y)
+  data = calculate_complex_observation_lefthandsides(data, self, private)
+  
+  # set timestep
+  set_ode_timestep(data, self, private)
+  set_simulation_timestep(data, self, private)
+  
+  # various calculations for tmb's laplace method
+  set_data_for_laplace_method(data, self, private)
+  
+  # only store the obs.names, not the parsed data 
+  # example: if we have obs eq log(y) ~ y with name log_y, then we store log_y, but not y itself.
+  private$data = data[c(private$obs.names, private$input.names)]
+  
+  # Return
   return(invisible(self))
 }

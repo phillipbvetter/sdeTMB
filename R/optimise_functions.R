@@ -2,9 +2,24 @@
 # stats::nlminb estimator for minimizing the negative loglikelihood.
 
 #######################################################
-# CONSTRUCT AD-FUN
+# MAIN CONSTRUCT MAKEADFUN FUNCTION THAT CALL OTHERS
 #######################################################
+
 construct_makeADFun = function(self, private){
+  
+  if(private$method=="laplace"){
+    construct_rtmb_laplace_makeADFun(self, private)
+  } else {
+    construct_kalman_makeADFun(self, private)
+  }
+  
+  return(invisible(self))
+}
+
+#######################################################
+# CONSTRUCT KALMAN MAKEADFUN
+#######################################################
+construct_kalman_makeADFun = function(self, private){
   
   ################################################
   # Data
@@ -12,8 +27,7 @@ construct_makeADFun = function(self, private){
   
   estimation_method = switch(private$method,
                              ekf = 1,
-                             ukf = 2,
-                             laplace = 3
+                             ukf = 2
   )
   
   # add mandatory entries to data
@@ -21,12 +35,7 @@ construct_makeADFun = function(self, private){
     
     # methods and purpose
     estimation_method = estimation_method,
-    prediction_bool = private$pred.bool,
     ode_solver = private$ode.solver,
-    
-    # prediction settings
-    last_pred_index = private$last.pred.index,
-    k_step_ahead = private$n.ahead,
     
     # initial
     stateVec = private$initial.state$x0,
@@ -54,13 +63,18 @@ construct_makeADFun = function(self, private){
     obsMat = as.matrix(private$data[private$obs.names])
   )
   
-  # if using method obj$predict then set the initial state as requested there
-  if(private$pred.bool){
-    tmb.data$stateVec = private$pred.initial.state$mean
-    tmb.data$covMat = private$pred.initial.state$cov
+  # unscented parameters
+  ukf_hyperpars_list = list()
+  if(private$method=="ukf")
+  {
+    ukf_hyperpars_list = list(
+      ukf_alpha = private$ukf_alpha,
+      ukf_beta = private$ukf_beta,
+      ukf_kappa = private$ukf_kappa
+    )
   }
   
-  # add MAP entries to data if MAP is active
+  # MAP Estimation?
   tmb.map.data = list(
     MAP_bool = 0L
   )
@@ -75,37 +89,220 @@ construct_makeADFun = function(self, private){
   }
   
   # construct final data list
-  data = c(tmb.data, private$iobs, tmb.map.data)
+  data = c(tmb.data, private$iobs, tmb.map.data, ukf_hyperpars_list)
+  
+  ################################################
+  # Parameters
+  ################################################
+  
+  parameters = lapply(private$parameters, function(x) x[["initial"]]) # Initial parameter values
+  
+  ################################################
+  # Construct Neg. Log-Likelihood
+  ################################################
+  
+  nll = TMB::MakeADFun(data = data,
+                       parameters = parameters,
+                       map = private$fixed.pars,
+                       DLL = private$modelname,
+                       silent = TRUE)
+  
+  # save objective function
+  private$nll = nll
+  
+  # return
+  return(invisible(self))
+}
+
+#######################################################
+# CONSTRUCT LAPLACE MAKEADFUN
+#######################################################
+
+construct_rtmb_laplace_makeADFun = function(self, private)
+{
+  
+  ################################################
+  # Data
+  ################################################
+  
+  # time-steps
+  ode_timestep_size = private$ode.timestep.size
+  ode_timesteps = private$ode.timesteps
+  ode_cumsum_timesteps = private$ode.timesteps.cumsum
+  # loss function
+  loss_function = private$loss$loss
+  loss_threshold_value = private$loss$c
+  tukey_loss_parameters = private$tukey.pars
+  # system size
+  number_of_state_eqs = private$number.of.states
+  number_of_obs_eqs = private$number.of.observations
+  number_of_diffusions = private$number.of.diffusions
+  # inputs
+  inputMat = as.matrix(private$data[private$input.names])
+  # observations
+  obsMat = as.matrix(private$data[private$obs.names])
+  # iobs
+  iobs = lapply(private$iobs,function(x) x+1)
   
   ################################################
   # Parameters
   ################################################
   
   parameters = c(
-    lapply(private$parameters, function(x) x[["initial"]]), # Initial parameter values
-    private$tmb.initial.state.for.parameters # specifics for TMB
+    lapply(private$parameters, function(x) x[["initial"]]),
+    private$tmb.initial.state.for.parameters
   )
+  
+  ################################################
+  # Define function
+  ################################################
+  
+  elements = get_rtmb_function_elements(self, private)
+  
+  sde.functions.txt = paste('###### DEFINE FUNCTIONS #######
+# drift function
+f__ = function(stateVec, parVec, inputVec){
+ans = c(F_ELEMENTS)
+return(ans)
+}
+
+# diffusion function
+g__ = function(stateVec, parVec, inputVec){
+ans = RTMB::matrix(c(G_ELEMENTS), nrow=NUMBER_OF_STATES, ncol=NUMBER_OF_DIFFUSIONS, byrow=T)
+return(ans)
+}
+
+h__ = function(stateVec, parVec, inputVec){
+ans = c(H_ELEMENTS)
+return(ans)
+}
+
+hvar__ = function(stateVec, parVec, inputVec){
+ans = c(HVAR_ELEMENTS)
+return(ans)
+}')
+  sde.functions.txt = stringr::str_replace_all(sde.functions.txt, 
+                                           pattern="NUMBER_OF_STATES", 
+                                           replacement=deparse(as.numeric(private$number.of.states)))
+  sde.functions.txt = stringr::str_replace_all(sde.functions.txt, 
+                                           pattern="NUMBER_OF_DIFFUSIONS", 
+                                           replacement=deparse(as.numeric(private$number.of.diffusions)))
+  sde.functions.txt = stringr::str_replace_all(sde.functions.txt, 
+                                           pattern="NUMBER_OF_OBSERVATIONS", 
+                                           replacement=deparse(as.numeric(private$number.of.observations)))
+  sde.functions.txt = stringr::str_replace_all(sde.functions.txt, 
+                                           pattern="F_ELEMENTS", 
+                                           replacement=paste(elements$f,collapse=","))
+  sde.functions.txt = stringr::str_replace_all(sde.functions.txt, 
+                                           pattern="G_ELEMENTS", 
+                                           replacement=paste(elements$g,collapse=","))
+  sde.functions.txt = stringr::str_replace_all(sde.functions.txt, 
+                                           pattern="H_ELEMENTS", 
+                                           replacement=paste(elements$h,collapse=","))
+  sde.functions.txt = stringr::str_replace_all(sde.functions.txt, 
+                                           pattern="HVAR_ELEMENTS", 
+                                           replacement=paste(elements$hvar,collapse=","))
+  eval(parse(text=sde.functions.txt))
+  
+  main.function.txt = paste('laplace.nll = function(p){
+# set negative log-likelihood
+nll = 0
+
+# small identity matrix
+small_identity = diag(1e-8, nrow=NUMBER_OF_STATES, ncol=NUMBER_OF_STATES)
+
+# extract state random effects
+stateMat = cbind(STATE_NAMES)
+
+# fixed effects parameter vector
+parVec = cbind(FIXED_PARAMETERS)
+
+###### TIME LOOP START #######
+for(i in 1:(nrow(obsMat)-1)) {
+
+# Define inputs and use first order input interpolation
+inputVec = inputMat[i,]
+dinputVec = (inputMat[i+1,] - inputMat[i,])/ode_timesteps[i]
+
+###### BETWEEN TIME POINTS LOOP START #######
+for(j in 1:ode_timesteps[i]){
+
+# grab current and next state
+x_now = stateMat[ode_cumsum_timesteps[i]+j,]
+x_next = stateMat[ode_cumsum_timesteps[i]+j+1,]
+
+# compute drift (vector) and diffusion (matrix)
+f = f__(x_now, parVec, inputVec)
+g = g__(x_now, parVec, inputVec)
+inputVec = inputVec + dinputVec
+
+# assume multivariate gauss distribution according to euler-step
+# and calculate the likelihood
+z = x_next - (x_now + f * ode_timestep_size[i])
+v = (g %*% t(g) + small_identity) * ode_timestep_size[i]
+nll = nll - RTMB::dmvnorm(z, Sigma=v, log=TRUE)
+}
+###### BETWEEN TIME POINTS LOOP END #######
+}
+###### TIME LOOP END #######
+
+###### DATA UPDATE START #######
+for(i in 1:NUMBER_OF_OBSERVATIONS){
+for(j in 1:length(iobs[[i]])){
+
+# Get index where observation is available
+k = iobs[[i]][j]
+
+# Get corresponding input, state and observation
+inputVec = inputMat[k,]
+stateVec = stateMat[ode_cumsum_timesteps[k]+1,]
+obsScalar = obsMat[k,i]
+
+# Observation equation and varianace
+h_x = h__(stateVec, parVec, inputVec)[i]
+hvar_x = hvar__(stateVec, parVec, inputVec)[i]
+
+# likelihood contribution
+nll = nll - RTMB::dnorm(obsScalar, mean=h_x, sd=sqrt(hvar_x), log=TRUE)
+}}
+###### DATA UPDATE END #######
+
+# return
+return(invisible(nll))
+}')
+  
+  main.function.txt = stringr::str_replace_all(main.function.txt, 
+                                           pattern="NUMBER_OF_STATES", 
+                                           replacement=deparse(as.numeric(private$number.of.states)))
+  main.function.txt = stringr::str_replace_all(main.function.txt, 
+                                           pattern="NUMBER_OF_DIFFUSIONS", 
+                                           replacement=deparse(as.numeric(private$number.of.diffusions)))
+  main.function.txt = stringr::str_replace_all(main.function.txt, 
+                                           pattern="NUMBER_OF_OBSERVATIONS", 
+                                           replacement=deparse(as.numeric(private$number.of.observations)))
+  main.function.txt = stringr::str_replace_all(main.function.txt, 
+                                           pattern="STATE_NAMES", 
+                                           replacement=paste("p$",private$state.names,sep="",collapse=","))
+  main.function.txt = stringr::str_replace_all(main.function.txt, 
+                                           pattern="FIXED_PARAMETERS", 
+                                           replacement=paste("p$",private$parameter.names,sep="",collapse=","))
+  eval(parse(text=main.function.txt))
   
   ################################################
   # Construct Neg. Log-Likelihood
   ################################################
   
-  random_effects = switch(private$method,
-                          ekf = NULL,
-                          ukf = NULL,
-                          laplace = private$state.names)
-  
-  
-  nll = TMB::MakeADFun(data = data,
-                       parameters = parameters,
-                       map = private$fixed.pars,
-                       DLL = private$modelname,
-                       silent = TRUE,
-                       random = random_effects)
+  nll = RTMB::MakeADFun(func = laplace.nll, 
+                        parameters=parameters, 
+                        random=private$state.names, 
+                        silent=TRUE)
   
   # save objective function
   private$nll = nll
+  
+  # return
   return(invisible(self))
+  
 }
 
 #######################################################
@@ -199,7 +396,7 @@ optimize_negative_loglikelihood = function(self, private) {
   # For TMB method: run sdreport
   if (private$method=="laplace") {
     message("Calculating random effects standard deviation...")
-    private$sdr = TMB::sdreport(private$nll)
+    private$sdr = RTMB::sdreport(private$nll)
   }
   
   # return
@@ -580,7 +777,7 @@ construct_simulate_rcpp_dataframe = function(pars, predict.list, data, return.co
       paste0("t", head(data$t, private$last.pred.index))
     )
   }
-
+  
   # Compute the prediction times for each horizon
   ran = 0:(private$last.pred.index-1)
   t.j = data$t[rep(ran,each=private$n.ahead+1)+1+rep(0:private$n.ahead,private$last.pred.index)]
@@ -589,6 +786,8 @@ construct_simulate_rcpp_dataframe = function(pars, predict.list, data, return.co
   names(list.of.time.vectors) = names(list.out[[1]])
   
   list.out2 = c(list.out, list(prediction_times = list.of.time.vectors))
-
+  
   return(list.out2)
 }
+
+

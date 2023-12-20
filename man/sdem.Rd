@@ -460,6 +460,7 @@ have more control of the optimization workflow.
   ode.timestep = NULL,
   loss = "quadratic",
   loss_c = 3,
+  unscented_hyperpars = NULL,
   compile = FALSE,
   silent = FALSE
 )}\if{html}{\out{</div>}}
@@ -540,6 +541,9 @@ approxmation respectively) for smooth derivatives.}
 
 \item{\code{loss_c}}{cutoff value for huber and tukey loss functions. Defaults to \code{c=3}}
 
+\item{\code{unscented_hyperpars}}{the three hyper-parameters \code{alpha}, \code{beta} and \code{kappa} defining
+the unscented transformation.}
+
 \item{\code{compile}}{boolean value. The default (\code{FALSE}) is to not compile the C++ objective
 function but assume it is already compiled and corresponds to the specified model object. It is
 the user's responsibility to ensure correspondence between the specified model and the precompiled
@@ -569,6 +573,7 @@ Estimate the fixed effects parameters in the specified model.
   loss_c = 3,
   use.hessian = FALSE,
   control = list(trace = 1, iter.max = 10000, eval.max = 10000),
+  unscented_hyperpars = NULL,
   compile = FALSE,
   silent = FALSE
 )}\if{html}{\out{</div>}}
@@ -647,6 +652,9 @@ without any random effects.}
 \item{\code{control}}{list of control parameters parsed to \code{nlminb} as its \code{control} argument.
 See \code{?stats::nlminb} for more information}
 
+\item{\code{unscented_hyperpars}}{the three hyper-parameters \code{alpha}, \code{beta} and \code{kappa} defining
+the unscented transformation.}
+
 \item{\code{compile}}{boolean value. The default (\code{FALSE}) is to not compile the C++ objective
 function but assume it is already compiled and corresponds to the specified model object. It is
 the user's responsibility to ensure correspondence between the specified model and the precompiled
@@ -681,6 +689,7 @@ state estimate as the initial condition.
   simulation.timestep = NULL,
   ode.solver = "euler",
   return.covariance = TRUE,
+  unscented_hyperpars = NULL,
   silent = FALSE
 )}\if{html}{\out{</div>}}
 }
@@ -724,7 +733,7 @@ All package features are currently available for the kalman filters, while TMB i
 parameter estimation. In particular, it is straight-forward to obtain k-step-ahead predictions
 with these methods (use the \code{predict} S3 method), and stochastic simulation is also available
 in the cases where long prediction horizons are sought, where the normality assumption will be
-inaccurate.}
+inaccurate}
 
 \item{\code{ode.timestep}}{numeric value. Sets the time step-size in numerical filtering schemes.
 The defined step-size is used to calculate the number of steps between observation time-points as
@@ -750,6 +759,9 @@ differential equations. The default "euler" is the Forward Euler method, alterna
 
 \item{\code{return.covariance}}{booelan value to indicate whether the covariance (instead of the correlation)
 should be returned.}
+
+\item{\code{unscented_hyperpars}}{the three hyper-parameters \code{alpha}, \code{beta} and \code{kappa} defining
+the unscented transformation.}
 
 \item{\code{silent}}{logical value whether or not to suppress printed messages such as 'Checking Data',
 'Building Model', etc. Default behaviour (FALSE) is to print the messages.}
@@ -780,6 +792,7 @@ state estimate as the initial condition.
   ode.timestep = NULL,
   ode.solver = "euler",
   return.covariance = TRUE,
+  unscented_hyperpars = NULL,
   silent = FALSE
 )}\if{html}{\out{</div>}}
 }
@@ -845,6 +858,9 @@ differential equations. The default "euler" is the Forward Euler method, alterna
 
 \item{\code{return.covariance}}{booelan value to indicate whether the covariance (instead of the correlation)
 should be returned.}
+
+\item{\code{unscented_hyperpars}}{the three hyper-parameters \code{alpha}, \code{beta} and \code{kappa} defining
+the unscented transformation.}
 
 \item{\code{silent}}{logical value whether or not to suppress printed messages such as 'Checking Data',
 'Building Model', etc. Default behaviour (FALSE) is to print the messages.}

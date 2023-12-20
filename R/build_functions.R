@@ -49,7 +49,7 @@ build_model_rcpp_pred = function(self, private) {
   
   # last check and compile
   final_build_check(self, private)
-
+  
   # return
   return(invisible(self))
 }
@@ -466,6 +466,165 @@ compile_cppfile = function(self, private) {
   return(invisible(self))
 }
 
+#######################################################
+# CONSTRUCT DRIFT, DIFF, OBS FUNCTIONS FOR RTMB
+#######################################################
+
+get_rtmb_function_elements = function(self, private)
+{
+  
+  # Create substitution translation list
+  obsList = lapply(seq_along(private$obs.names), function(id) substitute(obsVec[i],list(i=as.numeric(id))))
+  parList = lapply(seq_along(private$parameter.names), function(id) substitute(parVec[i],list(i=as.numeric(id))))
+  stateList = lapply(seq_along(private$state.names), function(id) substitute(stateVec[i],list(i=as.numeric(id))))
+  inputList = lapply(seq_along(private$input.names), function(id) substitute(inputVec[i],list(i=as.numeric(id))))
+  names(obsList) = private$obs.names
+  names(parList) = private$parameter.names
+  names(stateList) = private$state.names
+  names(inputList) = private$input.names
+  subsList = c(obsList, parList, stateList, inputList)
+  
+  ##################################################
+  # drift
+  ##################################################
+  f.elements = sapply( seq_along(private$state.names),
+                       function(i){
+                         drift.term = private$diff.terms[[i]]$dt
+                         deparse1(do.call(substitute, list(drift.term, subsList)))
+                       })
+  # 
+  # function.text = sprintf(
+  #   "private$rtmb.functions$f = function(stateVec, parVec, inputVec){
+  #     ans = c(%s)
+  #     return(ans)
+  #     }",
+  #   paste(f.elements, collapse=","))
+  # # 
+  # eval(parse(text=function.text))
+  
+  ##################################################
+  # drift jacobian
+  ##################################################
+  dfdx.elements = c()
+  for(i in seq_along(private$state.names)){
+    for(j in seq_along(private$state.names)){
+      term = Deriv::Deriv(private$diff.terms[[i]]$dt,x=private$state.names[j], cache.exp=F)
+      dfdx.elements = c(dfdx.elements, deparse1(do.call(substitute, list(term, subsList))))
+    }
+  }
+  # 
+  # function.text =   sprintf(
+  #   "private$rtmb.functions$dfdx = function(stateVec, parVec, inputVec){
+  #     ans = matrix(c(%s), nrow=%s, ncol=%s, byrow=T)
+  #     return(ans)
+  #     }",
+  #   paste(dfdx.elements,collapse=","),
+  #   private$number.of.states,
+  #   private$number.of.states
+  # )
+  # # 
+  # eval(parse(text=function.text))
+  
+  ##################################################
+  # diffusion
+  ##################################################
+  g.elements = c()
+  for(i in seq_along(private$state.names)){
+    for(j in seq_along(private$diff.processes[-1])){
+      term = private$diff.terms[[i]][[j+1]]
+      g.elements = c(g.elements, deparse1(do.call(substitute, list(term, subsList))))
+    }
+  }
+  # 
+  # function.text = sprintf(
+  #   "private$rtmb.functions$g = function(stateVec, parVec, inputVec){
+  #     ans = matrix(c(%s), nrow=%s, ncol=%s, byrow=T)
+  #     return(ans)
+  #     }",
+  #   paste(g.elements,collapse=","),
+  #   private$number.of.states,
+  #   private$number.of.diffusions
+  # )
+  # # 
+  # eval(parse(text=function.text))
+  
+  ##################################################
+  # observation
+  ##################################################
+  h.elements = sapply(seq_along(private$obs.names), 
+                      function(i){
+                        term = private$obs.eqs.trans[[i]]$rhs
+                        deparse1(do.call(substitute, list(term, subsList)))
+                      }) 
+  # 
+  # function.text = sprintf(
+  #   "private$rtmb.functions$h = function(stateVec, parVec, inputVec){
+  #     ans = c(%s)
+  #     return(ans)
+  #     }",
+  #   paste(h.elements,collapse=",")
+  # )
+  # # 
+  # eval(parse(text=function.text))
+  
+  ##################################################
+  # observation jacobian
+  ##################################################
+  
+  # calculate all the terms and substitute variables
+  dhdx.elements = c()
+  for(i in seq_along(private$obs.names)){
+    for(j in seq_along(private$state.names)){
+      term = private$diff.terms.obs[[i]][[j]]
+      dhdx.elements = c(dhdx.elements, deparse1(do.call(substitute, list(term, subsList))))
+    }
+  }
+  # 
+  # function.text = sprintf(
+  #   "private$rtmb.functions$dhdx = function(stateVec, parVec, inputVec){
+  #     ans = matrix(c(%s), nrow=%s, ncol=%s, byrow=T)
+  #     return(ans)
+  #     }",
+  #   paste(dhdx.elements,collapse=","),
+  #   private$number.of.observations,
+  #   private$number.of.states
+  # )
+  # # 
+  # eval(parse(text=function.text))
+  
+  ##################################################
+  # observation variance
+  ##################################################
+  
+  hvar.elements = sapply(seq_along(private$obs.var.trans), 
+                         function(i) {
+                           term = private$obs.var.trans[[i]]$rhs
+                           deparse1(do.call(substitute, list(term, subsList)))
+                         })
+  # 
+  # function.text = sprintf(
+  #   "private$rtmb.functions$h.var = function(stateVec, parVec, inputVec){
+  #     ans = diag(c(%s), nrow=%s, ncol=%s)
+  #     return(ans)
+  #     }",
+  #   paste(hvar.elements,collapse=","),
+  #   private$number.of.observations,
+  #   private$number.of.observations
+  # )
+  # 
+  # eval(parse(text=function.text))
+  
+  # return
+  return.list = list(
+    f = f.elements,
+    dfdx = dfdx.elements,
+    g = g.elements,
+    h = h.elements,
+    dhdx = dhdx.elements,
+    hvar = hvar.elements
+  )
+  return(return.list)
+}
 
 
 

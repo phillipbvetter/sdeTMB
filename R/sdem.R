@@ -105,6 +105,11 @@ sdem = R6::R6Class(
       private$Rcppfunction_h = NULL
       private$Rcppfunction_dhdx = NULL
       private$Rcppfunction_hvar = NULL
+      
+      # unscented transform
+      private$ukf_alpha = NULL
+      private$ukf_beta = NULL
+      private$ukf_kappa = NULL
     },
     
     ########################################################################
@@ -831,6 +836,8 @@ sdem = R6::R6Class(
     #' with these methods (use the \code{predict} S3 method), and stochastic simulation is also available 
     #' in the cases where long prediction horizons are sought, where the normality assumption will be 
     #' inaccurate.
+    #' @param unscented_hyperpars the three hyper-parameters \code{alpha}, \code{beta} and \code{kappa} defining
+    #' the unscented transformation.
     #' @param loss character vector. Sets the loss function type (only implemented for the kalman filter
     #' methods). The loss function is per default quadratic in the one-step residauls as is natural 
     #' when the Gaussian (negative log) likelihood is evaluated, but if the tails of the 
@@ -853,6 +860,7 @@ sdem = R6::R6Class(
                              ode.timestep=NULL,
                              loss="quadratic",
                              loss_c=3,
+                             unscented_hyperpars = NULL,
                              compile=FALSE,
                              silent=FALSE){
       
@@ -866,6 +874,7 @@ sdem = R6::R6Class(
       # check and set data
       if(!silent) message("Checking data...")
       check_and_set_data(data, self, private)
+      set_ukf_parameters(unscented_hyperpars, self, private)
       
       # build model
       if(!silent) message("Building model...")
@@ -935,6 +944,8 @@ sdem = R6::R6Class(
     #' with these methods (use the \code{predict} S3 method), and stochastic simulation is also available 
     #' in the cases where long prediction horizons are sought, where the normality assumption will be 
     #' inaccurate.
+    #' @param unscented_hyperpars the three hyper-parameters \code{alpha}, \code{beta} and \code{kappa} defining
+    #' the unscented transformation.
     #' @param loss character vector. Sets the loss function type (only implemented for the kalman filter
     #' methods). The loss function is per default quadratic in the one-step residauls as is natural 
     #' when the Gaussian (negative log) likelihood is evaluated, but if the tails of the 
@@ -961,12 +972,13 @@ sdem = R6::R6Class(
                         loss_c = 3,
                         use.hessian = FALSE,
                         control = list(trace=1,iter.max=1e4,eval.max=1e4),
+                        unscented_hyperpars = NULL,
                         compile = FALSE,
                         silent = FALSE){
       
-      if(method=="ukf"){
-        stop("The Unscented Kalman Filter method is currently disabled. Please try 'ekf' or 'tmb'")
-      }
+      # if(method=="ukf"){
+      # stop("The Unscented Kalman Filter method is currently disabled. Please try 'ekf' or 'tmb'")
+      # }
       
       # settings and flags
       private$set_compile(compile)
@@ -981,6 +993,7 @@ sdem = R6::R6Class(
       # check and set data
       if(!silent) message("Checking data...")
       check_and_set_data(data, self, private)
+      set_ukf_parameters(unscented_hyperpars, self, private)
       
       # build model
       if(!silent) message("Building model...")
@@ -1062,7 +1075,9 @@ sdem = R6::R6Class(
     #' parameter estimation. In particular, it is straight-forward to obtain k-step-ahead predictions
     #' with these methods (use the \code{predict} S3 method), and stochastic simulation is also available 
     #' in the cases where long prediction horizons are sought, where the normality assumption will be 
-    #' inaccurate.
+    #' inaccurate
+    #' @param unscented_hyperpars the three hyper-parameters \code{alpha}, \code{beta} and \code{kappa} defining
+    #' the unscented transformation.
     #' @param silent logical value whether or not to suppress printed messages such as 'Checking Data',
     #' 'Building Model', etc. Default behaviour (FALSE) is to print the messages.
     #' @param n.sims number of simulations
@@ -1079,6 +1094,7 @@ sdem = R6::R6Class(
                         simulation.timestep = NULL,
                         ode.solver = "euler",
                         return.covariance = TRUE,
+                        unscented_hyperpars = NULL,
                         silent = FALSE){
       
       
@@ -1091,34 +1107,12 @@ sdem = R6::R6Class(
       private$set_timestep(ode.timestep)
       private$set_simulation_timestep(simulation.timestep)
       
-      ###### CHECK DATA #######
-      if(is.null(data)){
-        if(is.null(private$data)){
-          stop("Please supply data to perform prediction.")
-        } else {
-          message("No data provided. Reusing the data provided in the lastest call to 'estimate' or 'construct_nll")
-          data = private$data
-        }
-      }
-      
-      ###### SET INITIAL STATE AND COVARIANCE VALUES #######
-      if(is.null(initial.state)){
-        stop("Please set provide an initial value for the state and covariance as a list with entries 'x0' and 'p0'")
-        # initial.state = list(x0=private$initial.state$mean, p0=private$initial.state$cov)
-      }
-      if(!is.list(initial.state)){
-        stop("The initial state argument must be a list with entries 'x0' and 'p0'")
-      }
-      if(length(initial.state) != 2){
-        stop("The initial state should only contain an entry x0 for the initial state, and p0 for the initial covariance")
-      }
-      private$set_pred_initial_state(initial.state$x0, initial.state$p0)
-      
       
       ###### CHECK AND SET DATA  #######
       if(!silent) message("Checking data...")
       check_and_set_data(data, self, private)
-      set_simulation_timestep(data, self, private)
+      set_pred_initial_state(initial.state, self, private)
+      set_ukf_parameters(unscented_hyperpars, self, private)
       
       ###### BUILD MODEL #######
       if(!silent) message("Building model...")
@@ -1237,6 +1231,8 @@ sdem = R6::R6Class(
     #' with these methods (use the \code{predict} S3 method), and stochastic simulation is also available 
     #' in the cases where long prediction horizons are sought, where the normality assumption will be 
     #' inaccurate.
+    #' @param unscented_hyperpars the three hyper-parameters \code{alpha}, \code{beta} and \code{kappa} defining
+    #' the unscented transformation.
     #' @param silent logical value whether or not to suppress printed messages such as 'Checking Data',
     #' 'Building Model', etc. Default behaviour (FALSE) is to print the messages.
     #' 
@@ -1249,6 +1245,7 @@ sdem = R6::R6Class(
                        ode.timestep = NULL,
                        ode.solver = "euler",
                        return.covariance = TRUE,
+                       unscented_hyperpars = NULL,
                        silent = FALSE){
       
       
@@ -1260,33 +1257,11 @@ sdem = R6::R6Class(
       private$set_ode_solver(ode.solver)
       private$set_timestep(ode.timestep)
       
-      ###### CHECK DATA #######
-      if(is.null(data)){
-        if(is.null(private$data)){
-          stop("Please supply data to perform prediction.")
-        } else {
-          message("No data provided. Reusing the data provided in the lastest call to 'estimate' or 'construct_nll")
-          data = private$data
-        }
-      }
-      
-      ###### SET INITIAL STATE AND COVARIANCE VALUES #######
-      if(is.null(initial.state)){
-        stop("Please set provide an initial value for the state and covariance as a list with entries 'x0' and 'p0'")
-        # initial.state = list(x0=private$initial.state$mean, p0=private$initial.state$cov)
-      }
-      if(!is.list(initial.state)){
-        stop("The initial state argument must be a list with entries 'x0' and 'p0'")
-      }
-      if(length(initial.state) != 2){
-        stop("The initial state should only contain an entry x0 for the initial state, and p0 for the initial covariance")
-      }
-      private$set_pred_initial_state(initial.state$x0, initial.state$p0)
-      
-      
       ###### CHECK AND SET DATA  #######
       if(!silent) message("Checking data...")
       check_and_set_data(data, self, private)
+      set_pred_initial_state(initial.state, self, private)
+      set_ukf_parameters(unscented_hyperpars, self, private)
       
       ###### BUILD MODEL #######
       if(!silent) message("Building model...")
@@ -1560,6 +1535,11 @@ sdem = R6::R6Class(
     Rcppfunction_h = NULL,
     Rcppfunction_dhdx = NULL,
     Rcppfunction_hvar = NULL,
+    
+    # unscented transform
+    ukf_alpha = NULL,
+    ukf_beta = NULL,
+    ukf_kappa = NULL,
     
     ########################################################################
     # ADD TRANSFORMED SYSTEM EQS
@@ -1952,6 +1932,26 @@ sdem = R6::R6Class(
       
       # return
       return(invisible(self))
+    },
+    
+    ########################################################################
+    # SET UNSCENTED TRANSFORMATION HYPERPARAMAETERS
+    ########################################################################
+    set_ukf_hyperpars = function(parlist) {
+      
+      # is the control a list?
+      if (!(is.list(parlist))) {
+        stop("Please provide a named list containing 'alpha', 'beta' and 'kappa'")
+      }
+      
+      # set parameters
+      private$ukf_alpha = parlist[["alpha"]]
+      private$ukf_beta = parlist[["beta"]]
+      private$ukf_kappa = parlist[["kappa"]]
+      
+      # return
+      return(invisible(self))
     }
   )
 )
+  
