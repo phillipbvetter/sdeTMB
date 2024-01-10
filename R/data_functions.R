@@ -347,9 +347,8 @@ was_any_data_provided = function(data, self, private)
 
 check_and_set_data = function(data, self, private) {
   
+  # is data provided, or does private$data hold any data?
   was_any_data_provided(data, self, private)
-  
-  basic_data_check(data, self, private)
   
   # convert to data.frame
   data = as.data.frame(data)
@@ -357,6 +356,9 @@ check_and_set_data = function(data, self, private) {
   # calculate observations in 'call' form e.g. if complex obs lhs e.g:
   # log(y) ~ ... , then we are given y in the data, and must compute log(y)
   data = calculate_complex_observation_lefthandsides(data, self, private)
+  
+  # Check that inputs, and observations are there
+  basic_data_check(data, self, private)
   
   # set timestep
   set_ode_timestep(data, self, private)

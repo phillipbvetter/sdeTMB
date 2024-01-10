@@ -749,6 +749,10 @@ sdem = R6::R6Class(
     #' @description Get initial (and estimated) parameters.
     get_parameters = function() {
       
+      if(is.null(private$parameters)){
+        return(invisible(NULL))
+      }
+      
       # create return matrix
       .df = data.frame(matrix(NA,nrow=length(private$parameters),ncol=5))
       names(.df) = c("type","estimate", "initial","lower","upper")
@@ -979,10 +983,6 @@ sdem = R6::R6Class(
                         compile = FALSE,
                         silent = FALSE){
       
-      # if(method=="ukf"){
-      # stop("The Unscented Kalman Filter method is currently disabled. Please try 'ekf' or 'tmb'")
-      # }
-      
       # settings and flags
       private$set_compile(compile)
       private$set_method(method)
@@ -993,14 +993,15 @@ sdem = R6::R6Class(
       private$set_control(control)
       private$set_predict(FALSE)
       
+      # build model
+      if(!silent) message("Building model...")
+      build_model(self ,private)
+      
       # check and set data
       if(!silent) message("Checking data...")
       check_and_set_data(data, self, private)
       set_ukf_parameters(unscented_hyperpars, self, private)
       
-      # build model
-      if(!silent) message("Building model...")
-      build_model(self ,private)
       
       # construct neg. log-likelihood function
       if(!silent) message("Constructing objective function...")
@@ -1111,15 +1112,17 @@ sdem = R6::R6Class(
       private$set_simulation_timestep(simulation.timestep)
       
       
+      ###### BUILD MODEL #######
+      if(!silent) message("Building model...")
+      # build_model_rcpp_pred(self, private)
+      build_model(self, private, rcpp.pred=TRUE)
+      
       ###### CHECK AND SET DATA  #######
       if(!silent) message("Checking data...")
       check_and_set_data(data, self, private)
       set_pred_initial_state(initial.state, self, private)
       set_ukf_parameters(unscented_hyperpars, self, private)
       
-      ###### BUILD MODEL #######
-      if(!silent) message("Building model...")
-      build_model_rcpp_pred(self, private)
       
       ###### SET PRED AHEAD FLAGS #######
       private$set_n_ahead_and_last_pred_index(data, k.ahead)
@@ -1260,15 +1263,17 @@ sdem = R6::R6Class(
       private$set_ode_solver(ode.solver)
       private$set_timestep(ode.timestep)
       
+      ###### BUILD MODEL #######
+      if(!silent) message("Building model...")
+      # build_model_rcpp_pred(self, private)
+      build_model(self, private, rcpp.pred=TRUE)
+      
       ###### CHECK AND SET DATA  #######
       if(!silent) message("Checking data...")
       check_and_set_data(data, self, private)
       set_pred_initial_state(initial.state, self, private)
       set_ukf_parameters(unscented_hyperpars, self, private)
       
-      ###### BUILD MODEL #######
-      if(!silent) message("Building model...")
-      build_model_rcpp_pred(self, private)
       
       ###### SET PRED AHEAD FLAGS #######
       private$set_n_ahead_and_last_pred_index(data, k.ahead)

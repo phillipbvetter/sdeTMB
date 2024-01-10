@@ -24,6 +24,7 @@ execute_ekf_simulation(
   number_of_available_obs,
   n,
   m,
+  ng,
   last_pred_id,
   k_step_ahead,
   ode_solver,

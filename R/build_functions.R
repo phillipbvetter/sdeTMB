@@ -5,7 +5,7 @@
 # MAIN BUILDING FUNCTION THAT CALLS ALL OTHER FUNCTIONS
 #######################################################
 
-build_model = function(self, private) {
+build_model = function(self, private, rcpp.pred=FALSE) {
   
   # check_model
   basic_model_check(self, private)
@@ -24,35 +24,37 @@ build_model = function(self, private) {
   
   # last check and compile
   final_build_check(self, private)
-  compile_cppfile(self, private)
+  if(!rcpp.pred){
+    compile_cppfile(self, private)
+  }
   
   # return
   return(invisible(self))
 }
 
-build_model_rcpp_pred = function(self, private) {
-  
-  # check_model
-  basic_model_check(self, private)
-  
-  # set dimensions, diff processes, etc...
-  set_model_settings(self, private)
-  
-  # 1) apply algebraics, and define new trans_system
-  # 2) calculate new diff terms
-  apply_algebraics_and_define_trans_equations(self, private)
-  calculate_diff_terms(self, private)
-  
-  # apply lamperti and update diff terms
-  apply_lamperti(self, private) 
-  calculate_diff_terms(self, private)
-  
-  # last check and compile
-  final_build_check(self, private)
-  
-  # return
-  return(invisible(self))
-}
+# build_model_rcpp_pred = function(self, private) {
+#   
+#   # check_model
+#   basic_model_check(self, private)
+#   
+#   # set dimensions, diff processes, etc...
+#   set_model_settings(self, private)
+#   
+#   # 1) apply algebraics, and define new trans_system
+#   # 2) calculate new diff terms
+#   apply_algebraics_and_define_trans_equations(self, private)
+#   calculate_diff_terms(self, private)
+#   
+#   # apply lamperti and update diff terms
+#   apply_lamperti(self, private) 
+#   calculate_diff_terms(self, private)
+#   
+#   # last check and compile
+#   final_build_check(self, private)
+#   
+#   # return
+#   return(invisible(self))
+# }
 
 
 #######################################################
@@ -61,22 +63,33 @@ build_model_rcpp_pred = function(self, private) {
 
 basic_model_check = function(self, private) {
   
-  # Check if the model basics are in order
+  # system eqs
   if (length(private$sys.eqs) == 0) {
     stop("There were no specified system equations - use 'add_systems'")
   }
+  
+  # obs eqs
   if (length(private$obs.eqs) == 0) {
     stop("There were no specified observation equations - use 'add_observations'")
   }
+  
+  # obs var
   missing.var = sapply(private$obs.var, length) == 0
   if (any(missing.var)) {
     missing.names = paste(private$obs.names[missing.var],collapse=", ")
     stop("There are no observation variances specified for the observation(s): \n\t", missing.names)
   }
   
+  # parameters
+  if(is.null(self$get_parameters())){
+    stop("No parameters were specified.")
+  }
+  
+  # initial state
   if (is.null(private$initial.state)) {
     stop("You must set an initial state estimate and covariance")
   }
+  
   
   return(invisible(self))
 }
@@ -496,15 +509,6 @@ get_rtmb_function_elements = function(self, private)
                          drift.term = private$diff.terms[[i]]$dt
                          deparse1(do.call(substitute, list(drift.term, subsList)))
                        })
-  # 
-  # function.text = sprintf(
-  #   "private$rtmb.functions$f = function(stateVec, parVec, inputVec){
-  #     ans = c(%s)
-  #     return(ans)
-  #     }",
-  #   paste(f.elements, collapse=","))
-  # # 
-  # eval(parse(text=function.text))
   
   ##################################################
   # drift jacobian
@@ -516,18 +520,6 @@ get_rtmb_function_elements = function(self, private)
       dfdx.elements = c(dfdx.elements, deparse1(do.call(substitute, list(term, subsList))))
     }
   }
-  # 
-  # function.text =   sprintf(
-  #   "private$rtmb.functions$dfdx = function(stateVec, parVec, inputVec){
-  #     ans = matrix(c(%s), nrow=%s, ncol=%s, byrow=T)
-  #     return(ans)
-  #     }",
-  #   paste(dfdx.elements,collapse=","),
-  #   private$number.of.states,
-  #   private$number.of.states
-  # )
-  # # 
-  # eval(parse(text=function.text))
   
   ##################################################
   # diffusion
@@ -539,18 +531,6 @@ get_rtmb_function_elements = function(self, private)
       g.elements = c(g.elements, deparse1(do.call(substitute, list(term, subsList))))
     }
   }
-  # 
-  # function.text = sprintf(
-  #   "private$rtmb.functions$g = function(stateVec, parVec, inputVec){
-  #     ans = matrix(c(%s), nrow=%s, ncol=%s, byrow=T)
-  #     return(ans)
-  #     }",
-  #   paste(g.elements,collapse=","),
-  #   private$number.of.states,
-  #   private$number.of.diffusions
-  # )
-  # # 
-  # eval(parse(text=function.text))
   
   ##################################################
   # observation
@@ -560,16 +540,6 @@ get_rtmb_function_elements = function(self, private)
                         term = private$obs.eqs.trans[[i]]$rhs
                         deparse1(do.call(substitute, list(term, subsList)))
                       }) 
-  # 
-  # function.text = sprintf(
-  #   "private$rtmb.functions$h = function(stateVec, parVec, inputVec){
-  #     ans = c(%s)
-  #     return(ans)
-  #     }",
-  #   paste(h.elements,collapse=",")
-  # )
-  # # 
-  # eval(parse(text=function.text))
   
   ##################################################
   # observation jacobian
@@ -583,18 +553,6 @@ get_rtmb_function_elements = function(self, private)
       dhdx.elements = c(dhdx.elements, deparse1(do.call(substitute, list(term, subsList))))
     }
   }
-  # 
-  # function.text = sprintf(
-  #   "private$rtmb.functions$dhdx = function(stateVec, parVec, inputVec){
-  #     ans = matrix(c(%s), nrow=%s, ncol=%s, byrow=T)
-  #     return(ans)
-  #     }",
-  #   paste(dhdx.elements,collapse=","),
-  #   private$number.of.observations,
-  #   private$number.of.states
-  # )
-  # # 
-  # eval(parse(text=function.text))
   
   ##################################################
   # observation variance
@@ -605,18 +563,6 @@ get_rtmb_function_elements = function(self, private)
                            term = private$obs.var.trans[[i]]$rhs
                            deparse1(do.call(substitute, list(term, subsList)))
                          })
-  # 
-  # function.text = sprintf(
-  #   "private$rtmb.functions$h.var = function(stateVec, parVec, inputVec){
-  #     ans = diag(c(%s), nrow=%s, ncol=%s)
-  #     return(ans)
-  #     }",
-  #   paste(hvar.elements,collapse=","),
-  #   private$number.of.observations,
-  #   private$number.of.observations
-  # )
-  # 
-  # eval(parse(text=function.text))
   
   # return
   return.list = list(

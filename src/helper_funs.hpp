@@ -148,12 +148,12 @@ MatrixXd euler_maruyama_simulation(
   double timestep, 
   int nsims,
   int n,
-  int m)
+  int ng)
 {
   // Returns a matrix with nsims rows and columns equal to the number of system states - each row corresponds to taking a single
   // Euler-Maruyama step
   MatrixXd stateMat_next(nsims, n);
-  VectorXd stateVec, dW(m);
+  VectorXd stateVec, dW(ng);
   NumericVector F;
   NumericMatrix G;
   double sqrt_timestep = sqrt(timestep);
@@ -171,7 +171,7 @@ MatrixXd euler_maruyama_simulation(
     Eigen::Map<Eigen::MatrixXd> G_eigen = Rcpp::as<Eigen::Map<Eigen::MatrixXd>>(G);
 
     // Generate dW vector by sampling from standard normal
-    for(int i=0; i < m; i++){
+    for(int i=0; i < ng; i++){
       dW(i) = zigg.norm();
     }
 

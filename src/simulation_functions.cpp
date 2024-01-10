@@ -28,6 +28,7 @@ List ekf_simulation(
   Eigen::VectorXi number_of_available_obs,
   int n,
   int m,
+  int ng,
   int last_pred_id,
   int k_step_ahead,
   int ode_solver,
@@ -66,7 +67,7 @@ List ekf_simulation(
       dinputVec = (inputMat.row(i+k+1) - inputMat.row(i+k))/simulation_timesteps(i+k);
 
       for(int j=0 ; j < simulation_timesteps(i+k) ; j++){
-        stateMat = euler_maruyama_simulation(f__, g__, stateMat, parVec, inputVec, simulation_timestep_size(i+k), nsims, n, m);
+        stateMat = euler_maruyama_simulation(f__, g__, stateMat, parVec, inputVec, simulation_timestep_size(i+k), nsims, n, ng);
         inputVec += dinputVec;
       }
 
@@ -164,6 +165,7 @@ List execute_ekf_simulation(
   Eigen::VectorXi number_of_available_obs,
   int n,
   int m,
+  int ng,
   int last_pred_id,
   int k_step_ahead,
   int ode_solver,
@@ -197,6 +199,7 @@ List execute_ekf_simulation(
     number_of_available_obs,
     n,
     m,
+    ng,
     last_pred_id,
     k_step_ahead,
     ode_solver,

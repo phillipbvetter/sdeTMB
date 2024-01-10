@@ -154,15 +154,15 @@ perform_rcpp_ekf_prediction = function(self, private, pars, initial.state){
   if(nrow(numeric_is_not_na_obsMat)==1) numeric_is_not_na_obsMat = t(numeric_is_not_na_obsMat)
   number_of_available_obs = apply(numeric_is_not_na_obsMat, 1, sum)
   
-  mylist = execute_ekf_prediction(private$Rcppfunction_f, 
-                                  private$Rcppfunction_g, 
+  mylist = execute_ekf_prediction(private$Rcppfunction_f,
+                                  private$Rcppfunction_g,
                                   private$Rcppfunction_dfdx,
                                   private$Rcppfunction_h,
                                   private$Rcppfunction_dhdx,
                                   private$Rcppfunction_hvar,
                                   as.matrix(private$data[private$obs.names]),
-                                  as.matrix(private$data[private$input.names]), 
-                                  pars, 
+                                  as.matrix(private$data[private$input.names]),
+                                  pars,
                                   initial.state$p0,
                                   initial.state$x0,
                                   private$ode.timestep.size,
@@ -178,7 +178,7 @@ perform_rcpp_ekf_prediction = function(self, private, pars, initial.state){
   return(mylist)
 }
 
-perform_rcpp_ekf_simulation = function(self, private, pars, initial.state, nsims){
+perform_rcpp_ekf_simulation = function(self, private, pars, initial.state, n.sims){
   
   # Calculate NA-vectors needed for update step in Kalman filter
   obsMat = as.matrix(private$data[private$obs.names])
@@ -187,14 +187,14 @@ perform_rcpp_ekf_simulation = function(self, private, pars, initial.state, nsims
   number_of_available_obs = apply(numeric_is_not_na_obsMat, 1, sum)
   
   # Call C++ function to perform simulation
-  mylist = execute_ekf_simulation(private$Rcppfunction_f, 
-                                  private$Rcppfunction_g, 
+  mylist = execute_ekf_simulation(private$Rcppfunction_f,
+                                  private$Rcppfunction_g,
                                   private$Rcppfunction_dfdx,
                                   private$Rcppfunction_h,
                                   private$Rcppfunction_dhdx,
                                   private$Rcppfunction_hvar,
                                   as.matrix(private$data[private$obs.names]),
-                                  as.matrix(private$data[private$input.names]), 
+                                  as.matrix(private$data[private$input.names]),
                                   pars,
                                   initial.state$p0,
                                   initial.state$x0,
@@ -206,10 +206,11 @@ perform_rcpp_ekf_simulation = function(self, private, pars, initial.state, nsims
                                   number_of_available_obs,
                                   private$number.of.states,
                                   private$number.of.observations,
+                                  private$number.of.diffusions,
                                   private$last.pred.index,
                                   private$n.ahead,
                                   private$ode.solver,
-                                  nsims)
+                                  n.sims)
   
   return(mylist)
 }
