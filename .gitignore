@@ -8,3 +8,4 @@ vignettes/sde_model.cpp
 vignettes/sde_model.so
 vignettes/sde_model.o
 *.o
+*.so
