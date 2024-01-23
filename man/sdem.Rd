@@ -572,9 +572,10 @@ Estimate the fixed effects parameters in the specified model.
   loss = "quadratic",
   loss_c = 3,
   use.hessian = FALSE,
-  control = list(trace = 1, iter.max = 10000, eval.max = 10000),
+  control = list(trace = 1, iter.max = 1e+05, eval.max = 1e+05),
   unscented_hyperpars = NULL,
   calculate.laplace.onestep.residuals = FALSE,
+  unconstrained.optim = FALSE,
   compile = FALSE,
   silent = FALSE
 )}\if{html}{\out{</div>}}
@@ -659,6 +660,9 @@ the unscented transformation.}
 \item{\code{calculate.laplace.onestep.residuals}}{boolean - whether or not to calculate one-step ahead residuls
 using the method of \linkto{TMB::oneStepPredict}.}
 
+\item{\code{unconstrained.optim}}{boolean value. When TRUE then the optimization is carried out unconstrained i.e.
+without any of the parameter bounds specified during \code{add_parameters}.}
+
 \item{\code{compile}}{boolean value. The default (\code{FALSE}) is to not compile the C++ objective
 function but assume it is already compiled and corresponds to the specified model object. It is
 the user's responsibility to ensure correspondence between the specified model and the precompiled
@@ -691,7 +695,7 @@ state estimate as the initial condition.
   method = "ekf",
   ode.timestep = NULL,
   simulation.timestep = NULL,
-  ode.solver = "euler",
+  ode.solver = "rk4",
   return.covariance = TRUE,
   unscented_hyperpars = NULL,
   silent = FALSE
@@ -794,7 +798,7 @@ state estimate as the initial condition.
   return.k.ahead = NULL,
   method = "ekf",
   ode.timestep = NULL,
-  ode.solver = "euler",
+  ode.solver = "rk4",
   return.covariance = TRUE,
   unscented_hyperpars = NULL,
   silent = FALSE

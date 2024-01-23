@@ -142,6 +142,7 @@ construct_rtmb_laplace_makeADFun = function(self, private)
   obsMat = as.matrix(private$data[private$obs.names])
   
   # indices in state parameter vectors corresponding to indices in observations / inputs
+  # add 1 because too lazy to change private$iobs from 0-index to 1-indexed.
   iobs = lapply(private$iobs,function(x) x+1)
   
   ################################################
@@ -295,7 +296,8 @@ return(invisible(nll))
   
   nll = RTMB::MakeADFun(func = laplace.nll, 
                         parameters=parameters, 
-                        random=private$state.names, 
+                        random=private$state.names,
+                        map=private$fixed.pars,
                         silent=TRUE)
   
   # save objective function
@@ -314,6 +316,11 @@ optimize_negative_loglikelihood = function(self, private) {
   
   lower.parameter.bound = unlist(lapply(private$free.pars, function(par) par$lower))
   upper.parameter.bound = unlist(lapply(private$free.pars, function(par) par$upper))
+  # If unconstrained optimization was requested remove these bounds
+  if(private$unconstrained.optim){
+    lower.parameter.bound = -Inf
+    upper.parameter.bound = Inf
+  }
   
   # IF METHOD IS KALMAN FILTER
   if (any(private$method==c("ekf","ukf"))) {
@@ -398,6 +405,7 @@ optimize_negative_loglikelihood = function(self, private) {
   if (private$method=="laplace") {
     message("Calculating random effects standard deviation...")
     private$sdr = RTMB::sdreport(private$nll)
+    message("Finished!")
   }
   
   # return
@@ -605,12 +613,12 @@ create_return_fit = function(self, private, calculate.laplace.onestep.residuals)
     
     # compute one-step residuals
     if(calculate.laplace.onestep.residuals){
-    message("Calculating one-step ahead residuls...")
-    osa = RTMB::oneStepPredict(private$nll,
-                        observation.name="obsMat",
-                        method="oneStepGaussian",
-                        trace=TRUE)
-    private$fit$one_step_residuals = osa
+      message("Calculating one-step ahead residuls...")
+      osa = RTMB::oneStepPredict(private$nll,
+                                 observation.name="obsMat",
+                                 method="oneStepGaussian",
+                                 trace=TRUE)
+      private$fit$one_step_residuals = osa
     }
     
     # t-values and Pr( t > t_test )

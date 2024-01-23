@@ -203,7 +203,7 @@ set_data_for_laplace_method = function(data, self, private){
     for(i in seq_along(private$state.names)){
       
       private$tmb.initial.state.for.parameters[[i]] =
-        rep(data[[private$state.names[i]]], times = c(private$ode.N,1))
+        rep(data[[private$state.names[i]]], times = c(private$ode.timesteps,1))
       
     }
     names(private$tmb.initial.state.for.parameters) = private$state.names
@@ -297,7 +297,7 @@ set_ukf_parameters = function(unscented_hyperpars, self, private)
 {
   if(is.null(unscented_hyperpars))
   {
-    unscented_hyperpars = list(alpha=1,beta=0,kappa=3-private$number.of.states)
+    unscented_hyperpars = list(alpha=1, beta=0, kappa=3-private$number.of.states)
   }
   private$set_ukf_hyperpars(unscented_hyperpars)
   

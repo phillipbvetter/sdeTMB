@@ -62,6 +62,7 @@ sdem = R6::R6Class(
       private$map = NULL
       private$control.nlminb = list()
       private$ode.solver = NULL
+      private$unconstrained.optim = NULL
       
       # hidden
       private$lock.model = FALSE
@@ -875,16 +876,14 @@ sdem = R6::R6Class(
       private$set_loss(loss,loss_c)
       private$set_ode_solver(ode.solver)
       
+      # build model
+      if(!silent) message("Building model...")
+      build_model(self, private)
+      
       # check and set data
       if(!silent) message("Checking data...")
       check_and_set_data(data, self, private)
       set_ukf_parameters(unscented_hyperpars, self, private)
-      
-      # build model
-      if(!silent) message("Building model...")
-      build_model(self, private)
-      # private$build_model()
-      
       
       # construct neg. log-likelihood
       if(!silent) message("Constructing objective function...")
@@ -950,6 +949,8 @@ sdem = R6::R6Class(
     #' inaccurate.
     #' @param unscented_hyperpars the three hyper-parameters \code{alpha}, \code{beta} and \code{kappa} defining
     #' the unscented transformation.
+    #' @param unconstrained.optim boolean value. When TRUE then the optimization is carried out unconstrained i.e.
+    #' without any of the parameter bounds specified during \code{add_parameters}.
     #' @param loss character vector. Sets the loss function type (only implemented for the kalman filter
     #' methods). The loss function is per default quadratic in the one-step residauls as is natural 
     #' when the Gaussian (negative log) likelihood is evaluated, but if the tails of the 
@@ -977,9 +978,10 @@ sdem = R6::R6Class(
                         loss = "quadratic",
                         loss_c = 3,
                         use.hessian = FALSE,
-                        control = list(trace=1,iter.max=1e4,eval.max=1e4),
+                        control = list(trace=1,iter.max=1e5,eval.max=1e5),
                         unscented_hyperpars = NULL,
                         calculate.laplace.onestep.residuals = FALSE,
+                        unconstrained.optim = FALSE,
                         compile = FALSE,
                         silent = FALSE){
       
@@ -992,6 +994,7 @@ sdem = R6::R6Class(
       private$set_loss(loss, loss_c)
       private$set_control(control)
       private$set_predict(FALSE)
+      private$set_unconstrained_optim(unconstrained.optim)
       
       # build model
       if(!silent) message("Building model...")
@@ -1096,7 +1099,7 @@ sdem = R6::R6Class(
                         method = "ekf",
                         ode.timestep = NULL,
                         simulation.timestep = NULL,
-                        ode.solver = "euler",
+                        ode.solver = "rk4",
                         return.covariance = TRUE,
                         unscented_hyperpars = NULL,
                         silent = FALSE){
@@ -1249,7 +1252,7 @@ sdem = R6::R6Class(
                        return.k.ahead = NULL,
                        method = "ekf",
                        ode.timestep = NULL,
-                       ode.solver = "euler",
+                       ode.solver = "rk4",
                        return.covariance = TRUE,
                        unscented_hyperpars = NULL,
                        silent = FALSE){
@@ -1506,6 +1509,7 @@ sdem = R6::R6Class(
     simulation.timesteps = NULL,
     simulation.timestep.size = NULL,
     ode.solver = NULL,
+    unconstrained.optim = NULL,
     
     # hidden
     lock.model = FALSE,
@@ -1672,7 +1676,8 @@ sdem = R6::R6Class(
       }
       
       # check if method is available
-      available_methods = c("ekf", "ukf", "laplace")
+      # available_methods = c("ekf", "ukf", "laplace")
+      available_methods = c("ekf", "laplace")
       if (!(method %in% available_methods)) {
         stop("That method is not available. Please choose one of:
              1. 'ekf' - Extended Kalman Filter
@@ -1704,7 +1709,23 @@ sdem = R6::R6Class(
       # return
       return(invisible(self))
     },
-    
+    ########################################################################
+    # SET UNCONSTRAINED OPTIMIZATION
+    ########################################################################
+    # set predict
+    set_unconstrained_optim = function(bool) {
+      
+      # check string
+      if (!(is.logical(bool))) {
+        stop("You must pass a logical")
+      }
+      
+      # set flag
+      private$unconstrained.optim = bool
+      
+      # return
+      return(invisible(self))
+    },
     ########################################################################
     # SET ODE TIME-STEP
     ########################################################################
@@ -1962,4 +1983,4 @@ sdem = R6::R6Class(
     }
   )
 )
-  
+

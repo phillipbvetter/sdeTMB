@@ -537,6 +537,7 @@ write_ukf_estimate = function(self, private)
   txt = c(txt, "\n//////////// storage variables ///////////")
   txt = c(txt, "vector<vector<Type>> xPrior(tsize), xPost(tsize), Innovation(tsize);")
   txt = c(txt, "vector<matrix<Type>> pPrior(tsize), pPost(tsize), InnovationCovariance(tsize);")
+  txt = c(txt, "vector<matrix<Type>> blatest1(tsize),blatest2(tsize);")
 
   txt = c(txt, "\n//////////// set initial value ///////////")
   txt = c(txt, "xPrior(0) = stateVec, xPost(0) = stateVec;")
@@ -584,6 +585,7 @@ write_ukf_estimate = function(self, private)
   txt = c(txt, "\n//////////// cholesky cov and sigma points ///////////")
   txt = c(txt, "sqrt_covMat = covMat.llt().matrixL();")
   txt = c(txt, "Xsigmapoints = create_sigmapoints_from_stateVec(stateVec, sqrt_covMat, number_of_state_eqs, nn);")
+  # txt = c(txt, "blatest1(i) = Xsigmapoints;")
   
   # Set inputs
   txt = c(txt, "inputVec = inputMat.row(i);")
@@ -600,6 +602,8 @@ write_ukf_estimate = function(self, private)
   txt = c(txt, "covMat = sqrt_covMat * sqrt_covMat.transpose();")
   txt = c(txt, "xPrior(i+1) = stateVec;")
   txt = c(txt, "pPrior(i+1) = covMat;")
+  
+  # txt = c(txt, "blatest2(i) = Xsigmapoints;")
 
   # Data Update
   txt = c(txt, "\n //////////// DATA-UPDATE ///////////")
@@ -863,8 +867,8 @@ write_cppfile = function(self, private) {
   txt = c(txt, "\n//////////// UKF FUNCTIONS ///////////")
   txt = c(txt, "//////////// UKF FUNCTIONS ///////////")
   txt = c(txt, "//////////// UKF FUNCTIONS ///////////")
-  newtxt = write_ukf_functions(self,private)
-  txt = c(txt,newtxt)
+  # newtxt = write_ukf_functions(self,private)
+  # txt = c(txt,newtxt)
   
   ##################################################
   # BEGIN OBJECTIVE FUNCTION
@@ -898,8 +902,8 @@ write_cppfile = function(self, private) {
   txt = c(txt, "//////////// UNSCENTED KALMAN FILTER ///////////")
   txt = c(txt, "} else if (estimation_method == 2) {")
   
-  newtxt = write_ukf_estimate(self, private)
-  txt = c(txt, newtxt)
+  # newtxt = write_ukf_estimate(self, private)
+  # txt = c(txt, newtxt)
   
   txt = c(txt, "} else {")
   
