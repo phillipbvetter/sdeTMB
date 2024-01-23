@@ -39,7 +39,7 @@ List ekf_simulation(
   int ni = inputMat.row(0).size();
   VectorXd inputVec(ni), dinputVec(ni), obsVec(m), e, y, obsVec_all;
   VectorXi bool_is_not_na_obsVec;
-  MatrixXd C, R, K, E, V, Ri, I(n,n), stateMat(nsims,n);
+  MatrixXd C, R, K, E, V, Ri, I(n,n), stateMat(nsims,n), randN(n, nsims);
   I.setIdentity();
   NumericVector H;
   NumericMatrix Hvar, dHdX;
@@ -54,11 +54,20 @@ List ekf_simulation(
     //////////// SIMULATION START ///////////
     //////////// SIMULATION START ///////////
 
-    // Copy stateVec into each row of stateMat for simulation purpose
-    for(int j=0; j < nsims; j++){
-      stateMat.row(j) = stateVec;
+    /* 
+    We draw from a multivariate normal i.e
+    z = u + A*dB
+    where u is the mean (stateVec) and A is cholesky factor of covariance matrix (sqrt(covMat))
+    and dB is i.d.d normal vector
+    We do simultaneously for all #nsims simulations, so dB is here a matrix of #nsims i.d.d vectors
+    and similarly u is repeated with replicate
+    */
+    for(int j=0; j < n; j++){
+      for(int k=0; k < nsims; k++){
+        randN(j,k) = zigg.norm();
+      }
     }
-
+    stateMat = (stateVec.replicate(1, nsims) + covMat.llt().matrixL() * randN).transpose(); 
     xk_simulate_temp[0] = stateMat;
 
     // K-Step-Simulation - Euler Maruyama Scheme - First order input interpolation
