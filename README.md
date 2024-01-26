@@ -98,10 +98,6 @@ obj = sdem$new()
 # Set name of model (and the created .cpp file)
 obj$set_modelname("ornstein_uhlenbeck")
 
-# Set path where generated C++ files are saved.
-# This will create a cppfiles folder in your current working directory if it doesnt exist
-obj$set_cppfile_directory("cppfiles")
-
 # Add system equations
 obj$add_systems(
   dx ~ theta * (mu-x+u) * dt + sigma_x*dw
@@ -141,9 +137,7 @@ obj$set_initial_state(x[1], 1e-1*diag(1))
 # Carry out estimation using extended kalman filter method with stats::nlminb as optimizer
 fit <- obj$estimate(data=.data, 
                     method="ekf", 
-                    ode.solver="rk4", 
                     use.hessian=TRUE,
-                    compile=FALSE
 )
 
 # Check parameter estimates against truth
@@ -165,9 +159,7 @@ plot1 = ggplot() +
 # Predict to obtain k-step-ahead predictions to see model forecasting ability
 pred.list = obj$predict(data=.data, 
                         k.ahead=10, 
-                        method="ekf", 
-                        ode.solver="euler", 
-                        initial.state=obj$get_initial_state()
+                        method="ekf",
 )
 
 # Create plot all 10-step predictions against data
@@ -185,17 +177,13 @@ plot2 = ggplot() +
 # Perform full prediction without data update
 pred.list = obj$predict(data=.data, 
                         k.ahead=1e6, 
-                        method="ekf", 
-                        ode.solver="euler", 
-                        initial.state=obj$get_initial_state()
+                        method="ekf",
 )
 
 # Perform full simulation without data update
 sim.list = obj$simulate(data=.data, 
                         k.ahead=1e6, 
-                        method="ekf", 
-                        ode.solver="euler", 
-                        initial.state=obj$get_initial_state()
+                        method="ekf"
 )
 
 # Collapse simulation data for easy use with ggplot 
@@ -213,7 +201,7 @@ plot3 = ggplot() +
   theme_minimal() + theme(legend.position = "none")
 
 # Draw both plots
-plot1 / plot2 / plot3
+patchwork::wrap_plots(plot1, plot2, plot3, ncol=1)
 
 # Plot one-step-ahead residual analysis using the command below
 # plot(fit)

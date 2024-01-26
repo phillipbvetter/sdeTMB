@@ -77,7 +77,7 @@ create_rcpp_statespace_functions = function(self, private){
                  return Rcpp::wrap(g);
                  }",private$number.of.states, private$number.of.diffusions, paste(g,collapse=""))
   
-  private$Rcppfunction_g <- RcppXPtrUtils::cppXPtr(code, depends="RcppEigen")
+  private$Rcppfunction_g <- RcppXPtrUtils::cppXPtr(code, depends=c("RcppEigen"))
   
   ##################################################
   # observation

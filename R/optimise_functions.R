@@ -781,10 +781,11 @@ construct_simulate_rcpp_dataframe = function(pars, predict.list, data, return.co
   for(i in seq_along(list.out)){
     list.out[[i]] = stats::setNames(
       lapply(predict.list, function(ls.outer){
-        setRownames(
-          t(do.call(cbind, lapply(ls.outer, function(ls.inner) ls.inner[,i]))),
-          paste0("k.ahead", 0:private$n.ahead)
-        )}),
+        # setRownames(
+          t(do.call(cbind, lapply(ls.outer, function(ls.inner) ls.inner[,i])))
+          # paste0("k.ahead", 0:private$n.ahead)
+        # )
+      }),
       paste0("t", head(data$t, private$last.pred.index))
     )
   }

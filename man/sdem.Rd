@@ -658,7 +658,7 @@ See \code{?stats::nlminb} for more information}
 the unscented transformation.}
 
 \item{\code{calculate.laplace.onestep.residuals}}{boolean - whether or not to calculate one-step ahead residuls
-using the method of \linkto{TMB::oneStepPredict}.}
+using the method of \link[TMB]{oneStepPredict}.}
 
 \item{\code{unconstrained.optim}}{boolean value. When TRUE then the optimization is carried out unconstrained i.e.
 without any of the parameter bounds specified during \code{add_parameters}.}
@@ -687,7 +687,7 @@ state estimate as the initial condition.
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{sdem$simulate(
   data,
-  initial.state = NULL,
+  initial.state = self$get_initial_state(),
   pars = NULL,
   k.ahead = 1,
   n.sims = 100,
@@ -792,7 +792,7 @@ state estimate as the initial condition.
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{sdem$predict(
   data,
-  initial.state = NULL,
+  initial.state = self$get_initial_state(),
   pars = NULL,
   k.ahead = 1,
   return.k.ahead = NULL,

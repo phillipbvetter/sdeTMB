@@ -27,9 +27,11 @@ sdem = R6::R6Class(
     #' Initialize private fields
     initialize = function() {
       # modelname and path
-      private$modelname = "sde_model"
-      private$cppfile.directory = getwd()
-      private$cppfile.path = paste(getwd(),"/",private$modelname,sep="")
+      private$modelname = "sdem_model"
+      private$cppfile.directory = paste(getwd(),"/","sdem_cppfiles", sep="")
+      # private$cppfile.path = paste(getwd(),"/",private$modelname,sep="")
+      if(!dir.exists(private$cppfile.directory)) dir.create(private$cppfile.directory)
+      private$cppfile.path = paste(private$cppfile.directory,"/",private$modelname,sep="")
       private$cppfile.path.with.method = NULL
       private$modelname.with.method = NULL
       
@@ -965,7 +967,7 @@ sdem = R6::R6Class(
     #' parameter \code{loss_c}. The implementations of these losses are approximations (pseudo-huber and sigmoid 
     #' approxmation respectively) for smooth derivatives.
     #' @param calculate.laplace.onestep.residuals boolean - whether or not to calculate one-step ahead residuls
-    #' using the method of \linkto{TMB::oneStepPredict}.
+    #' using the method of \link[TMB]{oneStepPredict}.
     #' @param loss_c cutoff value for huber and tukey loss functions. Defaults to \code{c=3}
     #' @param control list of control parameters parsed to \code{nlminb} as its \code{control} argument. 
     #' See \code{?stats::nlminb} for more information
@@ -1091,7 +1093,7 @@ sdem = R6::R6Class(
     #' @param simulation.timestep timestep used in the euler-maruyama scheme
     #' 
     simulate = function(data,
-                        initial.state = NULL,
+                        initial.state = self$get_initial_state(),
                         pars = NULL,
                         k.ahead = 1,
                         n.sims = 100,
@@ -1246,7 +1248,7 @@ sdem = R6::R6Class(
     #' 'Building Model', etc. Default behaviour (FALSE) is to print the messages.
     #' 
     predict = function(data,
-                       initial.state = NULL,
+                       initial.state = self$get_initial_state(),
                        pars = NULL,
                        k.ahead = 1,
                        return.k.ahead = NULL,
