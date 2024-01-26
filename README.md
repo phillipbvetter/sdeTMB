@@ -47,11 +47,11 @@ sudo apt-get install libgsl-dev
 You can visit the package [webpage](https://phillipbvetter.github.io/ctsmrTMB/index.html) and browse the vignettes for example uses, in particular see [Getting Started](https://phillipbvetter.github.io/ctsmrTMB/articles/ctsmrTMB.html).
 
 ## Help
-You can access the documentation for the available methods via
+You can access the documentation for all the available methods with
 ``` r
 ?sdem
 ```
-but it can't be accessed directly i.e. `?sdem::estimate` or similar will not work. The methods documentation is also available on the [homepage](https://phillipbvetter.github.io/ctsmrTMB/reference/ctsmrTMB.html).
+but the individual methods can't be accessed directly i.e. `?sdem::estimate` or similar will not work. The methods documentation is also available on the [homepage](https://phillipbvetter.github.io/ctsmrTMB/reference/ctsmrTMB.html).
 
 ## Example Usage
 

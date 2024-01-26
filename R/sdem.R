@@ -1267,6 +1267,7 @@ sdem = R6::R6Class(
       private$set_method(method)
       private$set_ode_solver(ode.solver)
       private$set_timestep(ode.timestep)
+      private$set_simulation_timestep(NULL)
       
       ###### BUILD MODEL #######
       if(!silent) message("Building model...")

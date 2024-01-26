@@ -241,7 +241,7 @@ set_simulation_timestep = function(data, self, private){
     # Recycle to correct length
     private$simulation.timestep = rep(private$simulation.timestep, nrow(data)-1)
     
-  }  else if (length(private$simulation.timestep) == nrow(data) -1) {
+  }  else if (length(private$simulation.timestep) == nrow(data) - 1) {
     
     # do nothing
     
