@@ -25,12 +25,6 @@ You can install the package by copying the command below into `R`.
 remotes::install_github(repo="phillipbvetter/sdem", dependencies=TRUE)
 ```
 
-Linux users need to make sure that GLS is installed. You can try the folowing command.
-``` bash
-sudo apt-get install libgsl-dev
-```
-
-
 We note that `sdem` depends on the following packages:
 1. `TMB`
 2. `Rcpp`
@@ -43,6 +37,11 @@ We note that `sdem` depends on the following packages:
 9. `stats`
 
 The user must therefore have a working C++ compiler. In particular windows users should install Rtools, and Mac users should install Command Line Tools to get working C++ compilers. For further information see the `TMB` GitHub [here](https://github.com/kaskr/adcomp) and associated installation instructions [here](https://github.com/kaskr/adcomp/wiki/Download)
+
+Linux users need to make sure that GLS is installed for `RcppZiggurat`. You can try the following command, or google yourself.
+``` bash
+sudo apt-get install libgsl-dev
+```
 
 ## How to get started
 You can visit the package [webpage](https://phillipbvetter.github.io/ctsmrTMB/index.html) and browse the vignettes for example uses, in particular see [Getting Started](https://phillipbvetter.github.io/ctsmrTMB/articles/ctsmrTMB.html).
