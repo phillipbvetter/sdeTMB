@@ -25,6 +25,12 @@ You can install the package by copying the command below into `R`.
 remotes::install_github(repo="phillipbvetter/sdem", dependencies=TRUE)
 ```
 
+Linux users need to make sure that GLS is installed. You can try the folowing command.
+``` bash
+sudo apt-get install libgsl-dev
+```
+
+
 We note that `sdem` depends on the following packages:
 1. `TMB`
 2. `Rcpp`
