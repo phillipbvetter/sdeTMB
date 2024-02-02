@@ -722,7 +722,7 @@ construct_predict_rcpp_dataframe = function(pars, predict.list, data, return.cov
   df.out["t.i"] = rep(data$t[ran+1],each=n.ahead+1)
   df.out["t.j"] = data$t[df.out[,"i."]+1+rep(0:n.ahead,last.pred.index)]
   df.out["k.ahead"] = rep(0:n.ahead,last.pred.index)
-  df.obs = df.out
+  df.obs = df.out[c("i.","j.","t.i","t.j","k.ahead")]
   
   ##### STATES PREDICTIONS ######
   df.out[,state.names] = do.call(rbind,lapply(predict.list$Xpred, function(cur.list) do.call(rbind, cur.list)))
@@ -761,7 +761,7 @@ construct_predict_rcpp_dataframe = function(pars, predict.list, data, return.cov
   
   # return only specific n.ahead
   df.out = df.out[df.out[,"k.ahead"] %in% return.k.ahead,]
-  df.obs = df.obs[df.out[,"k.ahead"] %in% return.k.ahead,]
+  df.obs = df.obs[df.obs[,"k.ahead"] %in% return.k.ahead,]
   
   list.out = list(states = df.out, observations = df.obs)
   class(list.out) = c(class(list.out), "sdem.pred")

@@ -73,7 +73,7 @@ pars = c(theta=10, mu=1, sigma_x=1, sigma_y=1e-2)
 dt.sim = 1e-3
 t.sim = seq(0,1,by=dt.sim)
 dw = rnorm(length(t.sim)-1,sd=sqrt(dt.sim))
-u.sim = rnorm(length(t.sim))
+u.sim = cumsum(rnorm(length(t.sim)))
 x = 3
 for(i in 1:(length(t.sim)-1)) {
   x[i+1] = x[i] + pars[1]*(pars[2]-x[i]+u.sim[i])*dt.sim + pars[3]*dw[i]

@@ -1,12 +1,12 @@
-#' @title R6 Constructor for 'sdem'
+#' @title Available public methods for 'sdem' class (R6)
 #' 
-#' @description The constructor is used to create a new instance of the ctsmsrTMB.
-#'
-#' @details this is some detailed package information
+#' @description The following public methods are used to construct a stochastic state space model 
+#' system, consisting of a set of stochastic differential equations (SDEs), and one or more algebraic observation 
+#' equations (AOEs). The AOEs are used to infer information about the value of the (latent) states governed by the SDEs, and
+#' thus must be functions of at least one state.
 #' 
-#' \code{new.model = sdem$new()}
-#' 
-#' @returns an object of class 'sdem'
+#' @returns The function returns an object of class \code{R6} and \code{sdem}, 
+#' which can be used to define a stochastic state space system.
 #' 
 #' @docType package
 #' @name sdem
@@ -992,6 +992,7 @@ sdem = R6::R6Class(
       private$set_method(method)
       private$set_ode_solver(ode.solver)
       private$set_timestep(ode.timestep)
+      private$set_simulation_timestep(NULL)
       private$use_hessian(use.hessian)
       private$set_loss(loss, loss_c)
       private$set_control(control)
