@@ -8,7 +8,7 @@ The package implements the following methods
 
 1. The (Continous-Discrete) Extended Kalman Filter, `ekf`
 
-2. ~~The (Continous-Discrete) Unscented Kalman Filter, `ukf` ~~
+2. <del> The (Continous-Discrete) Unscented Kalman Filter, `ukf` </del>
  
 3. The Laplace-style approach where latent states are considered random effects (see e.g. [this example]( https://github.com/kaskr/adcomp/blob/master/tmb_examples/sde_linear.cpp)), `laplace`
 
