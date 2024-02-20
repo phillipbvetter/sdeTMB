@@ -6,7 +6,7 @@ the required C++ file containing the (negative log) likelihood function themselv
 
 The package implements the following methods 
 
-1. The (Continous-Discrete) Extended Kalman Filter, `ekf`
+1. The (Continous-Discrete) Unscented Kalman Filter, `ekf`
 
 2. The (Continous-Discrete) Extended Kalman Filter, `ukf` (currently disabled.)
  

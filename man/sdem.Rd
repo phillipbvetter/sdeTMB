@@ -3,17 +3,16 @@
 \docType{package}
 \name{sdem}
 \alias{sdem}
-\title{R6 Constructor for 'sdem'}
+\title{Available public methods for 'sdem' class (R6)}
 \value{
-an object of class 'sdem'
+The function returns an object of class \code{R6} and \code{sdem},
+which can be used to define a stochastic state space system.
 }
 \description{
-The constructor is used to create a new instance of the ctsmsrTMB.
-}
-\details{
-this is some detailed package information
-
-\code{new.model = sdem$new()}
+The following public methods are used to construct a stochastic state space model
+system, consisting of a set of stochastic differential equations (SDEs), and one or more algebraic observation
+equations (AOEs). The AOEs are used to infer information about the value of the (latent) states governed by the SDEs, and
+thus must be functions of at least one state.
 }
 \examples{
 
