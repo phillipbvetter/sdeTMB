@@ -6,9 +6,9 @@ the required C++ file containing the (negative log) likelihood function themselv
 
 The package implements the following methods 
 
-1. The (Continous-Discrete) Unscented Kalman Filter, `ekf`
+1. The (Continous-Discrete) Extended Kalman Filter, `ekf`
 
-2. The (Continous-Discrete) Extended Kalman Filter, `ukf` (currently disabled.)
+2. ~~The (Continous-Discrete) Unscented Kalman Filter, `ukf` ~~
  
 3. The Laplace-style approach where latent states are considered random effects (see e.g. [this example]( https://github.com/kaskr/adcomp/blob/master/tmb_examples/sde_linear.cpp)), `laplace`
 
