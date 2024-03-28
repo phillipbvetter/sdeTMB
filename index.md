@@ -1,10 +1,10 @@
-### Continous Time Stochastic Modelling in R using Template Model Builder
+### Stochastic Differential Equations using Template Model Builder
 
 ___
 
-Welcome to the homepage for `ctsmrTMB`.
+Welcome to the homepage for `sdeTMB`.
 
-`ctsmrTMB` is an `R` package for parameter estimation, state filtration and forecasting in stochastic state space system. 
+`sdeTMB` is an `R` package for parameter estimation, state filtration and forecasting in stochastic state space system. 
 
 The package is maintained by a group of researchers at the Technical University of Denmark (DTU), Department of Applied Mathematics and Computer Science, at the section for Dynamical Systems.
 
@@ -19,7 +19,7 @@ The package implements a `R6` class object through which the user specifies a st
 You can install the latest version using
 
 ``` r
-remotes::install_github(repo="phillipbvetter/ctsmrTMB", dependencies=TRUE)
+remotes::install_github(repo="phillipbvetter/sdeTMB", dependencies=TRUE)
 ```
 You should also follow the installation instructions for `TMB` [here](https://github.com/kaskr/adcomp/wiki/Download) to get everything working. Windows users must have Rtools intalled, and Mac users must have Command Line Tools for various compilers. You can read more on the `TMB` GitHub [here](https://github.com/kaskr/adcomp).
 
@@ -27,9 +27,9 @@ You should also follow the installation instructions for `TMB` [here](https://gi
 
 ---
 
-If you are a new user we recommend that you check out the [Getting Started](https://phillipbvetter.github.io/ctsmrTMB/articles/ctsmrTMB.html) vignette to start learning the simple steps of using `ctsmrTMB`.
+If you are a new user we recommend that you check out the [Getting Started](https://phillipbvetter.github.io/sdeTMB/articles/sdeTMB.html) vignette to start learning the simple steps of using `ctsmrTMB`.
 
-You can find documentation for the methods [here](https://phillipbvetter.github.io/ctsmrTMB/reference/ctsmrTMB.html).
+You can find documentation for the methods [here](https://phillipbvetter.github.io/sdeTMB/reference/sdeTMB.html).
 
 ### Example Usage
 

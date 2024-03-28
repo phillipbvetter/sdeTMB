@@ -1,6 +1,6 @@
-Package: sdem
+Package: sdeTMB
 Type: Package
-Title: Stochastic Differential Equation Modelling
+Title: Stochastic Differential Equations using Template Model Builder
 Version: 0.5
 Date: 2023-02-27
 Authors@R: c(person("Phillip", "Vetter", email="pbrve@dtu.dk", role = c("aut", "cre")),
@@ -14,7 +14,7 @@ Author: Phillip Brinck Vetter [aut, cre],
 	Uffe H. Thygesen [ctb],
 	Peder Bacher [ctb],
 	Henrik Madsen [ctb]
-Description: 'sdem' (Stochastic Differential Equation Modelling) is a package inspired by Continuous Time Stochastic Modelling for R (CTSMr) and built around the Template Model Builder (TMB) R packages for user-friendly system construction, but with access to automatic differentiation and handling of random effect, for parameter estimation and prediction in stochastic state space systems.
+Description: 'sdeTMB' (Stochastic Differential Equations using Template Model Builder ) is a package inspired by Continuous Time Stochastic Modelling for R (CTSMr) and built around the Template Model Builder (TMB) R packages for user-friendly system construction, but with access to automatic differentiation and handling of random effect, for parameter estimation and prediction in stochastic state space systems.
 License: GPL-3
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
@@ -42,4 +42,4 @@ Suggests:
 	ggplot2,
 	ggfortify
 URL: 
-	https://phillipbvetter.github.io/ctsmrTMB, https://github.com/phillipbvetter/sdem
+	https://github.com/phillipbvetter/sdeTMB

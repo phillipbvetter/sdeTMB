@@ -1,20 +1,20 @@
-#' @title Available public methods for 'sdem' class (R6)
+#' @title Methods for the 'sdeTMB' R6 class
 #' 
 #' @description The following public methods are used to construct a stochastic state space model 
 #' system, consisting of a set of stochastic differential equations (SDEs), and one or more algebraic observation 
 #' equations (AOEs). The AOEs are used to infer information about the value of the (latent) states governed by the SDEs, and
 #' thus must be functions of at least one state.
 #' 
-#' @returns The function returns an object of class \code{R6} and \code{sdem}, 
+#' @returns The function returns an object of class \code{R6} and \code{sdeTMB}, 
 #' which can be used to define a stochastic state space system.
 #' 
 #' @docType package
-#' @name sdem
+#' @name sdeTMB
 #' @export
-sdem = R6::R6Class(
+sdeTMB = R6::R6Class(
   
   # Class name
-  classname = "sdem",
+  classname = "sdeTMB",
   
   
   # Public Fields and Methods
@@ -27,9 +27,8 @@ sdem = R6::R6Class(
     #' Initialize private fields
     initialize = function() {
       # modelname and path
-      private$modelname = "sdem_model"
-      private$cppfile.directory = paste(getwd(),"/","sdem_cppfiles", sep="")
-      # private$cppfile.path = paste(getwd(),"/",private$modelname,sep="")
+      private$modelname = "sdeTMB_model"
+      private$cppfile.directory = paste(getwd(),"/","sdeTMB_cppfiles", sep="")
       if(!dir.exists(private$cppfile.directory)) dir.create(private$cppfile.directory)
       private$cppfile.path = paste(private$cppfile.directory,"/",private$modelname,sep="")
       private$cppfile.path.with.method = NULL
@@ -1933,7 +1932,7 @@ sdem = R6::R6Class(
         
         # define least squares loss function between tukey and sigmoid function
         tukeyloss = function(.pars){
-          res = sum((funtukey(rtukey) - .pars[4]*(sdem:::invlogit2(rtukey,a=.pars[1],b=.pars[2])+.pars[3]))^2)
+          res = sum((funtukey(rtukey) - .pars[4]*(sdeTMB:::invlogit2(rtukey,a=.pars[1],b=.pars[2])+.pars[3]))^2)
         }
         
         # minimize least squares between tukey and sigmoid
