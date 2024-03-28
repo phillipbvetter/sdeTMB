@@ -6,7 +6,7 @@ output: html_document
 ---
 
 ```{r, include=FALSE}
-library(sdem)
+library(sdeTMB)
 ```
 
 In this document we show how to use the `construct_nll` method to obtain function handlers for the objective function, gradient, and hessian (the latter is only avaible when there are no random effects in your model).
@@ -59,11 +59,11 @@ y = x[t.sim %in% t.obs] + sigma_y * rnorm(length(t.obs))
 
 ---
 
-We now construct the `sdem` model object
+We now construct the `sdeTMB` model object
 
 ```{r}
 # Create model object
-obj = sdem$new()
+obj = sdeTMB$new()
 
 # Set name of model (and the created .cpp file)
 obj$set_modelname("ornstein_uhlenbeck")

@@ -31,9 +31,7 @@ create_rcpp_statespace_functions = function(self, private){
                  %s
                  return Rcpp::wrap(f);
                  }",private$number.of.states, paste(f,collapse=""))
-  private$Rcppfunction_f <- RcppXPtrUtils::cppXPtr(code, 
-                                                   depends=c("RcppEigen",
-                                                             "sdem"))
+  private$Rcppfunction_f <- RcppXPtrUtils::cppXPtr(code, depends=c("RcppEigen","sdeTMB"))
   
   ##################################################
   # drift jacobian

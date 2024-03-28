@@ -1,2 +1,2 @@
-#' @useDynLib sdem
+#' @useDynLib sdeTMB
 NULL

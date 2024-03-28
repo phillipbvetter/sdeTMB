@@ -3,10 +3,10 @@
 #######################################################
 
 
-#' Basic print of objects of class 'sdem'
+#' Basic print of objects of class 'sdeTMB'
 #' @returns A huge amount of information
 #' @export
-print.sdem = function(object,...) {
+print.sdeTMB = function(object,...) {
   
   obj = object$print()
   #
@@ -14,10 +14,10 @@ print.sdem = function(object,...) {
   
 }
 
-#' Basic print of objects of class 'sdem'
+#' Basic print of objects of class 'sdeTMB'
 #' @returns A huge amount of information
 #' @export
-print.sdem.fit = function(fit) {
+print.sdeTMB.fit = function(fit) {
   
   mat = cbind(fit$par.fixed,fit$sd.fixed,fit$tvalue,fit$Pr.tvalue)
   colnames(mat) = c("Estimate","Std. Error","t value","Pr(>|t|)")
@@ -33,10 +33,10 @@ print.sdem.fit = function(fit) {
 # Summary - S3 Method
 #######################################################
 
-#' Basic summary of objects of class 'sdem'
+#' Basic summary of objects of class 'sdeTMB'
 #' @returns A huge amount of information
 #' @export
-summary.sdem = function(object,correlation=FALSE) {
+summary.sdeTMB = function(object,correlation=FALSE) {
   
   obj = object$summary(correlation)
   #
@@ -46,7 +46,7 @@ summary.sdem = function(object,correlation=FALSE) {
 
 #' @returns summary of fit object from \code{obj$estimate()}
 #' @export
-summary.sdem.fit = function(fit,correlation=FALSE) {
+summary.sdeTMB.fit = function(fit,correlation=FALSE) {
   
   if (!is.logical(correlation)) {
     stop("correlation must be logical")
@@ -103,10 +103,10 @@ getggplot2colors = function(n) {
 # Plot - S3 Method
 #######################################################
 
-#' Basic summary of objects of class 'sdem.pred' from predict
+#' Basic summary of objects of class 'sdeTMB.pred' from predict
 #' @returns A huge amount of information
 #' @export
-plot.sdem.pred = function(pred.data,
+plot.sdeTMB.pred = function(pred.data,
                           n.ahead=0,
                           state.name=NULL,
                           ...) {
@@ -132,7 +132,7 @@ plot.sdem.pred = function(pred.data,
 }
 
 
-#' Basic summary of objects of class 'sdem'
+#' Basic summary of objects of class 'sdeTMB'
 #' @param plot.obs a vector to indicate which observations should be plotted for. If multiple
 #' are chosen a list of plots for each observation is returned.
 #' @param pacf logical to indicate whether or not the partial autocorrelations should be returned.
@@ -141,7 +141,7 @@ plot.sdem.pred = function(pred.data,
 #' @param ggtheme ggplot2 theme to use for creating the ggplot.
 #' @returns A huge amount of information
 #' @export
-plot.sdem = function(object,
+plot.sdeTMB = function(object,
                      plot.obs=1,
                      pacf=FALSE,
                      extended=FALSE,
@@ -152,7 +152,7 @@ plot.sdem = function(object,
   return(invisible(NULL))
 }
 
-#' Basic summary of objects of class 'sdem'
+#' Basic summary of objects of class 'sdeTMB'
 #' @param plot.obs a vector to indicate which observations should be plotted for. If multiple
 #' are chosen a list of plots for each observation is returned.
 #' @param pacf logical to indicate whether or not the partial autocorrelations should be returned.
@@ -162,7 +162,7 @@ plot.sdem = function(object,
 #' @returns A list of plots
 #' @export
 #' @importFrom stats frequency fft spec.taper
-plot.sdem.fit = function(fit,
+plot.sdeTMB.fit = function(fit,
                          plot.obs=1,
                          pacf=FALSE,
                          extended=FALSE,

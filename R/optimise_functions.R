@@ -628,7 +628,7 @@ create_return_fit = function(self, private, calculate.laplace.onestep.residuals)
   }
   
   # Set S3 class
-  class(private$fit) = "sdem.fit"
+  class(private$fit) = "sdeTMB.fit"
   
   return(invisible(self))
 }
@@ -691,7 +691,7 @@ create_return_fit = function(self, private, calculate.laplace.onestep.residuals)
 #   
 #   # return only specific n.ahead
 #   df.out = df.out[df.out[,"k.ahead"] %in% return.k.ahead,]
-#   class(df.out) = c("sdem.pred", "data.frame")
+#   class(df.out) = c("sdeTMB.pred", "data.frame")
 #   
 #   return(df.out)
 # }
@@ -764,7 +764,7 @@ construct_predict_rcpp_dataframe = function(pars, predict.list, data, return.cov
   df.obs = df.obs[df.obs[,"k.ahead"] %in% return.k.ahead,]
   
   list.out = list(states = df.out, observations = df.obs)
-  class(list.out) = c(class(list.out), "sdem.pred")
+  class(list.out) = c(class(list.out), "sdeTMB.pred")
   
   return(list.out)
 }

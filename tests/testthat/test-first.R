@@ -1,9 +1,9 @@
 
 # This is a testthat script for automatically testing that the functions in
-# sdem are working as intended.
+# sdeTMB are working as intended.
 
-obj = sdem$new()
-testthat::expect_s3_class(obj,class=c("sdem","R6"))
+obj = sdeTMB$new()
+testthat::expect_s3_class(obj,class=c("sdeTMB","R6"))
 
 # system equations
 testthat::expect_error(obj$add_systems(x ~ y))
