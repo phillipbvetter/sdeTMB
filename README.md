@@ -38,7 +38,7 @@ We note that `sdem` depends on the following packages:
 
 The user must therefore have a working C++ compiler. In particular windows users should install Rtools, and Mac users should install Command Line Tools to get working C++ compilers. You must make sure that these are added to the `PATH` vislble to `R`. For further information see the `TMB` GitHub [here](https://github.com/kaskr/adcomp) and associated installation instructions [here](https://github.com/kaskr/adcomp/wiki/Download)
 
-Linux users need to make sure that GLS is installed for `RcppZiggurat`. You can try the following command, or google yourself.
+Linux users need to make sure that GSL is installed for `RcppZiggurat`. You can try the following command, or google yourself.
 ``` bash
 sudo apt-get install libgsl-dev
 ```

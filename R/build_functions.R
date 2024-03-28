@@ -438,8 +438,19 @@ compile_cppfile = function(self, private) {
     
     # Compile the C++ file with TMB
     message("Compiling C++ likelihood function...")
-    TMB::compile(paste(private$cppfile.path,".cpp",sep=""))
-    
+    was.there.an.error = tryCatch(
+      TMB::compile(paste(private$cppfile.path,".cpp",sep="")),
+      error = function(e){
+        message("----------------------")
+        message("A compilation error occured. Here is the original error message: \n\t", 
+                conditionMessage(e))
+        message("Do you have any spaces in the file-path? Please remove these.")
+        return(TRUE)
+      })
+    if(was.there.an.error){
+      stop("Compilation stopped.")
+    }
+  
     # reload shared libraries
     # Suppress TMB output 'removing X pointers' with capture.output
     utils::capture.output(try(dyn.unload(TMB::dynlib(private$cppfile.path)),silent=T))
