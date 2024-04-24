@@ -10,9 +10,6 @@
     <loc>/articles/construct_nll.html</loc>
   </url>
   <url>
-    <loc>/articles/ctsmrTMB.html</loc>
-  </url>
-  <url>
     <loc>/articles/estimate.html</loc>
   </url>
   <url>
@@ -28,6 +25,9 @@
     <loc>/articles/predict.html</loc>
   </url>
   <url>
+    <loc>/articles/sdeTMB.html</loc>
+  </url>
+  <url>
     <loc>/authors.html</loc>
   </url>
   <url>
@@ -38,6 +38,12 @@
   </url>
   <url>
     <loc>/reference/ctsmrTMB.html</loc>
+  </url>
+  <url>
+    <loc>/reference/execute_ekf_prediction.html</loc>
+  </url>
+  <url>
+    <loc>/reference/execute_ekf_simulation.html</loc>
   </url>
   <url>
     <loc>/reference/index.html</loc>
@@ -52,6 +58,15 @@
     <loc>/reference/plot.ctsmrTMB.pred.html</loc>
   </url>
   <url>
+    <loc>/reference/plot.sdeTMB.fit.html</loc>
+  </url>
+  <url>
+    <loc>/reference/plot.sdeTMB.html</loc>
+  </url>
+  <url>
+    <loc>/reference/plot.sdeTMB.pred.html</loc>
+  </url>
+  <url>
     <loc>/reference/predict.ctsmrTMB.fit.html</loc>
   </url>
   <url>
@@ -64,6 +79,18 @@
     <loc>/reference/print.ctsmrTMB.html</loc>
   </url>
   <url>
+    <loc>/reference/print.sdeTMB.fit.html</loc>
+  </url>
+  <url>
+    <loc>/reference/print.sdeTMB.html</loc>
+  </url>
+  <url>
+    <loc>/reference/sdeTMB.html</loc>
+  </url>
+  <url>
     <loc>/reference/summary.ctsmrTMB.html</loc>
+  </url>
+  <url>
+    <loc>/reference/summary.sdeTMB.html</loc>
   </url>
 </urlset>

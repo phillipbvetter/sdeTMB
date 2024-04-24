@@ -79,12 +79,13 @@ construct_kalman_makeADFun = function(self, private){
     MAP_bool = 0L
   )
   if (!is.null(private$map)) {
+    bool = self$get_parameters()[,"type"] == "free"
     tmb.map.data = list(
       MAP_bool = 1L,
-      map_mean__ = private$map$mean[!bool],
-      map_cov__ = private$map$cov[!bool,!bool],
-      map_ints__ = as.numeric(!bool),
-      sum_map_ints__ = sum(as.numeric(!bool))
+      map_mean__ = private$map$mean[bool],
+      map_cov__ = private$map$cov[bool,bool],
+      map_ints__ = as.numeric(bool),
+      sum_map_ints__ = sum(as.numeric(bool))
     )
   }
   
@@ -103,7 +104,7 @@ construct_kalman_makeADFun = function(self, private){
   
   nll = TMB::MakeADFun(data = data,
                        parameters = parameters,
-                       map = private$fixed.pars,
+                       map = lapply(private$fixed.pars, function(x) x$factor),
                        DLL = private$modelname,
                        silent = TRUE)
   
@@ -297,7 +298,7 @@ return(invisible(nll))
   nll = RTMB::MakeADFun(func = laplace.nll, 
                         parameters=parameters, 
                         random=private$state.names,
-                        map=private$fixed.pars,
+                        map = lapply(private$fixed.pars, function(x) x$factor),
                         silent=TRUE)
   
   # save objective function
@@ -552,13 +553,24 @@ create_return_fit = function(self, private, calculate.laplace.onestep.residuals)
     # We need all states, inputs and parameter values to evaluate the observation
     # put them in a list
     listofvariables.prior = c(
+      # states
       as.list(private$fit$states$mean$prior[-1]),
+      # estimated free parameters 
       as.list(private$fit$par.fixed),
+      # fixed parameters
+      lapply(private$fixed.pars, function(x) x$initial),
+      # inputs
       as.list(private$fit$data)
     )
+    
     listofvariables.posterior = c(
+      # states
       as.list(private$fit$states$mean$posterior[-1]),
+      # estimated free parameters 
       as.list(private$fit$par.fixed),
+      # fixed parameters
+      lapply(private$fixed.pars, function(x) x$initial),
+      # inputs
       as.list(private$fit$data)
     )
     obs.df.prior = as.data.frame(
@@ -740,9 +752,14 @@ construct_predict_rcpp_dataframe = function(pars, predict.list, data, return.cov
   
   # create environment
   env.list = c(
+    # states
     as.list(df.out[state.names]),
+    # inputs
     as.list(inputs.df),
-    as.list(pars)
+    # free parameters
+    as.list(pars),
+    # fixed parameters
+    lapply(private$fixed.pars, function(x) x$initial)
   )
   
   # calculate observations

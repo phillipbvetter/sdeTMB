@@ -96,7 +96,6 @@ sdeTMB = R6::R6Class(
       private$fit = NULL
       
       # predict
-      private$pred.bool = 0
       private$n.ahead = 0
       private$last.pred.index = 0
       
@@ -352,9 +351,9 @@ sdeTMB = R6::R6Class(
           # set or remove a fixed parameter (NA-bounds)
           private$fixed.pars[[par.name]] = NULL
           if (all(is.na(par.entry[c("lower","upper")]))){
-            
-            private$fixed.pars[[par.name]] = factor(NA)
-            
+            # private$fixed.pars[[par.name]] = factor(NA)
+            private$fixed.pars[[par.name]] = private$parameters[[par.name]]
+            private$fixed.pars[[par.name]][["factor"]] = factor(NA)
           }
           
           # update parameter names
@@ -363,7 +362,8 @@ sdeTMB = R6::R6Class(
           ##### MATRIX/DATA.FRAME INPUTS #####  
         } else if (is.matrix(par.entry) | is.data.frame(par.entry)){
           
-          check_parameter_matrix(par.entry, self, private)
+          
+          par.entry = check_parameter_matrix(par.entry, self, private)
           
           parnames = rownames(par.entry)
           # par.entry = par.entry[,c("initial","lower","upper")]
@@ -371,20 +371,33 @@ sdeTMB = R6::R6Class(
           # lapply over all matrix rows
           lapply( 1:nrow(par.entry), function(i) {
             parname = parnames[i]
+            
+            # basic validity checks
+            check_parameter_vector(par.entry[i,], parname, self, private)
+            
+            # check name
             check_if_name_is_overwritable(parname, "pars", self, private)
+            
+            # store in parameter list
             private$parameters[[parname]] = list(initial = par.entry[i,"initial"], 
                                                  lower = par.entry[i,"lower"], 
                                                  upper = par.entry[i,"upper"])
             
             # set or remove a fixed parameter (NA-bounds)
+            private$fixed.pars[[parname]] = NULL
             if(all(is.na(par.entry[i,c("lower","upper")]))){
-              private$fixed.pars[[parname]] = factor(NA)
-            } else {
-              private$fixed.pars[[parname]] = NULL
+              private$fixed.pars[[parname]] = private$parameters[[parname]]
+              private$fixed.pars[[parname]][["factor"]] = factor(NA)
             }
+            # if(all(is.na(par.entry[i,c("lower","upper")]))){
+            # private$fixed.pars[[parname]] = factor(NA)
+            # } else {
+            # private$fixed.pars[[parname]] = NULL
+            # }
             
             # update parameter names
             private$parameter.names = names(private$parameters)
+            return(invisible(self))
           })
           
           ##### ELSE STOP #####  
@@ -441,56 +454,66 @@ sdeTMB = R6::R6Class(
     ########################################################################
     #' @description Declare the initial state values i.e. mean and covariance for the system states.
     #' 
-    #' @param mean numeric vector of size equal to \code{n} (number of system states)
-    #' @param cov matrix (symmetric positive semi-definite) of dimensions \code{n^2}. 
+    #' @param initial.state a named list of two entries 'x0' and 'p0' containing the initial state and covariance of the state
     #' @param estimate boolean value which indicates whether or not the initial conditions
     #' shall be estimated as fixed effects parameters. The provided mean and covariance are then
     #' used as initial guesses
     #' 
-    set_initial_state = function(mean, cov, estimate=FALSE) {
+    set_initial_state = function(initial.state, estimate=FALSE) {
       if (is.null(private$sys.eqs)) {
         stop("Please specify system equations first")
       }
       
-      if (!is.numeric(mean)) {
+      if (!is.list(initial.state)) {
+        stop("Please provide a list!")
+      }
+      
+      if (length(initial.state) != 2) {
+        stop("Please provide a list of length two")
+      }
+      
+      # unpack list items
+      x0 = initial.state[[1]]
+      p0 = initial.state[[2]]
+      
+      if (!is.numeric(x0)) {
         stop("The mean vector is not a numeric")
       }
       
-      if (any(is.na(mean))) {
+      if (any(is.na(x0))) {
         stop("The mean vector contains NAs.")
       }
       
-      if (length(mean)!=length(private$sys.eqs)) {
+      if (length(x0)!=length(private$sys.eqs)) {
         stop("The initial state vector should have length ",length(private$sys.eqs))
       }
       
-      if (!all(dim(cov)==c(length(private$sys.eqs),length(private$sys.eqs)))) {
+      if (!all(dim(p0)==c(length(private$sys.eqs),length(private$sys.eqs)))) {
         stop("The covariance matrix should be square with dimension ", length(private$sys.eqs))
       }
       
       # convert scalar to matrix
-      if(!is.matrix(cov) & is.numeric(cov) & length(cov)==1){
-        cov = cov*diag(1)
+      if(!is.matrix(p0) & is.numeric(p0) & length(p0)==1){
+        p0 = p0 * diag(1)
       }
       
-      if (!is.numeric(cov)) {
+      if (!is.numeric(p0)) {
         stop("The covariance matrix is not a numeric")
       }
       
-      if (any(is.na(cov))) {
+      if (any(is.na(p0))) {
         stop("The covariance matrix contains NAs")
       }
       
-      if (any(eigen(cov)$values < 0)){
+      if (any(eigen(p0)$values < 0)){
         stop("The covariance matrix is not positive semi-definite")
       }
       
-      if (!isSymmetric.matrix(cov)){
+      if (!isSymmetric.matrix(p0)){
         stop("The covariance matrix is symmetric")
       }
       
-      # private$initial.state = list(mean=mean,cov=as.matrix(cov))
-      private$initial.state = list(x0=mean,p0=as.matrix(cov))
+      private$initial.state = list(x0=x0, p0=as.matrix(p0))
       
       # if(estimate){
       # then we should add the states as fixed effects parameters?
@@ -749,7 +772,9 @@ sdeTMB = R6::R6Class(
     # GET PARAMETER MATRIX
     ########################################################################
     #' @description Get initial (and estimated) parameters.
-    get_parameters = function() {
+    #' @param type one of "all", free" or "fixed" parameters.
+    #' @param value one of "all", initial", "estimate", "lower" or "upper"
+    get_parameters = function(type="all", value="all") {
       
       if(is.null(private$parameters)){
         return(invisible(NULL))
@@ -763,17 +788,53 @@ sdeTMB = R6::R6Class(
       # put parameters into it
       .df[,c("initial","lower","upper")] = t(sapply(private$parameters,unlist))
       .df[["type"]] = "free"
-      .df[["estimate"]] = .df[["initial"]]
+      .df[["estimate"]] = NA
       .df[names(private$fixed.pars),"type"] = "fixed"
+      .df[names(private$fixed.pars),"estimate"] = sapply(private$fixed.pars,function(x) x$initial)
       
-      if(is.null(private$fit)){
-        # remove estimate if not fit has been generated
-        .df = .df[,-2]
-      } else {
-        # if the fit exists then assign the free (estimate) parameters the estimated values
-        # from fit$par.fixed
+      # if the fit exists then assign the free (estimate) parameters the estimated values from fit$par.fixed
+      if(!is.null(private$fit)){
         .df[names(private$free.pars),"estimate"] = private$fit$par.fixed[names(private$free.pars)]
       }
+      # if(is.null(private$fit)){
+      #   # remove estimate if not fit has been generated
+      #   # .df = .df[,-2]
+      # } else {
+      #   # if the fit exists then assign the free (estimate) parameters the estimated values
+      #   # from fit$par.fixed
+      #   .df[names(private$free.pars),"estimate"] = private$fit$par.fixed[names(private$free.pars)]
+      # }
+      
+      # Filter rows by free or fixed parameter types
+      .df = switch(type,
+             free = {
+               .df[.df[["type"]] == "free",]
+             },
+             fixed = {
+               .df[.df[["type"]] == "fixed",]
+             },
+             all = {
+               .df
+             })
+      
+      
+      # Filter columns by value 
+      .df = switch(value,
+                   initial = {
+                     .df[,"initial",drop=T]
+                     },
+                   lower = {
+                     .df[,"lower",drop=T]
+                   },
+                   upper = {
+                     .df[,"upper",drop=T]
+                   },
+                   estimate = {
+                     .df[,"estimate",drop=T]
+                   },
+                   all = {
+                     .df
+                   })
       
       # return
       return(.df)
@@ -861,21 +922,22 @@ sdeTMB = R6::R6Class(
     #' @param silent logical value whether or not to suppress printed messages such as 'Checking Data',
     #' 'Building Model', etc. Default behaviour (FALSE) is to print the messages.
     construct_nll = function(data,
-                             method="ekf",
-                             ode.solver="rk4",
-                             ode.timestep=NULL,
-                             loss="quadratic",
-                             loss_c=3,
+                             method = "ekf",
+                             ode.solver = "rk4",
+                             ode.timestep = NULL,
+                             loss = "quadratic",
+                             loss_c = 3,
                              unscented_hyperpars = NULL,
                              compile=FALSE,
                              silent=FALSE){
       
       # set flags
-      private$set_timestep(ode.timestep)
       private$set_compile(compile)
       private$set_method(method)
-      private$set_loss(loss,loss_c)
       private$set_ode_solver(ode.solver)
+      private$set_timestep(ode.timestep)
+      private$set_simulation_timestep(NULL)
+      private$set_loss(loss,loss_c)
       
       # build model
       if(!silent) message("Building model...")
@@ -995,7 +1057,6 @@ sdeTMB = R6::R6Class(
       private$use_hessian(use.hessian)
       private$set_loss(loss, loss_c)
       private$set_control(control)
-      private$set_predict(FALSE)
       private$set_unconstrained_optim(unconstrained.optim)
       
       # build model
@@ -1050,7 +1111,7 @@ sdeTMB = R6::R6Class(
     #' should be returned.
     #' @param return.covariance booelan value to indicate whether the covariance (instead of the correlation) 
     #' should be returned.
-    #' @param initial.state whatever
+    #' @param initial.state a named list of two entries 'x0' and 'p0' containing the initial state and covariance of the state
     #' @param ode.timestep numeric value. Sets the time step-size in numerical filtering schemes. 
     #' The defined step-size is used to calculate the number of steps between observation time-points as 
     #' defined by the provided \code{data}. If the calculated number of steps is larger than N.01 where N 
@@ -1115,6 +1176,7 @@ sdeTMB = R6::R6Class(
       private$set_ode_solver(ode.solver)
       private$set_timestep(ode.timestep)
       private$set_simulation_timestep(simulation.timestep)
+      private$set_pred_initial_state(initial.state)
       
       
       ###### BUILD MODEL #######
@@ -1125,9 +1187,7 @@ sdeTMB = R6::R6Class(
       ###### CHECK AND SET DATA  #######
       if(!silent) message("Checking data...")
       check_and_set_data(data, self, private)
-      set_pred_initial_state(initial.state, self, private)
       set_ukf_parameters(unscented_hyperpars, self, private)
-      
       
       ###### SET PRED AHEAD FLAGS #######
       private$set_n_ahead_and_last_pred_index(data, k.ahead)
@@ -1140,9 +1200,11 @@ sdeTMB = R6::R6Class(
         if(!silent) message("No parameters were supplied - using estimated or initial values")
         # if the estimation has been run, then use these parameters
         if(!is.null(private$fit)){
-          pars = self$get_parameters()[,"estimate"]
+          # pars = self$get_parameters()[,"estimate"]
+          pars = self$get_parameters(value="estimate")
         } else {
-          pars = self$get_parameters()[,"initial"]
+          # pars = self$get_parameters()[,"initial"]
+          pars = self$get_parameters(value="initial")
         }
       } else {
         # check if parameters is with or without fixed parameters
@@ -1154,8 +1216,9 @@ sdeTMB = R6::R6Class(
         }
         # if not contain fixed parameters, add these
         if(length(pars)==lp-fp){
-          fp.id = self$get_parameters()[,"type"] == "fixed"
-          pars = c(pars, self$get_parameters()[fp.id,"initial"] )
+          # fp.id = self$get_parameters()[,"type"] == "fixed"
+          # pars = c(pars, self$get_parameters()[fp.id,"initial"] )
+          pars = c(pars, self$get_parameters(type="fixed",value="initial"))
         }
       }
       
@@ -1207,7 +1270,7 @@ sdeTMB = R6::R6Class(
     #' should be returned.
     #' @param return.covariance booelan value to indicate whether the covariance (instead of the correlation) 
     #' should be returned.
-    #' @param initial.state whatever
+    #' @param initial.state a named list of two entries 'x0' and 'p0' containing the initial state and covariance of the state
     #' @param ode.timestep numeric value. Sets the time step-size in numerical filtering schemes. 
     #' The defined step-size is used to calculate the number of steps between observation time-points as 
     #' defined by the provided \code{data}. If the calculated number of steps is larger than N.01 where N 
@@ -1268,6 +1331,7 @@ sdeTMB = R6::R6Class(
       private$set_ode_solver(ode.solver)
       private$set_timestep(ode.timestep)
       private$set_simulation_timestep(NULL)
+      private$set_pred_initial_state(initial.state)
       
       ###### BUILD MODEL #######
       if(!silent) message("Building model...")
@@ -1277,13 +1341,11 @@ sdeTMB = R6::R6Class(
       ###### CHECK AND SET DATA  #######
       if(!silent) message("Checking data...")
       check_and_set_data(data, self, private)
-      set_pred_initial_state(initial.state, self, private)
       set_ukf_parameters(unscented_hyperpars, self, private)
       
       
       ###### SET PRED AHEAD FLAGS #######
       private$set_n_ahead_and_last_pred_index(data, k.ahead)
-      private$set_predict(TRUE)
       if(is.null(return.k.ahead)){
         return.k.ahead = 0:k.ahead
       }
@@ -1293,9 +1355,11 @@ sdeTMB = R6::R6Class(
         if(!silent) message("No parameters were supplied - using estimated or initial values")
         # if the estimation has been run, then use estimated parameters, else use initial
         if(!is.null(private$fit)){
-          pars = self$get_parameters()[,"estimate"]
+          # pars = self$get_parameters()[,"estimate"]
+          pars = self$get_parameters(value="estimate")
         } else {
-          pars = self$get_parameters()[,"initial"]
+          # pars = self$get_parameters()[,"initial"]
+          pars = self$get_parameters(value="initial")
         }
       } else {
         # check if parameters is with or without fixed parameters
@@ -1307,19 +1371,21 @@ sdeTMB = R6::R6Class(
         }
         # if not contain fixed parameters, add these
         if(length(pars)==lp-fp){
-          fp.id = self$get_parameters()[,"type"] == "fixed"
-          pars = c(pars, self$get_parameters()[fp.id,"initial"] )
+          # fp.id = self$get_parameters()[,"type"] == "fixed"
+          # pars = c(pars, self$get_parameters()[fp.id,"initial"] )
+          pars = c(pars, self$get_parameters(type="fixed",value="initial"))
         }
       }
       
-      ###### PERFORM PREDICTION #######
+      ##### COMPILE C++ FUNCTIONS #######
       if(!silent) message("Compiling C++ prediction functions...")
       create_rcpp_statespace_functions(self, private)
       
+      ##### PERFORM PREDICTION #######
       if(!silent) message("Predicting...")
-      predict.list = perform_rcpp_ekf_prediction(self, private, pars, initial.state)
+      predict.list = perform_rcpp_ekf_prediction(self, private, pars)
       
-      # construct return data.frame
+      ##### CREATE RETURN DATA.FRAME #######
       if(!silent) message("Constructing return data.frame...")
       df.out = construct_predict_rcpp_dataframe(pars,
                                                 predict.list,
@@ -1329,7 +1395,7 @@ sdeTMB = R6::R6Class(
                                                 self,
                                                 private)
       
-      # return
+      ##### RETURN #######
       if(!silent) message("Finished.")
       return(invisible(df.out))
     },
@@ -1539,7 +1605,6 @@ sdeTMB = R6::R6Class(
     fit = NULL,
     
     # predict
-    pred.bool = NULL,
     n.ahead = NULL,
     last.pred.index = NULL,
     
@@ -1694,24 +1759,6 @@ sdeTMB = R6::R6Class(
       # return
       return(invisible(self))
     },
-    
-    ########################################################################
-    # SET PREDICT
-    ########################################################################
-    # set predict
-    set_predict = function(bool) {
-      
-      # check string
-      if (!(is.logical(bool))) {
-        stop("You must pass a logical")
-      }
-      
-      # set flag
-      private$pred.bool = as.numeric(bool)
-      
-      # return
-      return(invisible(self))
-    },
     ########################################################################
     # SET UNCONSTRAINED OPTIMIZATION
     ########################################################################
@@ -1841,43 +1888,65 @@ sdeTMB = R6::R6Class(
     ########################################################################
     # SET INITIAL PREDICTION STATE / COVARIANCE
     ########################################################################
-    set_pred_initial_state = function(mean,cov) {
+    set_pred_initial_state = function(initial.state) {
       
-      # perform basic checks
       if (is.null(private$sys.eqs)) {
         stop("Please specify system equations first")
       }
-      if (!is.numeric(mean)) {
-        stop("The mean vector is not a numeric")
-      }
-      if (any(is.na(mean))) {
-        stop("The mean vector contains NAs.")
-      }
-      if (length(mean)!=length(private$sys.eqs)) {
-        stop("The initial state vector should have length ",length(private$sys.eqs))
-      }
-      if (!all(dim(cov)==c(length(private$sys.eqs),length(private$sys.eqs)))) {
-        stop("The covariance matrix should be square with dimension ", length(private$sys.eqs))
-      }
-      # convert scalar to matrix
-      if(!is.matrix(cov) & is.numeric(cov) & length(cov)==1){
-        cov = cov*diag(1)
-      }
-      if (!is.numeric(cov)) {
-        stop("The covariance matrix is not a numeric")
-      }
-      if (any(is.na(cov))) {
-        stop("The covariance matrix contains NAs")
-      }
-      if (any(eigen(cov)$values < 0)){
-        stop("The covariance matrix is not positive semi-definite")
-      }
-      if (!isSymmetric.matrix(cov)){
-        stop("The covariance matrix is not symmetric")
+      
+      if (!is.list(initial.state)) {
+        stop("Please provide a list!")
       }
       
+      if (length(initial.state) != 2) {
+        stop("Please provide a list of length two")
+      }
+      
+      # unpack list items
+      x0 = initial.state[[1]]
+      p0 = initial.state[[2]]
+      
+      if (!is.numeric(x0)) {
+        stop("The mean vector is not a numeric")
+      }
+      
+      if (any(is.na(x0))) {
+        stop("The mean vector contains NAs.")
+      }
+      
+      if (length(x0)!=length(private$sys.eqs)) {
+        stop("The initial state vector should have length ",length(private$sys.eqs))
+      }
+      
+      if (!all(dim(p0)==c(length(private$sys.eqs),length(private$sys.eqs)))) {
+        stop("The covariance matrix should be square with dimension ", length(private$sys.eqs))
+      }
+      
+      # convert scalar to matrix
+      if(!is.matrix(p0) & is.numeric(p0) & length(p0)==1){
+        p0 = p0 * diag(1)
+      }
+      
+      if (!is.numeric(p0)) {
+        stop("The covariance matrix is not a numeric")
+      }
+      
+      if (any(is.na(p0))) {
+        stop("The covariance matrix contains NAs")
+      }
+      
+      if (any(eigen(p0)$values < 0)){
+        stop("The covariance matrix is not positive semi-definite")
+      }
+      
+      if (!isSymmetric.matrix(p0)){
+        stop("The covariance matrix is symmetric")
+      }
+      
+      private$initial.state = list(x0=x0, p0=as.matrix(p0))
+      
       # set field
-      private$pred.initial.state = list(mean=mean, cov=as.matrix(cov))
+      private$pred.initial.state = list(x0=x0, p0=as.matrix(p0))
       
       # return
       return(invisible(self))

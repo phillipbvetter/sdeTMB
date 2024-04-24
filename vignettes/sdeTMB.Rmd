@@ -122,7 +122,7 @@ print(obj)
 
 The last thing to do before we can perform estimation is to set the initial value of the state(s) and its associated (co)variance. These two inputs are adequate since we assume a normally distributed state. The choice of value should reflect ones belief in the initial state, but it is most often a ballpark figure.
 ```{r}
-obj$set_initial_state(mean=3, cov=1e-1*diag(1))
+obj$set_initial_state(list(mean=3, cov=1e-1*diag(1)))
 ```
 Note that we use `diag` to construct a 1x1 matrix for the covariance, as required by the method.
 

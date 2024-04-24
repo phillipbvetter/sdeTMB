@@ -65,3 +65,19 @@ try_withWarningRecovery = function(expr, silent=TRUE){
   
   return(output)
 }
+
+###########################################################
+# ATOMIC LOG-DETERMINANT FOR RTMB
+###########################################################
+
+logdet <- RTMB::ADjoint(
+  function(x) {
+    dim(x) <- rep(sqrt(length(x)), 2)
+    determinant(x, log=TRUE)$modulus
+  },
+  function(x, y, dy) {
+    dim(x) <- rep(sqrt(length(x)), 2)
+    t(solve(x)) * dy
+  },
+  name = "logdet")
+

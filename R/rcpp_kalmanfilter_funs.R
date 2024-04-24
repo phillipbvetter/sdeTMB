@@ -31,7 +31,8 @@ create_rcpp_statespace_functions = function(self, private){
                  %s
                  return Rcpp::wrap(f);
                  }",private$number.of.states, paste(f,collapse=""))
-  private$Rcppfunction_f <- RcppXPtrUtils::cppXPtr(code, depends=c("RcppEigen","sdeTMB"))
+  private$Rcppfunction_f <- RcppXPtrUtils::cppXPtr(code,
+                                                   depends=c("RcppEigen","sdeTMB"))
   
   ##################################################
   # drift jacobian
@@ -145,7 +146,7 @@ create_rcpp_statespace_functions = function(self, private){
 
 
 
-perform_rcpp_ekf_prediction = function(self, private, pars, initial.state){
+perform_rcpp_ekf_prediction = function(self, private, pars){
   
   obsMat = as.matrix(private$data[private$obs.names])
   numeric_is_not_na_obsMat = t(apply(obsMat, 1, FUN=function(x) as.numeric(!is.na(x))))
@@ -161,8 +162,8 @@ perform_rcpp_ekf_prediction = function(self, private, pars, initial.state){
                                   as.matrix(private$data[private$obs.names]),
                                   as.matrix(private$data[private$input.names]),
                                   pars,
-                                  initial.state$p0,
-                                  initial.state$x0,
+                                  private$pred.initial.state$p0,
+                                  private$pred.initial.state$x0,
                                   private$ode.timestep.size,
                                   private$ode.timesteps,
                                   numeric_is_not_na_obsMat,

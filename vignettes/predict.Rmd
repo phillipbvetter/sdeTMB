@@ -118,7 +118,7 @@ obj$add_parameters(
 )
 
 # Set initial state mean and covariance
-obj$set_initial_state(x[1], 1e-1*diag(1))
+obj$set_initial_state(list(x[1], 1e-1*diag(1)))
 ```
 
 # Predict
@@ -158,10 +158,10 @@ pred1 = obj$predict(.data, k.ahead=2)
 pred2 = obj$predict(.data, k.ahead=10, return.k.ahead=c(2,5,8))
 ```
 ```{r}
-head(pred1)
+head(pred1$states)
 ```
 ```{r}
-head(pred2)
+head(pred2$states)
 ```
 
 
@@ -184,9 +184,12 @@ The default behaviour of `predict` is to use the initial state and covariance su
 ```{r, eval=FALSE}
 new.initial.x0 = rnorm(1)
 new.initial.p0 = rnorm(1)*diag(1)
-pred = obj$predict(.data,
-            x0=new.state.value,
-            p0=new.covariance.value)
+pred = obj$predict(data=.data,
+                   initial.state = list(
+                     new.state.value,
+                     new.covariance.value
+                   )
+)
 ```
 
 # The solver options
@@ -212,7 +215,6 @@ We provide these arguments via
 ```{r, eval=FALSE}
 
 obj$predict(.data,
-            ode.solver = "euler",
             ode.timestep = min(diff(.data$t))
 )
 ```
@@ -226,6 +228,8 @@ We could use our model predictions against observation to compute a model perfor
 ```{r, results='hide', message=FALSE}
 fit = obj$estimate(.data)
 pred = obj$predict(.data, k.ahead=10)
+pred.states = pred$states
+pred.obs = pred$observations
 ```
 
 ```{r, message=FALSE, results='hide'}
@@ -238,8 +242,6 @@ mytheme =
     legend.text      = element_text(size=15),
     axis.text        = element_text(size=15),
     strip.text       = element_text(face="bold",size=15),
-    panel.grid.major = element_blank(),
-    panel.grid.minor = element_blank(),
     legend.box       = "vertical",
     legend.position  = "top",
     plot.title       = element_text(hjust=0.5)
@@ -248,7 +250,7 @@ mytheme =
 
 Let's plot the 10-step predictions against the observations.
 ```{r}
-pred10 = pred[pred$k.ahead==10,]
+pred10 = pred.states[pred.states$k.ahead==10,]
 ```
 
 
@@ -278,14 +280,23 @@ ggplot() +
 ```
 We can calculate the RMSE prediction score for each prediction step as follows:
 ```{r}
-RMSE = c()
-for(i in 1:10){
-  x_y = pred[pred$k.ahead==i,][c("x","y")]
-  RMSE[i] = sqrt(mean((x_y[["x"]] - x_y[["y"]])^2))
+rmse = c()
+k.ahead = 1:10
+for(i in k.ahead){
+  xy = data.frame(
+    x = pred.states[pred.states$k.ahead==i,"x"],
+    y = pred.obs[pred.obs$k.ahead==i,"y.data"]
+  )
+  rmse[i] = sqrt(mean((xy[["x"]] - xy[["y"]])^2))
 }
 
-ggplot(data=data.frame(x=1:10,y=RMSE),aes(x,y,color="RMSE")) +
-  geom_line() + geom_point() +
-  labs(color="") +
+ggplot() +
+  geom_line(aes(k.ahead, rmse), color="steelblue") + 
+  geom_point(aes(k.ahead, rmse), color="red") +
+  labs(
+    title = "Root-Mean Square Errors for Different Prediction Horizons",
+    x = "Prediction Steps",
+    y = "Root-Mean-Square Errors"
+    ) +
   mytheme
 ```

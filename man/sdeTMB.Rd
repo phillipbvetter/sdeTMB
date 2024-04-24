@@ -270,15 +270,13 @@ for \code{logtheta} now instead of \code{theta} when declaring parameters throug
 \subsection{Method \code{set_initial_state()}}{
 Declare the initial state values i.e. mean and covariance for the system states.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{sdeTMB$set_initial_state(mean, cov, estimate = FALSE)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{sdeTMB$set_initial_state(initial.state, estimate = FALSE)}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{mean}}{numeric vector of size equal to \code{n} (number of system states)}
-
-\item{\code{cov}}{matrix (symmetric positive semi-definite) of dimensions \code{n^2}.}
+\item{\code{initial.state}}{a named list of two entries 'x0' and 'p0' containing the initial state and covariance of the state}
 
 \item{\code{estimate}}{boolean value which indicates whether or not the initial conditions
 shall be estimated as fixed effects parameters. The provided mean and covariance are then
@@ -437,9 +435,18 @@ Retrieve initially set state and covariance
 \subsection{Method \code{get_parameters()}}{
 Get initial (and estimated) parameters.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{sdeTMB$get_parameters()}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{sdeTMB$get_parameters(type = "all", value = "all")}\if{html}{\out{</div>}}
 }
 
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{type}}{one of "all", free" or "fixed" parameters.}
+
+\item{\code{value}}{one of "all", initial", "estimate", "lower" or "upper"}
+}
+\if{html}{\out{</div>}}
+}
 }
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-sdeTMB-construct_nll"></a>}}
@@ -707,7 +714,7 @@ state estimate as the initial condition.
 \item{\code{data}}{data.frame containing time-vector 't', observations and inputs. The observations
 can take \code{NA}-values.}
 
-\item{\code{initial.state}}{whatever}
+\item{\code{initial.state}}{a named list of two entries 'x0' and 'p0' containing the initial state and covariance of the state}
 
 \item{\code{pars}}{fixed parameter vector parsed to the objective function for prediction/filtration. The default
 parameter values used are the initial parameters provided through \code{add_parameters}, unless the \code{estimate}
@@ -810,7 +817,7 @@ state estimate as the initial condition.
 \item{\code{data}}{data.frame containing time-vector 't', observations and inputs. The observations
 can take \code{NA}-values.}
 
-\item{\code{initial.state}}{whatever}
+\item{\code{initial.state}}{a named list of two entries 'x0' and 'p0' containing the initial state and covariance of the state}
 
 \item{\code{pars}}{fixed parameter vector parsed to the objective function for prediction/filtration. The default
 parameter values used are the initial parameters provided through \code{add_parameters}, unless the \code{estimate}

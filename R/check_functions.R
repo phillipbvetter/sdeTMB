@@ -298,6 +298,7 @@ check_parameter_matrix <- function(parmat, self, private) {
   # set column names if 3 columns and no column names
   if(is.null(colnames(parmat)) & ncol(parmat)==3){
     colnames(parmat) = c("initial","lower","upper")
+    message("Note: No colnames were provided in parameter matrix - assuming order 'initial', 'lower', 'upper'")
   }
   
   # are column names initial, lower and upper present?
@@ -323,7 +324,6 @@ check_parameter_matrix <- function(parmat, self, private) {
   
   # are parameter names supplied?
   parnames = rownames(parmat)
-  print(parmat)
   if (is.null(parnames)) {
     stop("You have not supplied any parameter names. Use rownames")
   }
@@ -355,8 +355,9 @@ check_parameter_matrix <- function(parmat, self, private) {
     stop("The following parameter is not a part of the current model, after applying the algebraic substitutions: ", paste(parnames[!check.bool],collapse=", "))
   }
   
-  result = list(parnames)
-  return(result)
+  # result = list(parnames)
+  # return(invisible(result))
+  return(parmat)
 }
 
 #######################################################
@@ -426,7 +427,7 @@ remove_parameter = function(parname, self, private) {
   
   # if the removed parameter was a fixed parameter, then remove it from the 
   # fixed parameter list 
-  bool = !(private$fixed.pars %in% parname)
+  bool = !(names(private$fixed.pars) %in% parname)
   private$fixed.pars = private$fixed.pars[bool]
   
   return(invisible(self))

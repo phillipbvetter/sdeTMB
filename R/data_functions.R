@@ -304,32 +304,6 @@ set_ukf_parameters = function(unscented_hyperpars, self, private)
   return(invisible(self))
 }
 
-
-set_pred_initial_state = function(initial.state, self, private)
-{
-  ###### SET INITIAL STATE AND COVARIANCE VALUES #######
-  if(is.null(initial.state)){
-    stop("Please set provide an initial value for the state and covariance as a named list with entries 'x0' and 'p0'")
-  }
-  if(!is.list(initial.state)){
-    stop("The initial state argument must be a named list with entries 'x0' and 'p0'")
-  }
-  if(length(initial.state) != 2){
-    stop("The initial state should only contain an entry x0 for the initial state, and p0 for the initial covariance")
-  }
-  if(length(initial.state$x0) != private$number.of.states){
-    stop("The length of the initial state for x0 should be equal to the number of states")
-  }
-  if(any(dim(initial.state$p0) != rep(private$number.of.states,2))){
-    stop("The length of the initial state for x0 should be equal to the number of states")
-  }
-  
-  private$set_pred_initial_state(initial.state[["x0"]], initial.state[["p0"]])
-  
-  return(invisible(self))
-}
-
-
 was_any_data_provided = function(data, self, private)
 {
   ###### CHECK DATA #######
