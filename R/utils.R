@@ -77,7 +77,7 @@ logdet <- RTMB::ADjoint(
   },
   function(x, y, dy) {
     dim(x) <- rep(sqrt(length(x)), 2)
-    t(solve(x)) * dy
+    t(RTMB::solve(x)) * dy
   },
   name = "logdet")
 

@@ -438,7 +438,7 @@ return(nll)
   
   # save objective function
   private$nll = nll
-
+  
   # return
   return(invisible(self))
   
@@ -784,10 +784,10 @@ create_return_fit = function(self, private, calculate.laplace.onestep.residuals)
       }
     )
     if (inherits(private$fit$nll.gradient,"try-error")) {
-      private$fit$nll.gradient = NA
+      private$fit$nll.gradient = NULL
     }
     
-    # hessian
+    # compute hessian
     private$fit$nll.hessian = try_withWarningRecovery(
       {
         nll.hess = private$nll$he(private$opt$par)
@@ -797,21 +797,44 @@ create_return_fit = function(self, private, calculate.laplace.onestep.residuals)
       }
     )
     if (inherits(private$fit$nll.hessian, "try-error")) {
-      private$fit$nll.hessian = NA
+      private$fit$nll.hessian = NULL
     }
     
-    # parameter estimates and standard deviation
+    # parameter estimates
     private$fit$par.fixed = private$opt$par
-    private$fit$sd.fixed = tryCatch(sqrt(diag(solve(private$nll$he(private$opt$par)))),
-                                    error=function(e) NA,
-                                    warning=function(w) NA
-    )
     
-    # parameter covariance matrix by solving the inverse hessian
-    private$fit$cov.fixed = tryCatch(solve(private$nll$he(private$opt$par)),
-                                     error=function(e) NA,
-                                     warning=function(w) NA
-    )
+    # parameter uncertainties by hessian inversion
+    if(!is.null(private$fit$nll.hessian)){
+      
+      # Step 1 - invert full hessian
+      temp.hessian = private$fit$nll.hessian
+      hess = try(solve(temp.hessian), silent=T)
+      
+      # Options 1 - If the above fails, remove all row/cols where the diagonal
+      # elements in small than min.diag
+      min.diag = 1e-8
+      if(inherits(hess,"try-error")){
+        keep.ids = !(diag(temp.hessian) < min.diag)
+        hess = temp.hessian[keep.ids, keep.ids]
+        covariance = solve(hess)
+        
+        sd.fixed = rep(NA,length(private$fit$par.fixed))
+        sd.fixed[keep.ids] = sdeTMB:::try_withWarningRecovery(sqrt(diag(covariance)))
+        
+        cov.fixed = temp.hessian * NA
+        cov.fixed[keep.ids, keep.ids] = covariance
+      }
+      # Option 2 - Recursive remove the smallest parameter
+      # ids = sort(diag(temp.hessian), index.return=T)$ix
+      # i = 0
+      # while(inherits(hess,"try-error") && i < length(private$fit$par.fixed)){
+      #   i = i + 1
+      #   covariance = try(solve(temp.hessian[-ids[1:i],-ids[1:i]]), silent=T)
+      # }
+      
+      private$fit$sd.fixed = sd.fixed
+      private$fit$cov.fixed = cov.fixed
+    }
     
     ################################################
     # STATES, RESIDUALS, OBSERVATIONS ETC.
@@ -936,7 +959,7 @@ create_return_fit = function(self, private, calculate.laplace.onestep.residuals)
       }
     )
     if (inherits(private$fit$nll.gradient,"try-error")) {
-      private$fit$nll.gradient = NA
+      private$fit$nll.gradient = NULL
     }
     
     # hessian
@@ -949,21 +972,44 @@ create_return_fit = function(self, private, calculate.laplace.onestep.residuals)
       }
     )
     if (inherits(private$fit$nll.hessian, "try-error")) {
-      private$fit$nll.hessian = NA
+      private$fit$nll.hessian = NULL
     }
     
     # parameter estimates and standard deviation
     private$fit$par.fixed = private$opt$par
-    private$fit$sd.fixed = tryCatch(sqrt(diag(solve(private$nll$he(private$opt$par)))),
-                                    error=function(e) NA,
-                                    warning=function(w) NA
-    )
     
-    # parameter covariance matrix by solving the inverse hessian
-    private$fit$cov.fixed = tryCatch(solve(private$nll$he(private$opt$par)),
-                                     error=function(e) NA,
-                                     warning=function(w) NA
-    )
+    # parameter uncertainties by hessian inversion
+    if(!is.null(private$fit$nll.hessian)){
+      
+      # Step 1 - invert full hessian
+      temp.hessian = private$fit$nll.hessian
+      hess = try(solve(temp.hessian), silent=T)
+      
+      # Options 1 - If the above fails, remove all row/cols where the diagonal
+      # elements in small than min.diag
+      min.diag = 1e-8
+      if(inherits(hess,"try-error")){
+        keep.ids = !(diag(temp.hessian) < min.diag)
+        hess = temp.hessian[keep.ids, keep.ids]
+        covariance = solve(hess)
+        
+        sd.fixed = rep(NA,length(private$fit$par.fixed))
+        sd.fixed[keep.ids] = sdeTMB:::try_withWarningRecovery(sqrt(diag(covariance)))
+        
+        cov.fixed = temp.hessian * NA
+        cov.fixed[keep.ids, keep.ids] = covariance
+      }
+      # Option 2 - Recursive remove the smallest parameter
+      # ids = sort(diag(temp.hessian), index.return=T)$ix
+      # i = 0
+      # while(inherits(hess,"try-error") && i < length(private$fit$par.fixed)){
+      #   i = i + 1
+      #   covariance = try(solve(temp.hessian[-ids[1:i],-ids[1:i]]), silent=T)
+      # }
+      
+      private$fit$sd.fixed = sd.fixed
+      private$fit$cov.fixed = cov.fixed
+    }
     
     ################################################
     # STATES, RESIDUALS, OBSERVATIONS ETC.
