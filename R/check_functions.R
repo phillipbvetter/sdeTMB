@@ -425,8 +425,7 @@ remove_parameter = function(parname, self, private) {
   # update parameter names
   private$parameter.names = names(private$parameters)
   
-  # if the removed parameter was a fixed parameter, then remove it from the 
-  # fixed parameter list 
+  # remove parameter from fixed parameter list
   bool = !(names(private$fixed.pars) %in% parname)
   private$fixed.pars = private$fixed.pars[bool]
   

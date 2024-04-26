@@ -418,20 +418,23 @@ final_build_check = function(self, private) {
 # NOTE::: The manual dyn.unload dyn.load must be performed, otherwise TMB
 # will reuse the old model. This is a TMB bug. 
 
-# IMRPOVE FOR THE FUTURE - AUTODETECT IF COMPILATION IS NEEDED?
-# Is there a way to save an R object when we compile, and then use this object
-# to check whether a compilation is necessary at all?
-# We would have to verify that all model parts are identical
-# Can we generate a sequence of numbers unique to that model?
-
 compile_cppfile = function(self, private) {
   
   if(private$method == "laplace"){
     return(invisible(self))
   }
   
+  if(private$method == "ekf_rtmb"){
+    return(invisible(self))
+  }
+  
   # If the user requested a compilaton
   if(private$compile){
+    
+    # Create folder if it doesnt exist
+    if(!dir.exists(private$cppfile.directory)){
+      dir.create(private$cppfile.directory)
+    } 
     
     # Create the C++ file
     write_cppfile(self, private)
@@ -450,7 +453,7 @@ compile_cppfile = function(self, private) {
     if(was.there.an.error){
       stop("Compilation stopped.")
     }
-  
+    
     # reload shared libraries
     # Suppress TMB output 'removing X pointers' with capture.output
     utils::capture.output(try(dyn.unload(TMB::dynlib(private$cppfile.path)),silent=T))

@@ -29,7 +29,6 @@ sdeTMB = R6::R6Class(
       # modelname and path
       private$modelname = "sdeTMB_model"
       private$cppfile.directory = paste(getwd(),"/","sdeTMB_cppfiles", sep="")
-      if(!dir.exists(private$cppfile.directory)) dir.create(private$cppfile.directory)
       private$cppfile.path = paste(private$cppfile.directory,"/",private$modelname,sep="")
       private$cppfile.path.with.method = NULL
       private$modelname.with.method = NULL
@@ -807,22 +806,22 @@ sdeTMB = R6::R6Class(
       
       # Filter rows by free or fixed parameter types
       .df = switch(type,
-             free = {
-               .df[.df[["type"]] == "free",]
-             },
-             fixed = {
-               .df[.df[["type"]] == "fixed",]
-             },
-             all = {
-               .df
-             })
+                   free = {
+                     .df[.df[["type"]] == "free",]
+                   },
+                   fixed = {
+                     .df[.df[["type"]] == "fixed",]
+                   },
+                   all = {
+                     .df
+                   })
       
       
       # Filter columns by value 
       .df = switch(value,
                    initial = {
                      .df[,"initial",drop=T]
-                     },
+                   },
                    lower = {
                      .df[,"lower",drop=T]
                    },
@@ -1745,12 +1744,13 @@ sdeTMB = R6::R6Class(
       
       # check if method is available
       # available_methods = c("ekf", "ukf", "laplace")
-      available_methods = c("ekf", "laplace")
+      available_methods = c("ekf","ekf_rtmb","laplace")
       if (!(method %in% available_methods)) {
         stop("That method is not available. Please choose one of:
-             1. 'ekf' - Extended Kalman Filter
-             2. 'ukf' - Unscented Kalman Filter
-             3. 'laplace' - Laplace Approximation using Random Effects Formulation")
+             1. 'ekf' - Extended Kalman Filter in TMB C++ (Requires Compilation, but 20 times faster than 'ekf_rtmb'
+             2. 'ekf_rtmb' - Extended Kalman Filter with RTMB (No compilation)
+             3. 'laplace' - Laplace Approximation using Random Effects Formulation with RTMB (No compilation)"
+        )
       }
       
       # set flag

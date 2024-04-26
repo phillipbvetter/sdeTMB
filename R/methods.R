@@ -188,8 +188,8 @@ plot.sdeTMB.fit = function(fit,
     plot.obs = private$number.of.states
   }
   
-  if(private$method == "tmb"){
-    message("'plot' is not available for method 'tmb' yet.")
+  if(private$method == "laplace"){
+    message("'plot' is not available for method 'laplace' yet.")
     return(NULL)
   }
   

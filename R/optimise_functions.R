@@ -7,10 +7,15 @@
 
 construct_makeADFun = function(self, private){
   
+  if(private$method == "ekf"){
+    construct_kalman_makeADFun(self, private)
+  }
+  if(private$method == "ekf_rtmb"){
+    construct_rtmb_ekf_makeADFun(self, private)
+  }
+  
   if(private$method=="laplace"){
     construct_rtmb_laplace_makeADFun(self, private)
-  } else {
-    construct_kalman_makeADFun(self, private)
   }
   
   return(invisible(self))
@@ -25,16 +30,11 @@ construct_kalman_makeADFun = function(self, private){
   # Data
   ################################################
   
-  estimation_method = switch(private$method,
-                             ekf = 1,
-                             ukf = 2
-  )
-  
   # add mandatory entries to data
   tmb.data = list(
     
     # methods and purpose
-    estimation_method = estimation_method,
+    estimation_method = switch(private$method, ekf = 1, ukf = 2),
     ode_solver = private$ode.solver,
     
     # initial
@@ -116,7 +116,336 @@ construct_kalman_makeADFun = function(self, private){
 }
 
 #######################################################
-# CONSTRUCT LAPLACE MAKEADFUN
+# CONSTRUCT KALMAN MAKEADFUN WITH RTMB
+#######################################################
+
+construct_rtmb_ekf_makeADFun = function(self, private)
+{
+  
+  ################################################
+  # Data
+  ################################################
+  
+  # methods and purpose
+  ode_solver = private$ode.solver
+  
+  # initial
+  stateVec = cbind(private$initial.state$x0)
+  covMat = private$initial.state$p0
+  
+  # loss function
+  loss_function = private$loss$loss
+  loss_threshold_value = private$loss$c
+  tukey_loss_parameters = private$tukey.pars
+  
+  # time-steps
+  ode_timestep_size = private$ode.timestep.size
+  ode_timesteps = private$ode.timesteps
+  ode_cumsum_timesteps = private$ode.timesteps.cumsum
+  
+  # system size
+  number_of_state_eqs = private$number.of.states
+  number_of_obs_eqs = private$number.of.observations
+  number_of_diffusions = private$number.of.diffusions
+  
+  # inputs
+  inputMat = as.matrix(private$data[private$input.names])
+  
+  # observations
+  obsMat = as.matrix(private$data[private$obs.names])
+  
+  # unscented parameters
+  # ukf_hyperpars_list = list()
+  # if(private$method=="ukf")
+  # {
+  #   ukf_hyperpars_list = list(
+  #     ukf_alpha = private$ukf_alpha,
+  #     ukf_beta = private$ukf_beta,
+  #     ukf_kappa = private$ukf_kappa
+  #   )
+  # }
+  
+  # MAP Estimation?
+  MAP_bool = 0L
+  if (!is.null(private$map)) {
+    bool = self$get_parameters()[,"type"] == "free"
+    MAP_bool = 1L
+    map_mean__ = private$map$mean[bool]
+    map_cov__ = private$map$cov[bool,bool]
+    map_ints__ = as.numeric(bool)
+    sum_map_ints__ = sum(as.numeric(bool))
+  }
+  
+  ################################################
+  # Initial Parameters
+  ################################################
+  
+  parameters = lapply(private$parameters, function(x) x[["initial"]])
+  
+  ################################################
+  # Define general functions
+  ################################################
+  
+  # Log-Determinant Hack
+  logdet <- RTMB::ADjoint(
+    function(x) {
+      dim(x) <- rep(sqrt(length(x)), 2)
+      determinant(x, log=TRUE)$modulus
+    },
+    function(x, y, dy) {
+      dim(x) <- rep(sqrt(length(x)), 2)
+      t(RTMB::solve(x)) * dy
+    },
+    name = "logdet")
+  
+  # ODE Solver
+  ode_integrator = function(covMat, stateVec, parVec, inputVec, dinputVec, dt, ode_solver){
+    
+    # Initials
+    X0 = stateVec
+    P0 = covMat
+    
+    # Explicit Forward Euler
+    if(ode_solver==1){
+      X1 = X0 + f__(stateVec, parVec, inputVec) * dt
+      P1 = P0 + cov_ode_1step(covMat, stateVec, parVec, inputVec) * dt
+    }
+    
+    # Classical 4th Order Runge-Kutta Method
+    if(ode_solver==2){
+      
+      # 1. Approx Slope at Initial Point
+      k1 = f__(stateVec, parVec, inputVec)
+      c1 = cov_ode_1step(covMat, stateVec, parVec, inputVec)
+      
+      # 2. First Approx Slope at Midpoint
+      # inputVec = inputVec + 0.5 * dinputVec
+      stateVec = X0 + 0.5 * dt * k1
+      covMat   = P0 + 0.5 * dt * c1
+      k2       = f__(stateVec, parVec, inputVec)
+      c2       = cov_ode_1step(covMat, stateVec, parVec, inputVec)   
+      
+      # 3. Second Approx Slope at Midpoint
+      stateVec = X0 + 0.5 * dt * k2
+      covMat   = P0 + 0.5 * dt * c2
+      k3       = f__(stateVec, parVec, inputVec)
+      c3       = cov_ode_1step(covMat, stateVec, parVec, inputVec)
+      
+      # 4. Approx Slope at End Point
+      # inputVec = inputVec + 0.5 * dinputVec
+      stateVec = X0 + dt * k3
+      covMat   = P0 + dt * c3
+      k4       = f__(stateVec, parVec, inputVec)
+      c4       = cov_ode_1step(covMat, stateVec, parVec, inputVec)
+      
+      # ODE UPDATE
+      X1 = X0 + (k1 + 2.0*k2 + 2.0*k3 + k4)/6.0 * dt
+      P1 = P0 + (c1 + 2.0*c2 + 2.0*c3 + c4)/6.0 * dt
+    }
+    return(invisible(list(X1,P1)))
+  }
+  
+  # Covariance ODE 1-Step
+  cov_ode_1step = function(covMat, stateVec, parVec, inputVec){
+    dfdx__(stateVec, parVec, inputVec) %*% covMat + covMat %*% t(dfdx__(stateVec, parVec, inputVec)) + g__(stateVec, parVec, inputVec) %*% t(g__(stateVec, parVec, inputVec));
+  }
+  
+  
+  ################################################
+  # Define general functions
+  ################################################
+  
+  # Get function elements in list
+  elements = get_rtmb_function_elements(self, private)
+  
+  sde.functions.txt = paste('###### DEFINE FUNCTIONS #######
+# drift function
+f__ = function(stateVec, parVec, inputVec){
+ans = c(F_ELEMENTS)
+return(ans)
+}
+
+# jacobian drift function
+dfdx__ = function(stateVec, parVec, inputVec){
+ans = RTMB::matrix(c(DFDX_ELEMENTS), nrow=NUMBER_OF_STATES, ncol=NUMBER_OF_STATES, byrow=T)
+return(ans)
+}
+
+# diffusion function
+g__ = function(stateVec, parVec, inputVec){
+ans = RTMB::matrix(c(G_ELEMENTS), nrow=NUMBER_OF_STATES, ncol=NUMBER_OF_DIFFUSIONS, byrow=T)
+return(ans)
+}
+
+# obs function
+h__ = function(stateVec, parVec, inputVec){
+ans = c(H_ELEMENTS)
+return(ans)
+}
+
+# jacobian obs function
+dhdx__ = function(stateVec, parVec, inputVec){
+ans = RTMB::matrix(c(DHDX_ELEMENTS),nrow=NUMBER_OF_OBSERVATIONS, ncol=NUMBER_OF_STATES, byrow=T)
+return(ans)
+}
+
+# variance
+hvar__ = function(stateVec, parVec, inputVec){
+ans = RTMB::matrix(c(HVAR_ELEMENTS),nrow=NUMBER_OF_OBSERVATIONS, ncol=NUMBER_OF_OBSERVATIONS, byrow=T)
+return(ans)
+}')
+  
+  sde.functions.txt = stringr::str_replace_all(sde.functions.txt, 
+                                               pattern="NUMBER_OF_STATES", 
+                                               replacement=deparse(as.numeric(private$number.of.states)))
+  sde.functions.txt = stringr::str_replace_all(sde.functions.txt, 
+                                               pattern="NUMBER_OF_DIFFUSIONS", 
+                                               replacement=deparse(as.numeric(private$number.of.diffusions)))
+  sde.functions.txt = stringr::str_replace_all(sde.functions.txt, 
+                                               pattern="NUMBER_OF_OBSERVATIONS", 
+                                               replacement=deparse(as.numeric(private$number.of.observations)))
+  sde.functions.txt = stringr::str_replace_all(sde.functions.txt, 
+                                               pattern="F_ELEMENTS", 
+                                               replacement=paste(elements$f,collapse=","))
+  sde.functions.txt = stringr::str_replace_all(sde.functions.txt, 
+                                               pattern="DFDX_ELEMENTS", 
+                                               replacement=paste(elements$dfdx,collapse=","))
+  sde.functions.txt = stringr::str_replace_all(sde.functions.txt, 
+                                               pattern="G_ELEMENTS", 
+                                               replacement=paste(elements$g,collapse=","))
+  sde.functions.txt = stringr::str_replace_all(sde.functions.txt, 
+                                               pattern="H_ELEMENTS", 
+                                               replacement=paste(elements$h,collapse=","))
+  sde.functions.txt = stringr::str_replace_all(sde.functions.txt, 
+                                               pattern="DHDX_ELEMENTS", 
+                                               replacement=paste(elements$dhdx,collapse=","))
+  sde.functions.txt = stringr::str_replace_all(sde.functions.txt, 
+                                               pattern="HVAR_ELEMENTS", 
+                                               replacement=paste(elements$hvar,collapse=","))
+  eval(parse(text=sde.functions.txt))
+  
+  ################################################
+  # Define main likelihood function
+  ################################################
+  main.function.txt = paste('ekf.nll = function(p){
+####### INITIALIZATION #######
+# storage variables
+xPrior <- pPrior <- xPost <- pPost <- Innovation <- InnovationCovariance <- vector("list",length=nrow(obsMat))
+xPrior[[1]] <- xPost[[1]] <- stateVec
+pPrior[[1]] <- pPost[[1]] <- covMat
+
+# constants
+halflog2pi = log(2*pi)/2
+I0 <- diag(NUMBER_OF_STATES)
+E0 <- V0 <- diag(NUMBER_OF_OBSERVATIONS)
+
+
+# set negative log-likelihood
+nll = 0
+
+# fixed effects parameter vector
+parVec = c(FIXED_PARAMETERS)
+
+# ###### TIME LOOP START #######
+for(i in 1:(nrow(obsMat)-1)){
+
+# # Define inputs and use first order input interpolation
+inputVec = inputMat[i,]
+dinputVec = (inputMat[i+1,] - inputMat[i,])/ode_timesteps[i]
+
+###### TIME UPDATE - ODE SOLVER #######
+for(j in 1:ode_timesteps[i]){
+sol = ode_integrator(covMat, stateVec, parVec, inputVec, dinputVec, ode_timestep_size[i], ode_solver)
+stateVec = sol[[1]]
+covMat = sol[[2]]
+}
+xPrior[[i+1]] = stateVec
+pPrior[[i+1]] = covMat
+
+######## DATA UPDATE - KALMAN ALGORITHM ########
+obsVec = obsMat[i+1,]
+obsVec_bool = !is.na(obsVec)
+
+######## DATA UPDATE - IF ANY DATA AVAILABLE ########
+if(any(obsVec_bool)){
+inputVec = inputMat[i+1,]
+s = sum(obsVec_bool)
+y = obsVec[obsVec_bool]
+E = E0[obsVec_bool,obsVec_bool,drop=FALSE]
+H = h__(stateVec, parVec, inputVec)
+C = E %*% dhdx__(stateVec, parVec, inputVec)
+e = y - E %*% H
+V0 = hvar__(stateVec, parVec, inputVec)
+V = E %*% V0 %*% t(E)
+R = C %*% covMat %*% t(C) + V
+Ri = RTMB::solve(R)
+K = covMat %*% t(C) %*% Ri
+
+# Update State
+stateVec = stateVec + K %*% e
+covMat = (I0 - K %*% C) %*% covMat %*% t(I0 - K %*% C) + K %*% V %*% t(K)
+nll = nll + 0.5 * logdet(R) + 0.5 * t(e) %*% Ri %*% e + halflog2pi * s
+
+# # Store innovation and covariance
+Innovation[[i+1]] = e
+InnovationCovariance[[i+1]] = R
+}
+xPost[[i+1]] = stateVec
+pPost[[i+1]] = covMat
+}
+
+# ###### MAXIMUM A POSTERIOR #######
+
+# ###### REPORT #######
+RTMB::REPORT(Innovation)
+RTMB::REPORT(InnovationCovariance)
+RTMB::REPORT(xPrior)
+RTMB::REPORT(xPost)
+RTMB::REPORT(pPrior)
+RTMB::REPORT(pPost)
+
+# ###### RETURN #######
+return(nll)
+}')
+  
+  main.function.txt = stringr::str_replace_all(main.function.txt, 
+                                               pattern="NUMBER_OF_STATES", 
+                                               replacement=deparse(as.numeric(private$number.of.states)))
+  main.function.txt = stringr::str_replace_all(main.function.txt, 
+                                               pattern="NUMBER_OF_DIFFUSIONS", 
+                                               replacement=deparse(as.numeric(private$number.of.diffusions)))
+  main.function.txt = stringr::str_replace_all(main.function.txt, 
+                                               pattern="NUMBER_OF_OBSERVATIONS", 
+                                               replacement=deparse(as.numeric(private$number.of.observations)))
+  main.function.txt = stringr::str_replace_all(main.function.txt, 
+                                               pattern="STATE_NAMES", 
+                                               replacement=paste("p$",private$state.names,sep="",collapse=","))
+  main.function.txt = stringr::str_replace_all(main.function.txt, 
+                                               pattern="FIXED_PARAMETERS", 
+                                               replacement=paste("p$",private$parameter.names,sep="",collapse=","))
+  eval(parse(text=main.function.txt))
+  
+  ################################################
+  # Construct Neg. Log-Likelihood
+  ################################################
+  # private$nll = ekf.nll
+  # stop("halting")
+  
+  nll = RTMB::MakeADFun(func = ekf.nll,
+                        parameters=parameters,
+                        map = lapply(private$fixed.pars, function(x) x$factor),
+                        silent=TRUE)
+  
+  # save objective function
+  private$nll = nll
+
+  # return
+  return(invisible(self))
+  
+}
+
+#######################################################
+# CONSTRUCT LAPLACE MAKEADFUN WITH RTMB
 #######################################################
 
 construct_rtmb_laplace_makeADFun = function(self, private)
@@ -324,7 +653,7 @@ optimize_negative_loglikelihood = function(self, private) {
   }
   
   # IF METHOD IS KALMAN FILTER
-  if (any(private$method==c("ekf","ukf"))) {
+  if (any(private$method==c("ekf","ukf","ekf_rtmb"))) {
     
     # use function, gradient and hessian
     if (private$use.hessian) {
@@ -436,7 +765,7 @@ create_return_fit = function(self, private, calculate.laplace.onestep.residuals)
   # FOR KALMAN FILTERS
   ################################################
   
-  if (any(private$method == c("ekf","ukf"))) {
+  if (any(private$method == c("ekf"))) {
     
     
     ################################################
@@ -495,7 +824,7 @@ create_return_fit = function(self, private, calculate.laplace.onestep.residuals)
     temp.states = try_withWarningRecovery(cbind(private$data$t, do.call(rbind,rep$xPrior)))
     temp.sd = try_withWarningRecovery(cbind(private$data$t, sqrt(do.call(rbind,lapply(rep$pPrior,diag)))))
     
-    colnames(temp.states) = c("t",private$state.names)
+    colnames(temp.states) = c("t", private$state.names)
     colnames(temp.sd) = c("t",private$state.names)
     private$fit$states$mean$prior = as.data.frame(temp.states)
     private$fit$states$sd$prior = as.data.frame(temp.sd)
@@ -504,6 +833,158 @@ create_return_fit = function(self, private, calculate.laplace.onestep.residuals)
     
     # Posterior States
     temp.states = try_withWarningRecovery(cbind(private$data$t, do.call(rbind,rep$xPost)))
+    temp.sd = try_withWarningRecovery(cbind(private$data$t, sqrt(do.call(rbind,lapply(rep$pPost,diag)))))
+    colnames(temp.states) = c("t",private$state.names)
+    colnames(temp.sd) = c("t",private$state.names)
+    private$fit$states$mean$posterior = as.data.frame(temp.states)
+    private$fit$states$sd$posterior = as.data.frame(temp.sd)
+    private$fit$states$cov$posterior = rep$pPost
+    names(private$fit$states$cov$posterior) = paste("t = ",private$data$t,sep="")
+    
+    # Residual
+    # rowNAs = as.matrix(!is.na(do.call(cbind, private$data[private$obs.names]))[-1,])
+    rowNAs = as.matrix(!is.na(private$data[private$obs.names])[-1,])
+    sumrowNAs = rowSums(rowNAs)
+    
+    innovation = rep$Innovation
+    innovation.cov = rep$InnovationCovariance
+    innovation[[1]] = NULL
+    innovation.cov[[1]] = NULL
+    
+    temp.res = matrix(nrow=length(private$data$t)-1, ncol=private$number.of.observations)
+    temp.var =  matrix(nrow=length(private$data$t)-1, ncol=private$number.of.observations)
+    
+    # do.call(rbind, lapply(rep$Innovation, "length<-", private$m))
+    for (i in seq_along(private$data$t[-1])) {
+      if (sumrowNAs[i] > 0) {
+        temp.res[i,rowNAs[i,]] = innovation[[i]]
+        temp.var[i,rowNAs[i,]] = diag(innovation.cov[[i]])
+      }
+    }
+    temp.res = cbind(private$data$t[-1], temp.res)
+    temp.sd = cbind(private$data$t[-1], sqrt(temp.var))
+    
+    names(innovation.cov) = paste("t = ",private$data$t[-1],sep="")
+    
+    # should we remove the empty matrices?
+    # innovation.cov = innovation.cov[sumrowNAs!=0]
+    
+    colnames(temp.res) = c("t",private$obs.names)
+    colnames(temp.sd) = c("t",private$obs.names)
+    private$fit$residuals$mean = as.data.frame(temp.res)
+    private$fit$residuals$sd = as.data.frame(temp.sd)
+    private$fit$residuals$normalized = as.data.frame(temp.res)
+    private$fit$residuals$normalized[,-1] = private$fit$residuals$normalized[,-1]/temp.sd[,-1]
+    private$fit$residuals$cov = innovation.cov
+    
+    
+    # Observations
+    # We need all states, inputs and parameter values to evaluate the observation
+    # put them in a list
+    listofvariables.prior = c(
+      # states
+      as.list(private$fit$states$mean$prior[-1]),
+      # estimated free parameters 
+      as.list(private$fit$par.fixed),
+      # fixed parameters
+      lapply(private$fixed.pars, function(x) x$initial),
+      # inputs
+      as.list(private$fit$data)
+    )
+    
+    listofvariables.posterior = c(
+      # states
+      as.list(private$fit$states$mean$posterior[-1]),
+      # estimated free parameters 
+      as.list(private$fit$par.fixed),
+      # fixed parameters
+      lapply(private$fixed.pars, function(x) x$initial),
+      # inputs
+      as.list(private$fit$data)
+    )
+    obs.df.prior = as.data.frame(
+      lapply(private$obs.eqs.trans, function(ls){eval(ls$rhs, envir = listofvariables.prior)})
+    )
+    obs.df.posterior = as.data.frame(
+      lapply(private$obs.eqs.trans, function(ls){eval(ls$rhs, envir = listofvariables.posterior)})
+    )
+    private$fit$observations$mean$prior = data.frame(t=private$data$t, obs.df.prior)
+    private$fit$observations$mean$posterior = data.frame(t=private$data$t, obs.df.posterior)
+    
+    # t-values and Pr( t > t_test )
+    private$fit$tvalue = private$fit$par.fixed / private$fit$sd.fixed
+    private$fit$Pr.tvalue = 2*pt(q=abs(private$fit$tvalue),df=sum(sumrowNAs),lower.tail=FALSE)
+    
+  }
+  
+  if (any(private$method == c("ekf_rtmb"))) {
+    
+    
+    ################################################
+    # BASICS
+    ################################################
+    
+    # objective value
+    private$fit$nll = private$opt$objective
+    
+    # gradient
+    private$fit$nll.gradient = try_withWarningRecovery(
+      {
+        nll.grad = as.vector(private$nll$gr(private$opt$par))
+        names(nll.grad) = names(private$free.pars)
+        nll.grad
+      }
+    )
+    if (inherits(private$fit$nll.gradient,"try-error")) {
+      private$fit$nll.gradient = NA
+    }
+    
+    # hessian
+    private$fit$nll.hessian = try_withWarningRecovery(
+      {
+        nll.hess = private$nll$he(private$opt$par)
+        rownames(nll.hess) = names(private$free.pars)
+        colnames(nll.hess) = names(private$free.pars)
+        nll.hess
+      }
+    )
+    if (inherits(private$fit$nll.hessian, "try-error")) {
+      private$fit$nll.hessian = NA
+    }
+    
+    # parameter estimates and standard deviation
+    private$fit$par.fixed = private$opt$par
+    private$fit$sd.fixed = tryCatch(sqrt(diag(solve(private$nll$he(private$opt$par)))),
+                                    error=function(e) NA,
+                                    warning=function(w) NA
+    )
+    
+    # parameter covariance matrix by solving the inverse hessian
+    private$fit$cov.fixed = tryCatch(solve(private$nll$he(private$opt$par)),
+                                     error=function(e) NA,
+                                     warning=function(w) NA
+    )
+    
+    ################################################
+    # STATES, RESIDUALS, OBSERVATIONS ETC.
+    ################################################
+    
+    # Extract reported items from nll
+    rep = private$nll$report()
+    
+    # Prior States
+    temp.states = try_withWarningRecovery(cbind(private$data$t, t(do.call(cbind,rep$xPrior))))
+    temp.sd = try_withWarningRecovery(cbind(private$data$t, sqrt(do.call(rbind,lapply(rep$pPrior,diag)))))
+    
+    colnames(temp.states) = c("t", private$state.names)
+    colnames(temp.sd) = c("t",private$state.names)
+    private$fit$states$mean$prior = as.data.frame(temp.states)
+    private$fit$states$sd$prior = as.data.frame(temp.sd)
+    private$fit$states$cov$prior = rep$pPrior
+    names(private$fit$states$cov$prior) = paste("t = ",private$data$t,sep="")
+    
+    # Posterior States
+    temp.states = try_withWarningRecovery(cbind(private$data$t, t(do.call(cbind,rep$xPost))))
     temp.sd = try_withWarningRecovery(cbind(private$data$t, sqrt(do.call(rbind,lapply(rep$pPost,diag)))))
     colnames(temp.states) = c("t",private$state.names)
     colnames(temp.sd) = c("t",private$state.names)
@@ -800,8 +1281,8 @@ construct_simulate_rcpp_dataframe = function(pars, predict.list, data, return.co
     list.out[[i]] = stats::setNames(
       lapply(predict.list, function(ls.outer){
         # setRownames(
-          t(do.call(cbind, lapply(ls.outer, function(ls.inner) ls.inner[,i])))
-          # paste0("k.ahead", 0:private$n.ahead)
+        t(do.call(cbind, lapply(ls.outer, function(ls.inner) ls.inner[,i])))
+        # paste0("k.ahead", 0:private$n.ahead)
         # )
       }),
       paste0("t", head(data$t, private$last.pred.index))

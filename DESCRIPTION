@@ -24,6 +24,7 @@ Depends:
 	R (>= 3.0.0)
 Imports:
 	TMB,
+	RTMB,
 	R6,
 	Deriv,
 	stringr,
