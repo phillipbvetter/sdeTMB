@@ -137,7 +137,7 @@ obj$add_parameters(
 )
 
 # Set initial state mean and covariance
-obj$set_initial_state(x[1], 1e-1*diag(1))
+obj$set_initial_state(list(x[1], 1e-1*diag(1)))
 
 # Carry out estimation using extended kalman filter method with stats::nlminb as optimizer
 fit <- obj$estimate(data=.data, 
