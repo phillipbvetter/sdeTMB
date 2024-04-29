@@ -247,7 +247,10 @@ construct_rtmb_ekf_makeADFun = function(self, private)
   
   # Covariance ODE 1-Step
   cov_ode_1step = function(covMat, stateVec, parVec, inputVec){
-    dfdx__(stateVec, parVec, inputVec) %*% covMat + covMat %*% t(dfdx__(stateVec, parVec, inputVec)) + g__(stateVec, parVec, inputVec) %*% t(g__(stateVec, parVec, inputVec));
+    A = dfdx__(stateVec, parVec, inputVec)
+    G = g__(stateVec, parVec, inputVec)
+    AcovMat = A %*% covMat
+    return(AcovMat + t(AcovMat) + G %*% t(G))
   }
   
   
@@ -339,7 +342,6 @@ halflog2pi = log(2*pi)/2
 I0 <- diag(NUMBER_OF_STATES)
 E0 <- V0 <- diag(NUMBER_OF_OBSERVATIONS)
 
-
 # set negative log-likelihood
 nll = 0
 
@@ -364,11 +366,11 @@ pPrior[[i+1]] = covMat
 
 ######## DATA UPDATE - KALMAN ALGORITHM ########
 obsVec = obsMat[i+1,]
+inputVec = inputMat[i+1,]
 obsVec_bool = !is.na(obsVec)
 
-######## DATA UPDATE - IF ANY DATA AVAILABLE ########
+######## DATA UPDATE - IF ANY DATA AVAILABLE ######## 
 if(any(obsVec_bool)){
-inputVec = inputMat[i+1,]
 s = sum(obsVec_bool)
 y = obsVec[obsVec_bool]
 E = E0[obsVec_bool,obsVec_bool,drop=FALSE]
@@ -386,7 +388,7 @@ stateVec = stateVec + K %*% e
 covMat = (I0 - K %*% C) %*% covMat %*% t(I0 - K %*% C) + K %*% V %*% t(K)
 nll = nll + 0.5 * logdet(R) + 0.5 * t(e) %*% Ri %*% e + halflog2pi * s
 
-# # Store innovation and covariance
+# Store innovation and covariance
 Innovation[[i+1]] = e
 InnovationCovariance[[i+1]] = R
 }
@@ -808,15 +810,17 @@ create_return_fit = function(self, private, calculate.laplace.onestep.residuals)
       
       # Step 1 - invert full hessian
       temp.hessian = private$fit$nll.hessian
-      hess = try(solve(temp.hessian), silent=T)
+      covariance = try(solve(temp.hessian), silent=T)
+      private$fit$sd.fixed = sdeTMB:::try_withWarningRecovery(sqrt(diag(covariance)))
+      private$fit$cov.fixed = covariance
       
       # Options 1 - If the above fails, remove all row/cols where the diagonal
       # elements in small than min.diag
       min.diag = 1e-8
-      if(inherits(hess,"try-error")){
+      if(inherits(covariance,"try-error")){
         keep.ids = !(diag(temp.hessian) < min.diag)
-        hess = temp.hessian[keep.ids, keep.ids]
-        covariance = solve(hess)
+        covariance = temp.hessian[keep.ids, keep.ids]
+        covariance = try(solve(covariance,silent=T))
         
         sd.fixed = rep(NA,length(private$fit$par.fixed))
         sd.fixed[keep.ids] = sdeTMB:::try_withWarningRecovery(sqrt(diag(covariance)))
@@ -831,9 +835,6 @@ create_return_fit = function(self, private, calculate.laplace.onestep.residuals)
       #   i = i + 1
       #   covariance = try(solve(temp.hessian[-ids[1:i],-ids[1:i]]), silent=T)
       # }
-      
-      private$fit$sd.fixed = sd.fixed
-      private$fit$cov.fixed = cov.fixed
     }
     
     ################################################
@@ -983,15 +984,17 @@ create_return_fit = function(self, private, calculate.laplace.onestep.residuals)
       
       # Step 1 - invert full hessian
       temp.hessian = private$fit$nll.hessian
-      hess = try(solve(temp.hessian), silent=T)
+      covariance = try(solve(temp.hessian), silent=T)
+      private$fit$sd.fixed = sdeTMB:::try_withWarningRecovery(sqrt(diag(covariance)))
+      private$fit$cov.fixed = covariance
       
       # Options 1 - If the above fails, remove all row/cols where the diagonal
       # elements in small than min.diag
       min.diag = 1e-8
-      if(inherits(hess,"try-error")){
+      if(inherits(covariance,"try-error")){
         keep.ids = !(diag(temp.hessian) < min.diag)
-        hess = temp.hessian[keep.ids, keep.ids]
-        covariance = solve(hess)
+        covariance = temp.hessian[keep.ids, keep.ids]
+        covariance = try(solve(covariance,silent=T))
         
         sd.fixed = rep(NA,length(private$fit$par.fixed))
         sd.fixed[keep.ids] = sdeTMB:::try_withWarningRecovery(sqrt(diag(covariance)))
@@ -1006,9 +1009,6 @@ create_return_fit = function(self, private, calculate.laplace.onestep.residuals)
       #   i = i + 1
       #   covariance = try(solve(temp.hessian[-ids[1:i],-ids[1:i]]), silent=T)
       # }
-      
-      private$fit$sd.fixed = sd.fixed
-      private$fit$cov.fixed = cov.fixed
     }
     
     ################################################

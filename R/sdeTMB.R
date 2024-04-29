@@ -1070,7 +1070,11 @@ sdeTMB = R6::R6Class(
       
       # construct neg. log-likelihood function
       if(!silent) message("Constructing objective function...")
+      comptime <- system.time(
       construct_makeADFun(self, private)
+      )
+      comptime = format(round(as.numeric(comptime["elapsed"])*1e4)/1e4,digits=5,scientific=F)
+      if(!silent) message("...took: ", comptime, " seconds.")
       
       # estimate
       if(!silent) message("Minimizing the negative log-likelihood...")
