@@ -6,4 +6,3 @@ vignettes/*.cpp
 vignettes/*.so
 *.o
 *.so
-docs
