@@ -32,31 +32,6 @@ build_model = function(self, private, rcpp.pred=FALSE) {
   return(invisible(self))
 }
 
-# build_model_rcpp_pred = function(self, private) {
-#   
-#   # check_model
-#   basic_model_check(self, private)
-#   
-#   # set dimensions, diff processes, etc...
-#   set_model_settings(self, private)
-#   
-#   # 1) apply algebraics, and define new trans_system
-#   # 2) calculate new diff terms
-#   apply_algebraics_and_define_trans_equations(self, private)
-#   calculate_diff_terms(self, private)
-#   
-#   # apply lamperti and update diff terms
-#   apply_lamperti(self, private) 
-#   calculate_diff_terms(self, private)
-#   
-#   # last check and compile
-#   final_build_check(self, private)
-#   
-#   # return
-#   return(invisible(self))
-# }
-
-
 #######################################################
 # FIRST FUNCTION TO RUN WHEN BUILDING
 #######################################################
@@ -306,7 +281,7 @@ apply_lamperti = function(self, private) {
     ))
     
     # add the new transformed equation to trans_system
-    private$add_trans_systems(form)
+    private$add_trans_systems(list(form=form, name=state))
   }
   
   ############### MAIN LOOP FOR OBSERVATIONS AND VARIANCES ###############

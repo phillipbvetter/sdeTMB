@@ -14,7 +14,7 @@ template:
     primary: '#0075FD'
 
 navbar:
-  bg: dark
+  bg: light
 
 
 

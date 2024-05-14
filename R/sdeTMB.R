@@ -1226,14 +1226,14 @@ sdeTMB = R6::R6Class(
       }
       
       ###### PERFORM PREDICTION #######
-      if(!silent) message("Compiling C++ prediction functions...")
+      if(!silent) message("Compiling C++ functions...")
       create_rcpp_statespace_functions(self, private)
       
       if(!silent) message("Simulating...")
       predict.list = perform_rcpp_ekf_simulation(self, 
                                                  private, 
                                                  pars, 
-                                                 initial.state, 
+                                                 private$pred.initial.state, 
                                                  n.sims)
       
       # construct return data.frame
@@ -1355,13 +1355,11 @@ sdeTMB = R6::R6Class(
       
       ###### PARAMETERS #######
       if(is.null(pars)){
-        if(!silent) message("No parameters were supplied - using estimated or initial values")
+        if(!silent) message("No parameters were supplied - using initial values, or most recent estimated values.")
         # if the estimation has been run, then use estimated parameters, else use initial
         if(!is.null(private$fit)){
-          # pars = self$get_parameters()[,"estimate"]
           pars = self$get_parameters(value="estimate")
         } else {
-          # pars = self$get_parameters()[,"initial"]
           pars = self$get_parameters(value="initial")
         }
       } else {
@@ -1381,7 +1379,7 @@ sdeTMB = R6::R6Class(
       }
       
       ##### COMPILE C++ FUNCTIONS #######
-      if(!silent) message("Compiling C++ prediction functions...")
+      if(!silent) message("Compiling C++ functions...")
       create_rcpp_statespace_functions(self, private)
       
       ##### PERFORM PREDICTION #######

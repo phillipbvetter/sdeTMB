@@ -1277,6 +1277,8 @@ construct_predict_rcpp_dataframe = function(pars, predict.list, data, return.cov
   # calculate observations at every time-step in predict
   inputs.df = private$data[df.out[,"j."]+1,private$input.names]
   
+  named.pars.list = as.list(pars)
+  names(named.pars.list) = names(private$free.pars)
   # create environment
   env.list = c(
     # states
@@ -1284,7 +1286,7 @@ construct_predict_rcpp_dataframe = function(pars, predict.list, data, return.cov
     # inputs
     as.list(inputs.df),
     # free parameters
-    as.list(pars),
+    named.pars.list,
     # fixed parameters
     lapply(private$fixed.pars, function(x) x$initial)
   )

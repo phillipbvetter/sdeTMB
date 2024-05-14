@@ -43,7 +43,7 @@ check_system_eqs = function(form, self, private) {
   }
   
   # Is the state name valid?
-  state = stringr::str_match(deparse1(lhs),"^d([a-zA-Z]*[a-zA-Z0-9]*)$")[2]
+  state = stringr::str_match(deparse1(lhs),"^d([a-zA-Z]+[a-zA-Z0-9]*)$")[2]
   if (is.na(state)) {
     stop("That state name is not allowed - use d followed by any number of letters, followed by any number of digits")
   }

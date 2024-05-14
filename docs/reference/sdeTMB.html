@@ -12,7 +12,7 @@ thus must be functions of at least one state."><!-- mathjax --><script src="http
     <a href="#main" class="visually-hidden-focusable">Skip to contents</a>
     
 
-    <nav class="navbar fixed-top navbar-dark navbar-expand-lg bg-dark"><div class="container">
+    <nav class="navbar fixed-top navbar-light navbar-expand-lg bg-light"><div class="container">
     
     <a class="navbar-brand me-2" href="../index.html">sdeTMB</a>
 
@@ -452,9 +452,21 @@ with <code>mean</code> and <code>covariance</code> as provided.</p><div class="s
 <h3 id="method-get-parameters-">Method <code>get_parameters()</code><a class="anchor" aria-label="anchor" href="#method-get-parameters-"></a></h3>
 <p>Get initial (and estimated) parameters.</p><div class="section">
 <h4 id="usage-17">Usage<a class="anchor" aria-label="anchor" href="#usage-17"></a></h4>
-<p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">sdeTMB</span><span class="op">$</span><span class="fu">get_parameters</span><span class="op">(</span><span class="op">)</span></span></code></pre></div><p></p></div>
+<p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">sdeTMB</span><span class="op">$</span><span class="fu">get_parameters</span><span class="op">(</span>type <span class="op">=</span> <span class="st">"all"</span>, value <span class="op">=</span> <span class="st">"all"</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div>
 
+<div class="section">
+<h4 id="arguments-11">Arguments<a class="anchor" aria-label="anchor" href="#arguments-11"></a></h4>
+<p></p><div class="arguments"><dl><dt><code>type</code></dt>
+<dd><p>one of "all", free" or "fixed" parameters.</p></dd>
+
+
+<dt><code>value</code></dt>
+<dd><p>one of "all", initial", "estimate", "lower" or "upper"</p></dd>
+
+
+</dl><p></p></div>
+</div>
 
 </div><p></p><hr><a id="method-sdeTMB-construct_nll"></a><div class="section">
 <h3 id="method-construct-nll-">Method <code>construct_nll()</code><a class="anchor" aria-label="anchor" href="#method-construct-nll-"></a></h3>
@@ -478,7 +490,7 @@ have more control of the optimization workflow.</p><div class="section">
 </div>
 
 <div class="section">
-<h4 id="arguments-11">Arguments<a class="anchor" aria-label="anchor" href="#arguments-11"></a></h4>
+<h4 id="arguments-12">Arguments<a class="anchor" aria-label="anchor" href="#arguments-12"></a></h4>
 <p></p><div class="arguments"><dl><dt><code>data</code></dt>
 <dd><p>a data.frame containing time-vector 't', observations and inputs.
 The observations can take <code>NA</code>-values.</p></dd>
@@ -594,7 +606,7 @@ algebraic relations or lamperi transformations then the C++ object should be rec
 </div>
 
 <div class="section">
-<h4 id="arguments-12">Arguments<a class="anchor" aria-label="anchor" href="#arguments-12"></a></h4>
+<h4 id="arguments-13">Arguments<a class="anchor" aria-label="anchor" href="#arguments-13"></a></h4>
 <p></p><div class="arguments"><dl><dt><code>data</code></dt>
 <dd><p>data.frame containing time-vector 't', observations and inputs. The observations
 can take <code>NA</code>-values.</p></dd>
@@ -728,7 +740,7 @@ state estimate as the initial condition.</p><div class="section">
 </div>
 
 <div class="section">
-<h4 id="arguments-13">Arguments<a class="anchor" aria-label="anchor" href="#arguments-13"></a></h4>
+<h4 id="arguments-14">Arguments<a class="anchor" aria-label="anchor" href="#arguments-14"></a></h4>
 <p></p><div class="arguments"><dl><dt><code>data</code></dt>
 <dd><p>data.frame containing time-vector 't', observations and inputs. The observations
 can take <code>NA</code>-values.</p></dd>
@@ -850,7 +862,7 @@ state estimate as the initial condition.</p><div class="section">
 </div>
 
 <div class="section">
-<h4 id="arguments-14">Arguments<a class="anchor" aria-label="anchor" href="#arguments-14"></a></h4>
+<h4 id="arguments-15">Arguments<a class="anchor" aria-label="anchor" href="#arguments-15"></a></h4>
 <p></p><div class="arguments"><dl><dt><code>data</code></dt>
 <dd><p>data.frame containing time-vector 't', observations and inputs. The observations
 can take <code>NA</code>-values.</p></dd>
@@ -958,7 +970,7 @@ matrix is returned, otherwise only the marginal variances are returned.</p>
 </div>
 
 <div class="section">
-<h4 id="arguments-15">Arguments<a class="anchor" aria-label="anchor" href="#arguments-15"></a></h4>
+<h4 id="arguments-16">Arguments<a class="anchor" aria-label="anchor" href="#arguments-16"></a></h4>
 <p></p><div class="arguments"><dl><dt><code>correlation</code></dt>
 <dd><p>boolean value. The default (<code>FALSE</code>) is to not provide the fixed effects parameter
 correlation matrix.</p></dd>
@@ -980,7 +992,7 @@ correlation matrix.</p></dd>
 </div>
 
 <div class="section">
-<h4 id="arguments-16">Arguments<a class="anchor" aria-label="anchor" href="#arguments-16"></a></h4>
+<h4 id="arguments-17">Arguments<a class="anchor" aria-label="anchor" href="#arguments-17"></a></h4>
 <p></p><div class="arguments"><dl><dt><code>plot.obs</code></dt>
 <dd><p>a vector to indicate which observations should be plotted for. If multiple
 are chosen a list of plots for each observation is returned.</p></dd>
@@ -1010,7 +1022,7 @@ The default is FALSE in which case a histogram is returned instead.</p></dd>
 </div>
 
 <div class="section">
-<h4 id="arguments-17">Arguments<a class="anchor" aria-label="anchor" href="#arguments-17"></a></h4>
+<h4 id="arguments-18">Arguments<a class="anchor" aria-label="anchor" href="#arguments-18"></a></h4>
 <p></p><div class="arguments"><dl><dt><code>deep</code></dt>
 <dd><p>Whether to make a deep clone.</p></dd>
 
