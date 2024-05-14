@@ -720,10 +720,11 @@ optimize_negative_loglikelihood = function(self, private) {
   comp.time = format(round(as.numeric(comptime["elapsed"])*1e4)/1e4,digits=5,scientific=F)
   
   # print convergence and timing result
-  if(outer_mgc > 1){
-    message("BEWARE: THE MAXIMUM GRADIENT COMPONENT APPEARS TO BE LARGE ( > 1 ) - THE FOUND OPTIMUM MIGHT BE INVALID.")
-  }
-  message("\t Optimization finished!:
+  if(!private$silent){
+    if(outer_mgc > 1){
+      message("BEWARE: THE MAXIMUM GRADIENT COMPONENT APPEARS TO BE LARGE ( > 1 ) - THE FOUND OPTIMUM MIGHT BE INVALID.")
+    }
+    message("\t Optimization finished!:
             Elapsed time: ", comp.time, " seconds.
             The objective value is: ",format(opt$objective,scientific=T),"
             The maximum gradient component is: ",format(outer_mgc,digits=2,scientific=T),"
@@ -731,13 +732,13 @@ optimize_negative_loglikelihood = function(self, private) {
             Iterations: ",opt$iterations,"
             Evaluations: Fun: ",opt$evaluations["function"]," Grad: ",opt$evaluations[["gradient"]],"
             See stats::nlminb for available tolerance/control arguments."
-  )
+    )
+  }
   
   # For TMB method: run sdreport
   if (private$method=="laplace") {
-    message("Calculating random effects standard deviation...")
+    if(!private$silent) message("Calculating random effects standard deviation...")
     private$sdr = RTMB::sdreport(private$nll)
-    message("Finished!")
   }
   
   # return
@@ -753,6 +754,9 @@ create_return_fit = function(self, private, calculate.laplace.onestep.residuals)
   if (is.null(private$opt)) {
     return(NULL)
   }
+  
+  # clear fit
+  private$fit = NULL
   
   # store the provided data in the fit
   private$fit$data = private$data
@@ -1141,10 +1145,10 @@ create_return_fit = function(self, private, calculate.laplace.onestep.residuals)
     temp.states = cbind(private$data$t, matrix(temp[,1:n],nrow=length(private$data$t)))
     temp.sd = cbind(private$data$t, matrix(temp[,(n+1):(2*n)],nrow=length(private$data$t)))
     #
-    private$fit$states$mean$posterior = as.data.frame(temp.states)
-    private$fit$states$sd$posterior = as.data.frame(temp.sd)
-    colnames(private$fit$states$sd$posterior) = c("t",private$state.names)
-    colnames(private$fit$states$mean$posterior) = c("t",private$state.names)
+    private$fit$states$mean$smoothed = as.data.frame(temp.states)
+    private$fit$states$sd$smoothed = as.data.frame(temp.sd)
+    colnames(private$fit$states$sd$smoothed) = c("t",private$state.names)
+    colnames(private$fit$states$mean$smoothed) = c("t",private$state.names)
     
     # Residuals
     rowNAs = as.matrix(!is.na(do.call(cbind,private$data[private$obs.names]))[-1,])
@@ -1171,69 +1175,6 @@ create_return_fit = function(self, private, calculate.laplace.onestep.residuals)
   
   return(invisible(self))
 }
-
-#######################################################
-# CREATE DATA.FRAME FOR PREDICT METHOD
-#######################################################
-
-# construct_predict_dataframe = function(pars, rep, data, return.covariance, return.k.ahead, self, private){
-#   
-#   # Simlify variable names
-#   n = private$number.of.states
-#   n.ahead = private$n.ahead
-#   state.names = private$state.names
-#   last.pred.index = private$last.pred.index
-#   
-#   df.out = data.frame(matrix(nrow=last.pred.index*(n.ahead+1), ncol=5+n+n^2))
-#   disp_names = sprintf(rep("cor.%s.%s",n^2),rep(state.names, each=n),rep(state.names,n))
-#   disp_names[seq.int(1,n^2,by=n+1)] = sprintf(rep("var.%s",n),state.names)
-#   var_bool = !stringr::str_detect(disp_names,"cor")
-#   if(return.covariance){
-#     disp_names = sprintf(rep("cov.%s.%s",n^2),rep(state.names,each=n),rep(state.names,n))
-#     disp_names[seq.int(1,n^2,by=n+1)] = sprintf(rep("var.%s",n),state.names)
-#   }
-#   names(df.out) = c("i.","j.","t.i","t.j","k.ahead",state.names,disp_names)
-#   ran = 0:(last.pred.index-1)
-#   df.out["i."] = rep(ran,each=n.ahead+1)
-#   df.out["j."] = df.out["i."] + rep(0:n.ahead,last.pred.index)
-#   df.out["t.i"] = rep(data$t[ran+1],each=n.ahead+1)
-#   df.out["t.j"] = data$t[df.out[,"i."]+1+rep(0:n.ahead,last.pred.index)]
-#   df.out["k.ahead"] = rep(0:n.ahead,last.pred.index)
-#   df.out[,state.names] = do.call(rbind,rep$xk__)
-#   if(return.covariance){
-#     df.out[,disp_names] = do.call(rbind,rep$pk__)
-#   } else {
-#     df.out[,disp_names] = do.call(rbind, lapply(rep$pk__,function(x) do.call(rbind, apply(x,1, function(y) as.vector(cov2cor(matrix(y,ncol=2,byrow=T))),simplify=FALSE))))
-#     diag.ids = seq(from=1,to=n^2,by=n+1)
-#     df.out[,disp_names[diag.ids]] = do.call(rbind,rep$pk__)[,diag.ids]
-#   }
-#   
-#   # calculate observations at every time-step in predict
-#   inputs.df = private$data[df.out[,"j."]+1,private$input.names]
-#   
-#   env.list = c(
-#     as.list(df.out[state.names]),
-#     as.list(inputs.df),
-#     as.list(pars)
-#   )
-#   
-#   obs.df.predict = as.data.frame(
-#     lapply(private$obs.eqs.trans, function(ls){eval(ls$rhs, envir = env.list)})
-#   )
-#   names(obs.df.predict) = paste(private$obs.names,".predict",sep="")
-#   df.out = cbind(df.out, obs.df.predict)
-#   
-#   # add data observation to output data.frame 
-#   obs.df = private$data[df.out[,"j."]+1, private$obs.names, drop=F]
-#   names(obs.df) = paste(private$obs.names,".data",sep="")
-#   df.out = cbind(df.out, obs.df)
-#   
-#   # return only specific n.ahead
-#   df.out = df.out[df.out[,"k.ahead"] %in% return.k.ahead,]
-#   class(df.out) = c("sdeTMB.pred", "data.frame")
-#   
-#   return(df.out)
-# }
 
 construct_predict_rcpp_dataframe = function(pars, predict.list, data, return.covariance, return.k.ahead, self, private){
   

@@ -1057,27 +1057,27 @@ sdeTMB = R6::R6Class(
       private$set_loss(loss, loss_c)
       private$set_control(control)
       private$set_unconstrained_optim(unconstrained.optim)
+      private$set_silence(silent)
       
       # build model
-      if(!silent) message("Building model...")
+      if(!private$silent) message("Building model...")
       build_model(self ,private)
       
       # check and set data
-      if(!silent) message("Checking data...")
+      if(!private$silent) message("Checking data...")
       check_and_set_data(data, self, private)
       set_ukf_parameters(unscented_hyperpars, self, private)
       
-      
       # construct neg. log-likelihood function
-      if(!silent) message("Constructing objective function...")
+      if(!private$silent) message("Constructing objective function and derivative tables...")
       comptime <- system.time(
       construct_makeADFun(self, private)
       )
       comptime = format(round(as.numeric(comptime["elapsed"])*1e4)/1e4,digits=5,scientific=F)
-      if(!silent) message("...took: ", comptime, " seconds.")
+      if(!private$silent) message("...took: ", comptime, " seconds.")
       
       # estimate
-      if(!silent) message("Minimizing the negative log-likelihood...")
+      if(!private$silent) message("Minimizing the negative log-likelihood...")
       optimize_negative_loglikelihood(self, private)
       
       # exit if optimization failed
@@ -1086,10 +1086,14 @@ sdeTMB = R6::R6Class(
       }
       
       # create return fit
+      if(!private$silent) message("Returning results...")
       create_return_fit(self, private, calculate.laplace.onestep.residuals)
+      if(!private$silent) message("Finished!")
       
-      # return fit
-      return(invisible(private$fit))
+      # return cloned fit
+      cloned.self = self$clone(deep=TRUE)
+      cloned.private = cloned.self$.__enclos_env__$private
+      return(invisible(cloned.private$fit))
     },
     ########################################################################
     # PREDICT FUNCTION
