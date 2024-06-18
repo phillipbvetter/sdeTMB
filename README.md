@@ -141,7 +141,7 @@ obj$set_initial_state(list(x[1], 1e-1*diag(1)))
 # Carry out estimation using extended kalman filter method with stats::nlminb as optimizer
 fit <- obj$estimate(data=.data, 
                     method="ekf", 
-                    use.hessian=TRUE,
+                    use.hessian=TRUE
 )
 
 # Check parameter estimates against truth
@@ -191,8 +191,8 @@ sim.list = obj$simulate(data=.data,
 )
 
 # Collapse simulation data for easy use with ggplot 
-sim.df = sim.list$x[[1]] %>%
-  cbind(tj=sim.list$prediction_times[[1]],.) %>%
+sim.df = sim.list$states$x$i0 %>%
+  select(!c("i","j","t.i","k.ahead")) %>%
   reshape2::melt(., id.var="t.j")
 
 # Plot all full simulations and the full prediction against observations
