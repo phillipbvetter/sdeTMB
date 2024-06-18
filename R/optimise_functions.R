@@ -738,7 +738,9 @@ optimize_negative_loglikelihood = function(self, private) {
   # For TMB method: run sdreport
   if (private$method=="laplace") {
     if(!private$silent) message("Calculating random effects standard deviation...")
-    private$sdr = RTMB::sdreport(private$nll)
+    comptime = system.time(private$sdr <- RTMB::sdreport(private$nll))
+    comptime = format(round(as.numeric(comptime["elapsed"])*1e4)/1e4,digits=5,scientific=F)
+    if(!private$silent) message("...took: ", comptime, " seconds.")
   }
   
   # return
@@ -809,29 +811,41 @@ create_return_fit = function(self, private, calculate.laplace.onestep.residuals)
     # parameter estimates
     private$fit$par.fixed = private$opt$par
     
-    # parameter uncertainties by hessian inversion
+    # parameter std. error and full covariance by hessian inversion
     if(!is.null(private$fit$nll.hessian)){
       
       # Step 1 - invert full hessian
       temp.hessian = private$fit$nll.hessian
       covariance = try(solve(temp.hessian), silent=T)
-      private$fit$sd.fixed = sdeTMB:::try_withWarningRecovery(sqrt(diag(covariance)))
+      
       private$fit$cov.fixed = covariance
+      private$fit$sd.fixed = sdeTMB:::try_withWarningRecovery(sqrt(diag(covariance)))
+      
+      if(inherits(private$fit$sd.fixed,"try-error")){
+        private$fit$sd.fixed = rep(NA,length(private$fit$par.fixed))
+      }
+      if(inherits(private$fit$cov.fixed,"try-error")){
+        private$fit$cov.fixed = matrix(NA,nrow=length(private$fit$par.fixed),ncol=length(private$fit$par.fixed))
+      }
       
       # Options 1 - If the above fails, remove all row/cols where the diagonal
       # elements in small than min.diag
       min.diag = 1e-8
-      if(inherits(covariance,"try-error")){
-        keep.ids = !(diag(temp.hessian) < min.diag)
+      keep.ids = !(diag(temp.hessian) < min.diag)
+      if(inherits(covariance,"try-error") && any(keep.ids)){
+        
         covariance = temp.hessian[keep.ids, keep.ids]
-        covariance = try(solve(covariance,silent=T))
+        covariance = try(solve(covariance, silent=T))
         
         sd.fixed = rep(NA,length(private$fit$par.fixed))
         sd.fixed[keep.ids] = sdeTMB:::try_withWarningRecovery(sqrt(diag(covariance)))
+        private$fit$sd.fixed = sd.fixed
         
         cov.fixed = temp.hessian * NA
         cov.fixed[keep.ids, keep.ids] = covariance
+        private$fit$cov.fixed = cov.fixed
       }
+      
       # Option 2 - Recursive remove the smallest parameter
       # ids = sort(diag(temp.hessian), index.return=T)$ix
       # i = 0
@@ -839,6 +853,7 @@ create_return_fit = function(self, private, calculate.laplace.onestep.residuals)
       #   i = i + 1
       #   covariance = try(solve(temp.hessian[-ids[1:i],-ids[1:i]]), silent=T)
       # }
+      
     }
     
     ################################################
@@ -983,29 +998,41 @@ create_return_fit = function(self, private, calculate.laplace.onestep.residuals)
     # parameter estimates and standard deviation
     private$fit$par.fixed = private$opt$par
     
-    # parameter uncertainties by hessian inversion
+    # parameter std. error and full covariance by hessian inversion
     if(!is.null(private$fit$nll.hessian)){
       
       # Step 1 - invert full hessian
       temp.hessian = private$fit$nll.hessian
       covariance = try(solve(temp.hessian), silent=T)
-      private$fit$sd.fixed = sdeTMB:::try_withWarningRecovery(sqrt(diag(covariance)))
+      
       private$fit$cov.fixed = covariance
+      private$fit$sd.fixed = sdeTMB:::try_withWarningRecovery(sqrt(diag(covariance)))
+      
+      if(inherits(private$fit$sd.fixed,"try-error")){
+        private$fit$sd.fixed = rep(NA,length(private$fit$par.fixed))
+      }
+      if(inherits(private$fit$cov.fixed,"try-error")){
+        private$fit$cov.fixed = matrix(NA,nrow=length(private$fit$par.fixed),ncol=length(private$fit$par.fixed))
+      }
       
       # Options 1 - If the above fails, remove all row/cols where the diagonal
       # elements in small than min.diag
       min.diag = 1e-8
-      if(inherits(covariance,"try-error")){
-        keep.ids = !(diag(temp.hessian) < min.diag)
+      keep.ids = !(diag(temp.hessian) < min.diag)
+      if(inherits(covariance,"try-error") && any(keep.ids)){
+        
         covariance = temp.hessian[keep.ids, keep.ids]
-        covariance = try(solve(covariance,silent=T))
+        covariance = try(solve(covariance, silent=T))
         
         sd.fixed = rep(NA,length(private$fit$par.fixed))
         sd.fixed[keep.ids] = sdeTMB:::try_withWarningRecovery(sqrt(diag(covariance)))
+        private$fit$sd.fixed = sd.fixed
         
         cov.fixed = temp.hessian * NA
         cov.fixed[keep.ids, keep.ids] = covariance
+        private$fit$cov.fixed = cov.fixed
       }
+      
       # Option 2 - Recursive remove the smallest parameter
       # ids = sort(diag(temp.hessian), index.return=T)$ix
       # i = 0
@@ -1013,6 +1040,7 @@ create_return_fit = function(self, private, calculate.laplace.onestep.residuals)
       #   i = i + 1
       #   covariance = try(solve(temp.hessian[-ids[1:i],-ids[1:i]]), silent=T)
       # }
+      
     }
     
     ################################################
@@ -1157,11 +1185,10 @@ create_return_fit = function(self, private, calculate.laplace.onestep.residuals)
     # compute one-step residuals
     if(calculate.laplace.onestep.residuals){
       message("Calculating one-step ahead residuls...")
-      osa = RTMB::oneStepPredict(private$nll,
+      private$fit$residuals = RTMB::oneStepPredict(private$nll,
                                  observation.name="obsMat",
                                  method="oneStepGaussian",
                                  trace=TRUE)
-      private$fit$one_step_residuals = osa
     }
     
     # t-values and Pr( t > t_test )
@@ -1236,7 +1263,8 @@ construct_predict_rcpp_dataframe = function(pars, predict.list, data, return.cov
   obs.df.predict = as.data.frame(
     lapply(private$obs.eqs.trans, function(ls){eval(ls$rhs, envir = env.list)})
   )
-  names(obs.df.predict) = paste(private$obs.names,".predict",sep="")
+  # names(obs.df.predict) = paste(private$obs.names,".predict",sep="")
+  names(obs.df.predict) = paste(private$obs.names)
   # df.out = cbind(df.out, obs.df.predict)
   
   # add data observation to output data.frame 
@@ -1256,7 +1284,7 @@ construct_predict_rcpp_dataframe = function(pars, predict.list, data, return.cov
   return(list.out)
 }
 
-construct_simulate_rcpp_dataframe = function(pars, predict.list, data, return.covariance, return.k.ahead, self, private){
+construct_simulate_rcpp_dataframe = function(pars, predict.list, data, return.k.ahead, n.sims, self, private){
   
   
   list.out = vector("list",length=private$number.of.states)
@@ -1265,6 +1293,26 @@ construct_simulate_rcpp_dataframe = function(pars, predict.list, data, return.co
   setRownames = function(obj, nm){rownames(obj) = nm; return(obj)}
   setColnames = function(obj, nm){colnames(obj) = nm; return(obj)}
   
+
+  # for(i in seq_along(list.out)){
+  #   list.out[[i]] = stats::setNames(
+  #     lapply(predict.list, function(ls.outer){
+  #       # setRownames(
+  #       t(do.call(cbind, lapply(ls.outer, function(ls.inner) ls.inner[,i])))
+  #       # paste0("k.ahead", 0:private$n.ahead)
+  #       # )
+  #     }),
+  #     paste0("t", head(data$t, private$last.pred.index))
+  #   )
+  # }
+  
+  # Compute the prediction times for each horizon
+  ran = 0:(private$last.pred.index-1)
+  t.j = data$t[rep(ran,each=private$n.ahead+1)+1+rep(0:private$n.ahead,private$last.pred.index)]
+  t.j.splitlist = split(t.j, ceiling(seq_along(t.j)/(private$n.ahead+1)))
+  list.of.time.vectors = lapply(t.j.splitlist, function(x) data.frame(t.j=x))
+  # names(list.of.time.vectors) = names(list.out[[1]])
+  # list.out2 = c(list.out, list(prediction_times = list.of.time.vectors))
   
   for(i in seq_along(list.out)){
     list.out[[i]] = stats::setNames(
@@ -1274,18 +1322,29 @@ construct_simulate_rcpp_dataframe = function(pars, predict.list, data, return.co
         # paste0("k.ahead", 0:private$n.ahead)
         # )
       }),
-      paste0("t", head(data$t, private$last.pred.index))
+      # paste0("t", head(data$t, private$last.pred.index))
+      paste0("i",ran)
     )
   }
   
-  # Compute the prediction times for each horizon
-  ran = 0:(private$last.pred.index-1)
-  t.j = data$t[rep(ran,each=private$n.ahead+1)+1+rep(0:private$n.ahead,private$last.pred.index)]
-  t.j.splitlist = split(t.j, ceiling(seq_along(t.j)/(private$n.ahead+1)))
-  list.of.time.vectors = lapply(t.j.splitlist, function(x) data.frame(t.j=x))
-  names(list.of.time.vectors) = names(list.out[[1]])
+  for(i in seq_along(list.out)){
+    for(j in seq_along(list.out[[i]])){
+      list.out[[i]][[j]] = data.frame(i=j-1, 
+                                      j=(j-1):(j+private$n.ahead-1), 
+                                      t.i=rep(data$t[i],private$n.ahead+1),
+                                      t.j=list.of.time.vectors[[j]][,"t.j"], 
+                                      k.ahead = 0:private$n.ahead,
+                                      list.out[[i]][[j]]
+                                      )
+      nams = paste0(private$state.names,1:n.sims)
+      names(list.out[[i]][[j]]) = c("i","j","t.i","t.j","k.ahead",nams)
+    }
+  }
   
-  list.out2 = c(list.out, list(prediction_times = list.of.time.vectors))
+  list.out2 = list(
+    states = list.out,
+    observations = list()
+  )
   
   return(list.out2)
 }

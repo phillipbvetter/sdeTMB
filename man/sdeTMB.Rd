@@ -463,10 +463,10 @@ have more control of the optimization workflow.
   data,
   method = "ekf",
   ode.solver = "rk4",
-  ode.timestep = NULL,
+  ode.timestep = diff(data$t),
   loss = "quadratic",
   loss_c = 3,
-  unscented_hyperpars = NULL,
+  unscented_hyperpars = list(alpha = 1, beta = 0, kappa = 3 - private$number.of.states),
   compile = FALSE,
   silent = FALSE
 )}\if{html}{\out{</div>}}
@@ -574,13 +574,13 @@ Estimate the fixed effects parameters in the specified model.
   data,
   method = "ekf",
   ode.solver = "rk4",
-  ode.timestep = NULL,
+  ode.timestep = diff(data$t),
   loss = "quadratic",
   loss_c = 3,
-  use.hessian = FALSE,
+  unscented_hyperpars = list(alpha = 1, beta = 0, kappa = 3 - private$number.of.states),
   control = list(trace = 1, iter.max = 1e+05, eval.max = 1e+05),
-  unscented_hyperpars = NULL,
-  calculate.laplace.onestep.residuals = FALSE,
+  use.hessian = FALSE,
+  laplace.residuals = FALSE,
   unconstrained.optim = FALSE,
   compile = FALSE,
   silent = FALSE
@@ -652,18 +652,18 @@ approxmation respectively) for smooth derivatives.}
 
 \item{\code{loss_c}}{cutoff value for huber and tukey loss functions. Defaults to \code{c=3}}
 
+\item{\code{unscented_hyperpars}}{the three hyper-parameters \code{alpha}, \code{beta} and \code{kappa} defining
+the unscented transformation.}
+
+\item{\code{control}}{list of control parameters parsed to \code{nlminb} as its \code{control} argument.
+See \code{?stats::nlminb} for more information}
+
 \item{\code{use.hessian}}{boolean value. The default (\code{TRUE}) causes the optimization algorithm
 \code{stats::nlminb} to use the fixed effects hessian of the (negative log) likelihood when
 performing the optimization. This feature is only available for the kalman filter methods
 without any random effects.}
 
-\item{\code{control}}{list of control parameters parsed to \code{nlminb} as its \code{control} argument.
-See \code{?stats::nlminb} for more information}
-
-\item{\code{unscented_hyperpars}}{the three hyper-parameters \code{alpha}, \code{beta} and \code{kappa} defining
-the unscented transformation.}
-
-\item{\code{calculate.laplace.onestep.residuals}}{boolean - whether or not to calculate one-step ahead residuls
+\item{\code{laplace.residuals}}{boolean - whether or not to calculate one-step ahead residuls
 using the method of \link[TMB]{oneStepPredict}.}
 
 \item{\code{unconstrained.optim}}{boolean value. When TRUE then the optimization is carried out unconstrained i.e.
@@ -693,17 +693,16 @@ state estimate as the initial condition.
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{sdeTMB$simulate(
   data,
-  initial.state = self$get_initial_state(),
-  pars = NULL,
-  k.ahead = 1,
-  n.sims = 100,
-  return.k.ahead = NULL,
   method = "ekf",
-  ode.timestep = NULL,
-  simulation.timestep = NULL,
+  ode.timestep = diff(data$t),
   ode.solver = "rk4",
-  return.covariance = TRUE,
-  unscented_hyperpars = NULL,
+  pars = NULL,
+  initial.state = self$get_initial_state(),
+  n.sims = 100,
+  simulation.timestep = diff(data$t),
+  k.ahead = 1,
+  return.k.ahead = NULL,
+  unscented_hyperpars = list(alpha = 1, beta = 0, kappa = 3 - private$number.of.states),
   silent = FALSE
 )}\if{html}{\out{</div>}}
 }
@@ -713,21 +712,6 @@ state estimate as the initial condition.
 \describe{
 \item{\code{data}}{data.frame containing time-vector 't', observations and inputs. The observations
 can take \code{NA}-values.}
-
-\item{\code{initial.state}}{a named list of two entries 'x0' and 'p0' containing the initial state and covariance of the state}
-
-\item{\code{pars}}{fixed parameter vector parsed to the objective function for prediction/filtration. The default
-parameter values used are the initial parameters provided through \code{add_parameters}, unless the \code{estimate}
-function has been run, then the default values will be those at the found optimum.}
-
-\item{\code{k.ahead}}{integer specifying the desired number of time-steps (as determined by the provided
-data time-vector) for which predictions are made (integrating the moment ODEs forward in time without
-data updates).}
-
-\item{\code{n.sims}}{number of simulations}
-
-\item{\code{return.k.ahead}}{numeric vector of integers specifying which n.ahead predictions to that
-should be returned.}
 
 \item{\code{method}}{\enumerate{
 \item The natural TMB-style formulation where latent states are considered random effects
@@ -765,13 +749,25 @@ scheme for simulating a sample path of the stochastic differential equation,
 which serves to link together the latent (random effects) states.
 }}
 
-\item{\code{simulation.timestep}}{timestep used in the euler-maruyama scheme}
-
 \item{\code{ode.solver}}{Sets the ODE solver used in the Kalman Filter methods for solving the moment
 differential equations. The default "euler" is the Forward Euler method, alternatively the classical
 4th order Runge Kutta method is available via "rk4".}
 
-\item{\code{return.covariance}}{booelan value to indicate whether the covariance (instead of the correlation)
+\item{\code{pars}}{fixed parameter vector parsed to the objective function for prediction/filtration. The default
+parameter values used are the initial parameters provided through \code{add_parameters}, unless the \code{estimate}
+function has been run, then the default values will be those at the found optimum.}
+
+\item{\code{initial.state}}{a named list of two entries 'x0' and 'p0' containing the initial state and covariance of the state}
+
+\item{\code{n.sims}}{number of simulations}
+
+\item{\code{simulation.timestep}}{timestep used in the euler-maruyama scheme}
+
+\item{\code{k.ahead}}{integer specifying the desired number of time-steps (as determined by the provided
+data time-vector) for which predictions are made (integrating the moment ODEs forward in time without
+data updates).}
+
+\item{\code{return.k.ahead}}{numeric vector of integers specifying which n.ahead predictions to that
 should be returned.}
 
 \item{\code{unscented_hyperpars}}{the three hyper-parameters \code{alpha}, \code{beta} and \code{kappa} defining
@@ -779,6 +775,9 @@ the unscented transformation.}
 
 \item{\code{silent}}{logical value whether or not to suppress printed messages such as 'Checking Data',
 'Building Model', etc. Default behaviour (FALSE) is to print the messages.}
+
+\item{\code{return.covariance}}{booelan value to indicate whether the covariance (instead of the correlation)
+should be returned.}
 }
 \if{html}{\out{</div>}}
 }
@@ -798,15 +797,15 @@ state estimate as the initial condition.
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{sdeTMB$predict(
   data,
-  initial.state = self$get_initial_state(),
+  method = "ekf",
+  ode.timestep = diff(data$t),
+  ode.solver = "rk4",
   pars = NULL,
+  initial.state = self$get_initial_state(),
   k.ahead = 1,
   return.k.ahead = NULL,
-  method = "ekf",
-  ode.timestep = NULL,
-  ode.solver = "rk4",
   return.covariance = TRUE,
-  unscented_hyperpars = NULL,
+  unscented_hyperpars = list(alpha = 1, beta = 0, kappa = 3 - private$number.of.states),
   silent = FALSE
 )}\if{html}{\out{</div>}}
 }
@@ -816,19 +815,6 @@ state estimate as the initial condition.
 \describe{
 \item{\code{data}}{data.frame containing time-vector 't', observations and inputs. The observations
 can take \code{NA}-values.}
-
-\item{\code{initial.state}}{a named list of two entries 'x0' and 'p0' containing the initial state and covariance of the state}
-
-\item{\code{pars}}{fixed parameter vector parsed to the objective function for prediction/filtration. The default
-parameter values used are the initial parameters provided through \code{add_parameters}, unless the \code{estimate}
-function has been run, then the default values will be those at the found optimum.}
-
-\item{\code{k.ahead}}{integer specifying the desired number of time-steps (as determined by the provided
-data time-vector) for which predictions are made (integrating the moment ODEs forward in time without
-data updates).}
-
-\item{\code{return.k.ahead}}{numeric vector of integers specifying which n.ahead predictions to that
-should be returned.}
 
 \item{\code{method}}{\enumerate{
 \item The natural TMB-style formulation where latent states are considered random effects
@@ -869,6 +855,19 @@ which serves to link together the latent (random effects) states.
 \item{\code{ode.solver}}{Sets the ODE solver used in the Kalman Filter methods for solving the moment
 differential equations. The default "euler" is the Forward Euler method, alternatively the classical
 4th order Runge Kutta method is available via "rk4".}
+
+\item{\code{pars}}{fixed parameter vector parsed to the objective function for prediction/filtration. The default
+parameter values used are the initial parameters provided through \code{add_parameters}, unless the \code{estimate}
+function has been run, then the default values will be those at the found optimum.}
+
+\item{\code{initial.state}}{a named list of two entries 'x0' and 'p0' containing the initial state and covariance of the state}
+
+\item{\code{k.ahead}}{integer specifying the desired number of time-steps (as determined by the provided
+data time-vector) for which predictions are made (integrating the moment ODEs forward in time without
+data updates).}
+
+\item{\code{return.k.ahead}}{numeric vector of integers specifying which n.ahead predictions to that
+should be returned.}
 
 \item{\code{return.covariance}}{booelan value to indicate whether the covariance (instead of the correlation)
 should be returned.}

@@ -153,6 +153,8 @@ perform_rcpp_ekf_prediction = function(self, private, pars){
   if(nrow(numeric_is_not_na_obsMat)==1) numeric_is_not_na_obsMat = t(numeric_is_not_na_obsMat)
   number_of_available_obs = apply(numeric_is_not_na_obsMat, 1, sum)
   
+  print(private$n.ahead)
+  
   mylist = execute_ekf_prediction(private$Rcppfunction_f,
                                   private$Rcppfunction_g,
                                   private$Rcppfunction_dfdx,

@@ -76,10 +76,33 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// zrnorm
+Rcpp::NumericVector zrnorm(int n);
+RcppExport SEXP _sdeTMB_zrnorm(SEXP nSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< int >::type n(nSEXP);
+    rcpp_result_gen = Rcpp::wrap(zrnorm(n));
+    return rcpp_result_gen;
+END_RCPP
+}
+// zsetseed
+void zsetseed(unsigned long int s);
+RcppExport SEXP _sdeTMB_zsetseed(SEXP sSEXP) {
+BEGIN_RCPP
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< unsigned long int >::type s(sSEXP);
+    zsetseed(s);
+    return R_NilValue;
+END_RCPP
+}
 
 static const R_CallMethodDef CallEntries[] = {
     {"_sdeTMB_execute_ekf_prediction", (DL_FUNC) &_sdeTMB_execute_ekf_prediction, 20},
     {"_sdeTMB_execute_ekf_simulation", (DL_FUNC) &_sdeTMB_execute_ekf_simulation, 24},
+    {"_sdeTMB_zrnorm", (DL_FUNC) &_sdeTMB_zrnorm, 1},
+    {"_sdeTMB_zsetseed", (DL_FUNC) &_sdeTMB_zsetseed, 1},
     {NULL, NULL, 0}
 };
 

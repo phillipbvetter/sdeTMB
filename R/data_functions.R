@@ -106,11 +106,9 @@ set_ode_timestep = function(data, self, private){
   
   
   # check for no provided time.step
-  if(is.null(private$ode.timestep)){
-    
-    private$ode.timestep = diff(data$t)
-    
-  }
+  # if(is.null(private$ode.timestep)){
+    # private$ode.timestep = diff(data$t)
+  # }
   
   # check that ode.timestep has length 1 or at least nrow(data)-1.
   if (length(private$ode.timestep) == 1) {
@@ -230,10 +228,10 @@ set_simulation_timestep = function(data, self, private){
   
   
   # check for no provided time.step
-  if(is.null(private$simulation.timestep)){
-    private$simulation.timestep = diff(data$t)
-    
-  }
+  # if(is.null(private$simulation.timestep)){
+    # private$simulation.timestep = diff(data$t)
+    # 
+  # }
   
   # check that simulation.timestep has length 1 or at least nrow(data)-1.
   if (length(private$simulation.timestep) == 1) {
@@ -249,7 +247,7 @@ set_simulation_timestep = function(data, self, private){
     
     # trim if it is larger than nrow(data)-1
     private$simulation.timestep = head(private$simulation.timestep, nrow(data)-1)
-    warning("The provided simulation.timestep was longer than nrow(data) - 1, only using first nrow(data)-1 entries.")
+    # warning("The provided simulation.timestep was longer than nrow(data) - 1, only using first nrow(data)-1 entries.")
     
   } else {
     
@@ -295,10 +293,19 @@ set_simulation_timestep = function(data, self, private){
 
 set_ukf_parameters = function(unscented_hyperpars, self, private)
 {
-  if(is.null(unscented_hyperpars))
-  {
-    unscented_hyperpars = list(alpha=1, beta=0, kappa=3-private$number.of.states)
+  # if(is.null(unscented_hyperpars))
+  # {
+  #   unscented_hyperpars = list(alpha=1, beta=0, kappa=3-private$number.of.states)
+  # }
+  
+  if(!is.list(unscented_hyperpars)){
+    stop("Please provide a list")
   }
+  
+  if(!(length(unscented_hyperpars)==3)){
+    stop("Please provide a named list of length 3 with entries 'alpha', 'beta' and 'kappa'")
+  }
+  
   private$set_ukf_hyperpars(unscented_hyperpars)
   
   return(invisible(self))

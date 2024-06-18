@@ -776,7 +776,7 @@ sdeTMB = R6::R6Class(
     get_parameters = function(type="all", value="all") {
       
       if(is.null(private$parameters)){
-        return(invisible(NULL))
+        return(NULL)
       }
       
       # create return matrix
@@ -923,10 +923,10 @@ sdeTMB = R6::R6Class(
     construct_nll = function(data,
                              method = "ekf",
                              ode.solver = "rk4",
-                             ode.timestep = NULL,
+                             ode.timestep = diff(data$t),
                              loss = "quadratic",
                              loss_c = 3,
-                             unscented_hyperpars = NULL,
+                             unscented_hyperpars = list(alpha=1, beta=0, kappa=3-private$number.of.states),
                              compile=FALSE,
                              silent=FALSE){
       
@@ -935,7 +935,7 @@ sdeTMB = R6::R6Class(
       private$set_method(method)
       private$set_ode_solver(ode.solver)
       private$set_timestep(ode.timestep)
-      private$set_simulation_timestep(NULL)
+      # private$set_simulation_timestep(NULL)
       private$set_loss(loss,loss_c)
       
       # build model
@@ -949,7 +949,12 @@ sdeTMB = R6::R6Class(
       
       # construct neg. log-likelihood
       if(!silent) message("Constructing objective function...")
-      construct_makeADFun(self, private)
+      comptime <- system.time(
+        construct_makeADFun(self, private)
+      )
+      
+      comptime = format(round(as.numeric(comptime["elapsed"])*1e4)/1e4,digits=5,scientific=F)
+      if(!private$silent) message("...took: ", comptime, " seconds.")
       
       # return
       if(!silent) message("Succesfully returned function handlers")
@@ -1026,7 +1031,7 @@ sdeTMB = R6::R6Class(
     #' The cutoff for the Huber and Tukey loss functions are determined from a provided cutoff 
     #' parameter \code{loss_c}. The implementations of these losses are approximations (pseudo-huber and sigmoid 
     #' approxmation respectively) for smooth derivatives.
-    #' @param calculate.laplace.onestep.residuals boolean - whether or not to calculate one-step ahead residuls
+    #' @param laplace.residuals boolean - whether or not to calculate one-step ahead residuls
     #' using the method of \link[TMB]{oneStepPredict}.
     #' @param loss_c cutoff value for huber and tukey loss functions. Defaults to \code{c=3}
     #' @param control list of control parameters parsed to \code{nlminb} as its \code{control} argument. 
@@ -1036,13 +1041,13 @@ sdeTMB = R6::R6Class(
     estimate = function(data, 
                         method = "ekf",
                         ode.solver = "rk4",
-                        ode.timestep = NULL,
+                        ode.timestep = diff(data$t),
                         loss = "quadratic",
                         loss_c = 3,
-                        use.hessian = FALSE,
+                        unscented_hyperpars = list(alpha=1, beta=0, kappa=3-private$number.of.states),
                         control = list(trace=1,iter.max=1e5,eval.max=1e5),
-                        unscented_hyperpars = NULL,
-                        calculate.laplace.onestep.residuals = FALSE,
+                        use.hessian = FALSE,
+                        laplace.residuals = FALSE,
                         unconstrained.optim = FALSE,
                         compile = FALSE,
                         silent = FALSE){
@@ -1052,7 +1057,7 @@ sdeTMB = R6::R6Class(
       private$set_method(method)
       private$set_ode_solver(ode.solver)
       private$set_timestep(ode.timestep)
-      private$set_simulation_timestep(NULL)
+      private$set_simulation_timestep(ode.timestep)
       private$use_hessian(use.hessian)
       private$set_loss(loss, loss_c)
       private$set_control(control)
@@ -1087,7 +1092,7 @@ sdeTMB = R6::R6Class(
       
       # create return fit
       if(!private$silent) message("Returning results...")
-      create_return_fit(self, private, calculate.laplace.onestep.residuals)
+      create_return_fit(self, private, laplace.residuals)
       if(!private$silent) message("Finished!")
       
       # return cloned fit
@@ -1161,22 +1166,21 @@ sdeTMB = R6::R6Class(
     #' @param simulation.timestep timestep used in the euler-maruyama scheme
     #' 
     simulate = function(data,
-                        initial.state = self$get_initial_state(),
-                        pars = NULL,
-                        k.ahead = 1,
-                        n.sims = 100,
-                        return.k.ahead = NULL,
                         method = "ekf",
-                        ode.timestep = NULL,
-                        simulation.timestep = NULL,
+                        ode.timestep = diff(data$t),
                         ode.solver = "rk4",
-                        return.covariance = TRUE,
-                        unscented_hyperpars = NULL,
+                        pars = NULL,
+                        initial.state = self$get_initial_state(),
+                        n.sims = 100,
+                        simulation.timestep = diff(data$t),
+                        k.ahead = 1,
+                        return.k.ahead = NULL,
+                        unscented_hyperpars = list(alpha=1, beta=0, kappa=3-private$number.of.states),
                         silent = FALSE){
       
       
       
-      if(method!="ekf"){ stop("The predict function is currently only implemented for method = 'ekf'.") }
+      if(method!="ekf"){ stop("The simulate function is currently only implemented for method = 'ekf'.") }
       
       ###### SET FLAGS #######
       private$set_method(method)
@@ -1188,8 +1192,7 @@ sdeTMB = R6::R6Class(
       
       ###### BUILD MODEL #######
       if(!silent) message("Building model...")
-      # build_model_rcpp_pred(self, private)
-      build_model(self, private, rcpp.pred=TRUE)
+      build_model(self, private, prediction=TRUE)
       
       ###### CHECK AND SET DATA  #######
       if(!silent) message("Checking data...")
@@ -1199,7 +1202,7 @@ sdeTMB = R6::R6Class(
       ###### SET PRED AHEAD FLAGS #######
       private$set_n_ahead_and_last_pred_index(data, k.ahead)
       if(is.null(return.k.ahead)){
-        return.k.ahead = 0:k.ahead
+        return.k.ahead = 0:private$n.ahead
       }
       
       ###### PARAMETERS #######
@@ -1245,8 +1248,8 @@ sdeTMB = R6::R6Class(
       list.out = construct_simulate_rcpp_dataframe(pars,
                                                    predict.list,
                                                    data,
-                                                   return.covariance,
                                                    return.k.ahead,
+                                                   n.sims,
                                                    self,
                                                    private)
       
@@ -1318,15 +1321,15 @@ sdeTMB = R6::R6Class(
     #' 'Building Model', etc. Default behaviour (FALSE) is to print the messages.
     #' 
     predict = function(data,
-                       initial.state = self$get_initial_state(),
+                       method = "ekf",
+                       ode.timestep = diff(data$t),
+                       ode.solver = "rk4",
                        pars = NULL,
+                       initial.state = self$get_initial_state(),
                        k.ahead = 1,
                        return.k.ahead = NULL,
-                       method = "ekf",
-                       ode.timestep = NULL,
-                       ode.solver = "rk4",
                        return.covariance = TRUE,
-                       unscented_hyperpars = NULL,
+                       unscented_hyperpars = list(alpha=1, beta=0, kappa=3-private$number.of.states),
                        silent = FALSE){
       
       
@@ -1337,13 +1340,12 @@ sdeTMB = R6::R6Class(
       private$set_method(method)
       private$set_ode_solver(ode.solver)
       private$set_timestep(ode.timestep)
-      private$set_simulation_timestep(NULL)
+      # private$set_simulation_timestep(NULL)
       private$set_pred_initial_state(initial.state)
       
       ###### BUILD MODEL #######
       if(!silent) message("Building model...")
-      # build_model_rcpp_pred(self, private)
-      build_model(self, private, rcpp.pred=TRUE)
+      build_model(self, private, prediction=TRUE)
       
       ###### CHECK AND SET DATA  #######
       if(!silent) message("Checking data...")
@@ -1354,12 +1356,14 @@ sdeTMB = R6::R6Class(
       ###### SET PRED AHEAD FLAGS #######
       private$set_n_ahead_and_last_pred_index(data, k.ahead)
       if(is.null(return.k.ahead)){
-        return.k.ahead = 0:k.ahead
+        return.k.ahead = 0:private$n.ahead
       }
       
       ###### PARAMETERS #######
+      # IF THE USER PROVIDED PARAMETERS
       if(is.null(pars)){
         if(!silent) message("No parameters were supplied - using initial values, or most recent estimated values.")
+        
         # if the estimation has been run, then use estimated parameters, else use initial
         if(!is.null(private$fit)){
           pars = self$get_parameters(value="estimate")
@@ -1417,6 +1421,7 @@ sdeTMB = R6::R6Class(
       q = length(private$alg.eqs)
       par = length(private$parameters)
       fixedpars = length(private$fixed.pars)
+      freepars = length(private$free.pars)
       
       # If the model is empty
       cat("Stochastic State Space Model:")
@@ -1461,9 +1466,9 @@ sdeTMB = R6::R6Class(
       }
       
       # PARAMETERS
-      if (par>0) {
-        cat("\n\nParameters:\n")
-        cat("\t", paste(private$parameter.names,collapse=", "))
+      if (freepars>0) {
+        cat("\n\nFree Parameters:\n")
+        cat("\t", paste(names(private$free.pars),collapse=", "))
       }
       
       # FIXED PARAMETERS
@@ -1788,10 +1793,10 @@ sdeTMB = R6::R6Class(
     set_timestep = function(dt) {
       
       # OK if NULL
-      if(is.null(dt)){
-        private$ode.timestep = NULL
-        return(invisible(NULL))
-      }
+      # if(is.null(dt)){
+        # private$ode.timestep = NULL
+        # return(invisible(NULL))
+      # }
       
       # must be numeric
       if (!is.numeric(dt)) {
@@ -1806,10 +1811,10 @@ sdeTMB = R6::R6Class(
     set_simulation_timestep = function(dt) {
       
       # OK if NULL
-      if(is.null(dt)){
-        private$simulation.timestep = NULL
-        return(invisible(NULL))
-      }
+      # if(is.null(dt)){
+        # private$simulation.timestep = NULL
+        # return(invisible(NULL))
+      # }
       
       # must be numeric
       if (!is.numeric(dt)) {
@@ -1896,12 +1901,16 @@ sdeTMB = R6::R6Class(
     ########################################################################
     set_pred_initial_state = function(initial.state) {
       
+      if(is.null(initial.state)){
+        stop("Please provide an initial state for the mean and covariance")
+      }
+      
       if (is.null(private$sys.eqs)) {
         stop("Please specify system equations first")
       }
       
       if (!is.list(initial.state)) {
-        stop("Please provide a list!")
+        stop("Please provide a list of length two!")
       }
       
       if (length(initial.state) != 2) {
@@ -1949,7 +1958,7 @@ sdeTMB = R6::R6Class(
         stop("The covariance matrix is symmetric")
       }
       
-      private$initial.state = list(x0=x0, p0=as.matrix(p0))
+      # private$initial.state = list(x0=x0, p0=as.matrix(p0))
       
       # set field
       private$pred.initial.state = list(x0=x0, p0=as.matrix(p0))

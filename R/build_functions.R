@@ -5,10 +5,10 @@
 # MAIN BUILDING FUNCTION THAT CALLS ALL OTHER FUNCTIONS
 #######################################################
 
-build_model = function(self, private, rcpp.pred=FALSE) {
+build_model = function(self, private, prediction=FALSE) {
   
   # check_model
-  basic_model_check(self, private)
+  basic_model_check(self, private, prediction)
   
   # set dimensions, diff processes, etc...
   set_model_settings(self, private)
@@ -24,7 +24,7 @@ build_model = function(self, private, rcpp.pred=FALSE) {
   
   # last check and compile
   final_build_check(self, private)
-  if(!rcpp.pred){
+  if(!prediction){
     compile_cppfile(self, private)
   }
   
@@ -36,7 +36,7 @@ build_model = function(self, private, rcpp.pred=FALSE) {
 # FIRST FUNCTION TO RUN WHEN BUILDING
 #######################################################
 
-basic_model_check = function(self, private) {
+basic_model_check = function(self, private, prediction=TRUE) {
   
   # system eqs
   if (length(private$sys.eqs) == 0) {
@@ -61,8 +61,10 @@ basic_model_check = function(self, private) {
   }
   
   # initial state
-  if (is.null(private$initial.state)) {
-    stop("You must set an initial state estimate and covariance")
+  if(!prediction){
+    if (is.null(private$initial.state)) {
+      stop("You must set an initial state estimate and covariance")
+    }
   }
   
   

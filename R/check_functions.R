@@ -70,13 +70,13 @@ check_system_eqs = function(form, self, private) {
   
   # Check for dt/dw cross terms
   valid = all(unlist(lapply(diff.terms, function(x) all(is.na(match(diff.processes, all.vars(x)))))))
-  if (!valid) { stop("there are illegal dt and dw cross terms") }
+  if (!valid) { stop("There are illegal dt and dw cross terms") }
   
   # Check if any variables are outside scope like c in: f(.) * dt + g(.) * dw + c
   pars = unique(all.vars(rhs))
   pars.after = as.vector(c(diff.processes, unlist(lapply(diff.terms, all.vars))))
   if (any(is.na(match(pars, pars.after)))) {
-    stop("You have illegally specified terms other than drifts (... * dt) and diffusions (...*dw).")
+    stop("You have illegally specified terms other than drifts (... * dt) and diffusions (... * dw).")
   }
   # The above does not capture constants like the 5 in ' ... * dw + 5' so check that.
   # This is a bit annoying because you can't see numerics directly. We work around by
@@ -89,6 +89,13 @@ check_system_eqs = function(form, self, private) {
   rhs.checker3 = all.vars(Deriv::Simplify(rhs.checker2))
   if(length(rhs.checker3)>0){
     stop("There are illegal terms outside of the drifts dt or diffusions dw(s).")
+  }
+  
+  # Check if any variables are called dt(something)
+  pars = unique(all.vars(rhs))
+  pars = pars[!(pars %in% "dt")]
+  if(any(stringr::str_detect(pars,"dt.*"))){
+    stop("There are illegal variable names apart from 'dt' that begins with dt.")
   }
   
   # extract all variables
