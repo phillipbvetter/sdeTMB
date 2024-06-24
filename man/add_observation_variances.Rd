@@ -2,25 +2,26 @@
 % Please edit documentation in R/method_documentation.R
 \name{add_observation_variances}
 \alias{add_observation_variances}
-\title{Adding observation variances}
+\title{Add observation variances to the model object.}
 \usage{
-add_observation_variances(form, ...)
+add_observation_variances(form,
+                          ...)
 }
 \arguments{
 \item{form}{formula class specifying the obsevation equation to be added
 to the system.}
 
-\item{...}{additional formulas identical to \code{form} to specify multiple
-observation equations at a time.}
+\item{...}{formulas similar to \code{form}, used to allow specifying
+multiple formulas by comma-seperation rather than providing a list.}
 }
 \description{
-Specify the variance of an observation equation.
+Specify the observation variance of an existing observation equation.
+}
+\examples{
+# Example 1
+\code{add_observation_variances(y ~ sigma_y^2}. 
 
-A defined observation variable \code{y} in e.g. \code{add_observations(y ~ 
-h(t,<states>,<inputs>)} is pertubed by Gaussian noise with zero mean and
-variance
-to-be specified using \code{add_observation_variances(y ~ p(t,<states>,<inputs>)}.
-We can for instance declare \code{add_observation_variances(y ~ sigma_x^2}
-where \code{sigma_x} is a fixed effect parameter to be declared through
-\code{add_parameters}.
+# Example 2 
+\code{add_observation_variances(y ~ 0.1 + x * exp(logsigma_y)^2}. 
+
 }

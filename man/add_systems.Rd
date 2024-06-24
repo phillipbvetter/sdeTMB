@@ -2,29 +2,36 @@
 % Please edit documentation in R/method_documentation.R
 \name{add_systems}
 \alias{add_systems}
-\title{Adding system state equations}
+\title{Add state equations to model object}
 \usage{
-add_systems(form, ...)
+add_systems(form,
+            ...)
 }
 \arguments{
 \item{form}{formula specifying the stochastic differential equation to be
 added to the system.}
 
-\item{...}{additional formulas similar to \code{form} for specifying
-multiple equations at once.}
+\item{...}{formulas similar to \code{form}, used to allow specifying
+multiple formulas by comma-seperation rather than providing a list.}
 }
 \description{
-Define and add multiple stochastic differential equation governing the
-process of individual state variables on the form
+Add stochastic differential equation to the \code{sdeTMB} model-object that
+governs the differential evolution of states in the specified model.
+}
+\details{
+\subsection{Usable functions}{
 
-\code{d<state> ~ f(t,<states>,<inputs>) * dt + g1(t,<states>,<inputs>) * dw1 
-+ g2(t,<states>,<inputs>) * dw2 + ... + gN(t,<states>,<inputs>) * dwN}
-
-where \code{f} is the drift, and \code{g1, g2, ..., gN} are diffusions, with
-differential brownian motions dw1, dw2, ..., dwN.
+The formulas can contain most elementary functions such as \code{log},
+\code{exp}, \code{logit} and \code{invlogit}. In general the supported
+functions are only those that are both 1) defined in the derivative table
+of the \code{Deriv} package, and 2) undestood by \emph{TMB} on the \emph{C++} side.
+}
 }
 \examples{
-# Specify Ornstein-Uhlenbeck Process
+# Example 1 - Linear System
 add_systems(dx ~ theta * (mu - x + u) * dt + sigma * dw)
-             
+
+# Example 2 - Non-Linear System
+add_systems(dx ~ theta * (mu - exp(x)^2 + u) * dt + sigma * x * (1-x) * dw)
+
 }

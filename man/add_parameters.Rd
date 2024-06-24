@@ -2,25 +2,33 @@
 % Please edit documentation in R/method_documentation.R
 \name{add_parameters}
 \alias{add_parameters}
-\title{Declare parameters and specify initial values and lower/upper bounds for
-optimization procedure.}
+\title{Specify parameters in the model object}
 \usage{
 add_parameters(...)
 }
 \arguments{
-\item{...}{a named vector or matrix as described above.}
+\item{...}{a comma-seperated series of vectors/matrix entries}
 }
 \description{
 Declare which variables that are (fixed effects) parameters in
-the specified model, and specify the initial optimizer value, as well as
-lower / upper bounds during optimization. There are two ways to declare parameters:
-\enumerate{
-\item You can declare parameters using formulas i.e. \code{add_parameters( 
-theta = c(1,0,10), mu = c(0,-10,10) )}. The first value is the initial
-value for the optimizer, the second value is the lower optimization
-bound and the third value is the upper optimization bound.
-\item You can provide a 3-column matrix where rows corresponds to different
-parameters, and the parameter names are provided as rownames of the matrix.
-The columns values corresponds to the description in the vector format above.
+the specified model, and specify the initial optimizer values, as well as
+lower / upper bounds. Parameters can be declared either as vectors or as
+matrices. The first entry is the initial value, the second entry is the lower
+bound and the third entry is the upper bound. Providing only a first entry
+fixes the particular parameter to that value.
 }
+\examples{
+# Example 1
+add_parameters(
+alpha = c(initial=0, lower=-10, upper=10),
+beta = c(2, 0, 5),
+gamma = 5)
+)
+
+# Example 2
+parmat = matrix(rep(c(0,-10,10),times=3),ncol=3,byrow=T)
+rownames(parmat) = c("a","b","c")
+colnames(parmat) = c("initial","lower","upper")
+add_parameters(parmat)
+
 }

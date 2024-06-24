@@ -2,6 +2,7 @@
 % Please edit documentation in R/sdeTMB.R
 \docType{package}
 \name{sdeTMB}
+\alias{-package}
 \alias{sdeTMB}
 \title{Methods for the 'sdeTMB' R6 class}
 \value{

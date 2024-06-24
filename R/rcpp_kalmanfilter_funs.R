@@ -148,13 +148,17 @@ create_rcpp_statespace_functions = function(self, private){
 
 perform_rcpp_ekf_prediction = function(self, private, pars){
   
+  # observation matrix
   obsMat = as.matrix(private$data[private$obs.names])
+  
+  # non-na observation matrix
   numeric_is_not_na_obsMat = t(apply(obsMat, 1, FUN=function(x) as.numeric(!is.na(x))))
   if(nrow(numeric_is_not_na_obsMat)==1) numeric_is_not_na_obsMat = t(numeric_is_not_na_obsMat)
+  
+  # number of non-na observations
   number_of_available_obs = apply(numeric_is_not_na_obsMat, 1, sum)
   
-  print(private$n.ahead)
-  
+  # predict using c++ function
   mylist = execute_ekf_prediction(private$Rcppfunction_f,
                                   private$Rcppfunction_g,
                                   private$Rcppfunction_dfdx,

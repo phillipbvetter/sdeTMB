@@ -6,26 +6,35 @@
 ########################################################################
 # ADD SYSTEMS
 ########################################################################
-#' Adding system state equations
+#' @title Add state equations to model object
 #' 
 #' @description 
-#' Define and add multiple stochastic differential equation governing the 
-#' process of individual state variables on the form 
+#' Add stochastic differential equation to the \code{sdeTMB} model-object that 
+#' governs the differential evolution of states in the specified model.
 #' 
-#' \code{d<state> ~ f(t,<states>,<inputs>) * dt + g1(t,<states>,<inputs>) * dw1 
-#' + g2(t,<states>,<inputs>) * dw2 + ... + gN(t,<states>,<inputs>) * dwN}
-#'                                            
-#' where \code{f} is the drift, and \code{g1, g2, ..., gN} are diffusions, with 
-#' differential brownian motions dw1, dw2, ..., dwN.
+#' @usage
+#' add_systems(form,
+#'             ...)
 #' 
 #' @examples 
-#' # Specify Ornstein-Uhlenbeck Process
+#' # Example 1 - Linear System
 #' add_systems(dx ~ theta * (mu - x + u) * dt + sigma * dw)
+#' 
+#' # Example 2 - Non-Linear System
+#' add_systems(dx ~ theta * (mu - exp(x)^2 + u) * dt + sigma * x * (1-x) * dw)
+#' 
+#' @details
+#' ## Usable functions
+#' The formulas can contain most elementary functions such as \code{log}, 
+#' \code{exp}, \code{logit} and \code{invlogit}. In general the supported
+#' functions are only those that are both 1) defined in the derivative table 
+#' of the \code{Deriv} package, and 2) undestood by *TMB* on the *C++* side.
+#' 
 #'              
 #' @param form formula specifying the stochastic differential equation to be 
 #' added to the system.
-#' @param ... additional formulas similar to \code{form} for specifying 
-#' multiple equations at once.
+#' @param ... formulas similar to \code{form}, used to allow specifying
+#' multiple formulas by comma-seperation rather than providing a list.
 #' 
 add_systems = function(form,...) {
   NULL
@@ -34,30 +43,48 @@ add_systems = function(form,...) {
 ########################################################################
 # ADD OBSERVATIONS
 ########################################################################
-#' Adding observation equations
+#' @title Add observation equations to model object
 #' 
 #' @description
-#' Define and add a relationship between an observed variable and system states. 
-#' The observation equation takes the form
-#' 
-#' \code{<observation> ~ h(t,<states>,<inputs>) + e)}
-#' 
-#' where \code{h} is the observation function, and \code{e} is normally 
-#' distributed noise with zero mean and variance to be specified. The 
-#' observation variable should be present in the data provided when calling
-#' \code{estimate(.data)} for parameter estimation.
+#' Add an observation equation to the \code{sdeTMB} model-object that links 
+#' states to an observed variable.
 #'  
 #' @examples
-#' #Specify observation directly as a latent state
+#' # Example 1
 #' add_observations(y ~ x)
 #' 
+#' # Example 2
 #' Specify observation as the sum of exponentials of two latent states
 #' add_observations(y ~ exp(x1) + exp(x2))
-#' @param form formula class specifying the obsevation equation to be added to the system.
-#' @param ... additional formulas identical to \code{form} to specify multiple observation equations at a time.
-#' @param obsnames character vector specifying the name of the observation. When the observation left-hand side
-#' consists of more than just a single variable name (when its class is 'call' instead of 'name') it will be 
-#' given a name on the form obs__# where # is a number, unless obsnames is provided.
+#' 
+#' # Example 3
+#' Specify observation as the sum of exponentials of two latent states
+#' add_observations(log(y) ~ x, obsnames = "logy")
+#' 
+#' @usage
+#' add_observations(form,
+#'                  ...,
+#'                  obsnames=NULL)
+#' 
+#' @param form formula specifying the observation equation to be added to the 
+#' system.
+#' 
+#' @param ... formulas similar to \code{form}, used to allow specifying
+#' multiple formulas by comma-seperation rather than providing a list.
+#' 
+#' @param obsnames character vector specifying observation names only used when 
+#' when the observation left-hand side is a function call. See details.
+#' 
+#' @details
+#' ## \code{obsnames}
+#' The \code{obsnames} argument is used when the left-hand side of \code{form}
+#' is a function of a variable i.e. \code{log(y)} (when its of 
+#' class 'call' instead of 'name'), as in Example 3. The user should then only 
+#' provide data for \code{y}, and the log-transformation
+#' is then handled internally.
+#' 
+#' The supported functions are those discussed in the \code{\link{add_systems}}.
+#' 
 add_observations = function(form,...,obsnames=NULL) {
   NULL
 }
@@ -65,22 +92,26 @@ add_observations = function(form,...,obsnames=NULL) {
 ########################################################################
 # ADD OBSERVATION VARIANCES
 ########################################################################
-#' Adding observation variances
+#' @title Add observation variances to the model object.
 #' 
-#' @description Specify the variance of an observation equation.
+#' @description
+#' Specify the observation variance of an existing observation equation.
 #' 
-#' A defined observation variable \code{y} in e.g. \code{add_observations(y ~ 
-#' h(t,<states>,<inputs>)} is pertubed by Gaussian noise with zero mean and 
-#' variance 
-#' to-be specified using \code{add_observation_variances(y ~ p(t,<states>,<inputs>)}. 
-#' We can for instance declare \code{add_observation_variances(y ~ sigma_x^2} 
-#' where \code{sigma_x} is a fixed effect parameter to be declared through 
-#' \code{add_parameters}.
+#' @usage
+#' add_observation_variances(form,
+#'                           ...)
+#' 
+#' @examples
+#' # Example 1
+#' \code{add_observation_variances(y ~ sigma_y^2}. 
+#'
+#' # Example 2 
+#' \code{add_observation_variances(y ~ 0.1 + x * exp(logsigma_y)^2}. 
 #' 
 #' @param form formula class specifying the obsevation equation to be added 
 #' to the system.
-#' @param ... additional formulas identical to \code{form} to specify multiple 
-#' observation equations at a time.
+#' @param ... formulas similar to \code{form}, used to allow specifying
+#' multiple formulas by comma-seperation rather than providing a list.
 #' 
 add_observation_variances = function(form,...) {
   NULL
@@ -89,17 +120,24 @@ add_observation_variances = function(form,...) {
 ########################################################################
 # ADD INPUTS
 ########################################################################
-#' Declare variables as data inputs
+#' @title Specify input variables in the model object.
+#'
+#' @description Declare whether a variable contained in system, observation or observation 
+#' variance equations is an input variable.
 #' 
-#' @description Declare variables as data inputs
 #' 
-#' Declare whether a variable contained in system, observation or observation 
-#' variance equations is an input variable. If e.g. the system equation contains 
-#' an input variable \code{u} then it is declared using \code{add_inputs(u)}. 
-#' The input \code{u} must be contained in the data.frame \code{.data} provided 
-#' when calling the \code{estimate} or \code{predict} methods.
+#' @usage 
+#' add_inputs(...)
 #' 
-#' @param ... variable names that specifies the name of input variables in the defined system.
+#' @examples
+#' # Example 1
+#' add_inputs(u)
+#' 
+#' # Example 2
+#' add_inputs(u1, u2, u3)
+#' 
+#' @param ... a series of variable names (unquouted) that match variable names
+#' in the defined system which should be treated as input variables.
 #' 
 add_inputs =  function(...) {
   NULL
@@ -108,23 +146,30 @@ add_inputs =  function(...) {
 ########################################################################
 # ADD PARAMETERS
 ########################################################################
-#' Declare parameters and specify initial values and lower/upper bounds for 
-#' optimization procedure.
+#' @title Specify parameters in the model object
 #' 
 #' @description Declare which variables that are (fixed effects) parameters in
-#' the specified model, and specify the initial optimizer value, as well as
-#' lower / upper bounds during optimization. There are two ways to declare parameters:
+#' the specified model, and specify the initial optimizer values, as well as
+#' lower / upper bounds. Parameters can be declared either as vectors or as
+#' matrices. The first entry is the initial value, the second entry is the lower
+#' bound and the third entry is the upper bound. Providing only a first entry
+#' fixes the particular parameter to that value.
 #' 
-#' 1. You can declare parameters using formulas i.e. \code{add_parameters( 
-#' theta = c(1,0,10), mu = c(0,-10,10) )}. The first value is the initial 
-#' value for the optimizer, the second value is the lower optimization 
-#' bound and the third value is the upper optimization bound. 
+#' @examples
+#' # Example 1
+#' add_parameters(
+#' alpha = c(initial=0, lower=-10, upper=10),
+#' beta = c(2, 0, 5),
+#' gamma = 5)
+#' )
 #' 
-#' 2. You can provide a 3-column matrix where rows corresponds to different 
-#' parameters, and the parameter names are provided as rownames of the matrix. 
-#' The columns values corresponds to the description in the vector format above.
+#' # Example 2
+#' parmat = matrix(rep(c(0,-10,10),times=3),ncol=3,byrow=T)
+#' rownames(parmat) = c("a","b","c")
+#' colnames(parmat) = c("initial","lower","upper")
+#' add_parameters(parmat)
 #'
-#' @param ... a named vector or matrix as described above.
+#' @param ... a comma-seperated series of vectors/matrix entries
 add_parameters = function(...) {
   NULL
 }
@@ -132,21 +177,35 @@ add_parameters = function(...) {
 ########################################################################
 # ADD ALGEBRAICS
 ########################################################################
-#' Add algebraic relationships 
+#' @title Add algebraic relationships to the model object.
 #'
-#' @description Add algebraic relations.
+#' @description
+#' Algebraic relations is a convenient way to transform parameters in your equations,
+#' to reduce clutter when specying the various equations, for instance to ensure
+#' positivity (log-transform). 
 #' 
-#' Algebraic relations is a convenient way to transform parameters in your equations.
-#' In the Ornstein-Uhlenbeck process the rate parameter \code{theta} is always positive, so
-#' estimation in the log-domain is a good idea. Instead of writing \code{exp(theta)} directly
-#' in the system equation one can transform into the log domain using the algebraic relation
-#' \code{add_algebraics(theta ~ exp(logtheta))}. All instances of \code{theta} is replaced
-#' by \code{exp(logtheta)} when compiling the C++ function. Note that you must provide values
-#' for \code{logtheta} now instead of \code{theta} when declaring parameters through 
-#' \code{add_parameters}
+#' @examples
+#' # Example 1
+#' add_algebraics(
+#' sigma ~ exp(logsigma),
+#' theta ~ invlogit(alpha + beta)
+#' )
 #' 
-#' @param form formula specifying the stochastic differential equation(s) to be added to the system.
-#' @param ... additional formulas similar to \code{form} for specifying multiple equations at once.
+#' @details
+#' The left-hand side of the provided formula specifies which parameter that
+#' should be overwritten with the expression on the right-hand side. This also
+#' means that the left-hand side parameter will vanish from the model formulation
+#' and \code{link{add_parameters}} should therefore specify values for the 
+#' new parameters.
+#' 
+#' @usage
+#' add_algebraics(form,
+#'                ...)
+#' 
+#' @param form formula specifying algebraic relation.
+#' @param ... formulas similar to \code{form}, used to allow specifying
+#' multiple formulas by comma-seperation rather than providing a list.
+#' 
 add_algebraics = function(form,...) {
   NULL
 }

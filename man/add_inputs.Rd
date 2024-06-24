@@ -2,19 +2,23 @@
 % Please edit documentation in R/method_documentation.R
 \name{add_inputs}
 \alias{add_inputs}
-\title{Declare variables as data inputs}
+\title{Specify input variables in the model object.}
 \usage{
 add_inputs(...)
 }
 \arguments{
-\item{...}{variable names that specifies the name of input variables in the defined system.}
+\item{...}{a series of variable names (unquouted) that match variable names
+in the defined system which should be treated as input variables.}
 }
 \description{
-Declare variables as data inputs
-
 Declare whether a variable contained in system, observation or observation
-variance equations is an input variable. If e.g. the system equation contains
-an input variable \code{u} then it is declared using \code{add_inputs(u)}.
-The input \code{u} must be contained in the data.frame \code{.data} provided
-when calling the \code{estimate} or \code{predict} methods.
+variance equations is an input variable.
+}
+\examples{
+# Example 1
+add_inputs(u)
+
+# Example 2
+add_inputs(u1, u2, u3)
+
 }

@@ -2,34 +2,48 @@
 % Please edit documentation in R/method_documentation.R
 \name{add_observations}
 \alias{add_observations}
-\title{Adding observation equations}
+\title{Add observation equations to model object}
 \usage{
-add_observations(form, ..., obsnames = NULL)
+add_observations(form,
+                 ...,
+                 obsnames=NULL)
 }
 \arguments{
-\item{form}{formula class specifying the obsevation equation to be added to the system.}
+\item{form}{formula specifying the observation equation to be added to the
+system.}
 
-\item{...}{additional formulas identical to \code{form} to specify multiple observation equations at a time.}
+\item{...}{formulas similar to \code{form}, used to allow specifying
+multiple formulas by comma-seperation rather than providing a list.}
 
-\item{obsnames}{character vector specifying the name of the observation. When the observation left-hand side
-consists of more than just a single variable name (when its class is 'call' instead of 'name') it will be
-given a name on the form obs__# where # is a number, unless obsnames is provided.}
+\item{obsnames}{character vector specifying observation names only used when
+when the observation left-hand side is a function call. See details.}
 }
 \description{
-Define and add a relationship between an observed variable and system states.
-The observation equation takes the form
+Add an observation equation to the \code{sdeTMB} model-object that links
+states to an observed variable.
+}
+\details{
+\subsection{\code{obsnames}}{
 
-\code{<observation> ~ h(t,<states>,<inputs>) + e)}
+The \code{obsnames} argument is used when the left-hand side of \code{form}
+is a function of a variable i.e. \code{log(y)} (when its of
+class 'call' instead of 'name'), as in Example 3. The user should then only
+provide data for \code{y}, and the log-transformation
+is then handled internally.
 
-where \code{h} is the observation function, and \code{e} is normally
-distributed noise with zero mean and variance to be specified. The
-observation variable should be present in the data provided when calling
-\code{estimate(.data)} for parameter estimation.
+The supported functions are those discussed in the \code{\link{add_systems}}.
+}
 }
 \examples{
-#Specify observation directly as a latent state
+# Example 1
 add_observations(y ~ x)
 
+# Example 2
 Specify observation as the sum of exponentials of two latent states
 add_observations(y ~ exp(x1) + exp(x2))
+
+# Example 3
+Specify observation as the sum of exponentials of two latent states
+add_observations(log(y) ~ x, obsnames = "logy")
+
 }

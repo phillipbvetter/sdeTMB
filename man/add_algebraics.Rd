@@ -2,24 +2,34 @@
 % Please edit documentation in R/method_documentation.R
 \name{add_algebraics}
 \alias{add_algebraics}
-\title{Add algebraic relationships}
+\title{Add algebraic relationships to the model object.}
 \usage{
-add_algebraics(form, ...)
+add_algebraics(form,
+               ...)
 }
 \arguments{
-\item{form}{formula specifying the stochastic differential equation(s) to be added to the system.}
+\item{form}{formula specifying algebraic relation.}
 
-\item{...}{additional formulas similar to \code{form} for specifying multiple equations at once.}
+\item{...}{formulas similar to \code{form}, used to allow specifying
+multiple formulas by comma-seperation rather than providing a list.}
 }
 \description{
-Add algebraic relations.
+Algebraic relations is a convenient way to transform parameters in your equations,
+to reduce clutter when specying the various equations, for instance to ensure
+positivity (log-transform).
+}
+\details{
+The left-hand side of the provided formula specifies which parameter that
+should be overwritten with the expression on the right-hand side. This also
+means that the left-hand side parameter will vanish from the model formulation
+and \code{link{add_parameters}} should therefore specify values for the
+new parameters.
+}
+\examples{
+# Example 1
+add_algebraics(
+sigma ~ exp(logsigma),
+theta ~ invlogit(alpha + beta)
+)
 
-Algebraic relations is a convenient way to transform parameters in your equations.
-In the Ornstein-Uhlenbeck process the rate parameter \code{theta} is always positive, so
-estimation in the log-domain is a good idea. Instead of writing \code{exp(theta)} directly
-in the system equation one can transform into the log domain using the algebraic relation
-\code{add_algebraics(theta ~ exp(logtheta))}. All instances of \code{theta} is replaced
-by \code{exp(logtheta)} when compiling the C++ function. Note that you must provide values
-for \code{logtheta} now instead of \code{theta} when declaring parameters through
-\code{add_parameters}
 }
