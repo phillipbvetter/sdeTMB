@@ -105,16 +105,19 @@ obj$estimate(.data)
 
 This is the same as using the default settings
 ```{r, eval=FALSE}
-obj$estimate(.data,
-             method="ekf",
-             ode.solver="euler",
-             ode.timestep=min(diff(.data$t)),
+obj$estimate(data = .data, 
+             method = "ekf",
+             ode.solver = "rk4",
+             ode.timestep = diff(data$t),
              loss = "quadratic",
              loss_c = 3,
+             unscented_hyperpars = list(alpha=1, beta=0, kappa=3-private$number.of.states),
+             control = list(trace=1,iter.max=1e5,eval.max=1e5),
              use.hessian = FALSE,
-             compile=FALSE,
-             control=list(trace=1)
-)
+             laplace.residuals = FALSE,
+             unconstrained.optim = FALSE,
+             compile = FALSE,
+             silent = FALSE)
 ```
 
 Let's walk through the various arguments and their effect:
@@ -126,16 +129,16 @@ Let's walk through the various arguments and their effect:
 The `method` argument determines which underlying estimation techniques is used. The current implementation supports the following
 
 1. `method='ekf'`: The Extended Kalman Filter.
-2. `method='ukf'`: The Unscented Kalman Filter.
-3. `method='tmb'`: The Laplace Approximation
+2. `method='ukf'`: The Unscented Kalman Filter - currently disabled.
+3. `method='laplace'`: The Laplace Approximation
 
 The former two are quite similar in that they are based on the Kalman Filter theory. The assumptions of normality in the state transition and observation equation are fundamental, although the implemented filters are standard non-linear filters, in the sense that they try to overcome these assumptions for small non-linearities. The Unscented Kalman Filter is generally considered to perform better in these cases.
 
 <!-- The Extended Kalman Filter linearizes (to first order in the drift, and zeroth order in the diffusion) around the expectation of the state value to obtain prior and posterior state estimates as a way to handle non-linearities in system and observation equations.  -->
 
-The latter `tmb` method is aptly named after the `TMB` package which employs the Laplace Approximation method to integration out random effects. In this formulation we consider the states as random effects, and parameters as fixed. The underlying assumption is one of normality, but its implementation allows for the flexibility of choosing arbitrary distributions (not yet implemented.)
+The latter `laplace` method employs the Laplace Approximation method of \code{link{TMB}} to integration out random effects. In this formulation we consider the states as random effects, and parameters as fixed. The underlying assumption is one of normality, but its implementation allows for the flexibility of choosing arbitrary distributions (not yet implemented.)
 
-Both of these methods can be used to estimate parameter and states. In the case of `tmb` the states will be smoothed (conditioned on both past and future observations).
+Both of these methods can be used to estimate parameter and states. In the case of `laplace` the states will be smoothed (conditioned on both past and future observations).
 
 # Argument: `ode.solver`
 

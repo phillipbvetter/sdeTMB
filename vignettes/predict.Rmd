@@ -6,7 +6,8 @@ output: html_document
 ---
 
 ```{r, include=FALSE}
-library(sdeTMB)
+# library(sdeTMB)
+devtools::load_all("/Users/pbrve/github/sdeTMB")
 ```
 
 We demonstate how to use the `predict` method to obtain k-step ahead predictions / forecasts of a model object, and the observations.

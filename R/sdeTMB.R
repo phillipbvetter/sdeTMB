@@ -1443,7 +1443,8 @@ sdeTMB = R6::R6Class(
         cat("\nObservation Equations:\n\n")
         for (i in 1:length(private$obs.eqs)) {
           bool = private$obs.names[i] %in% private$obsvar.names
-          if (bool) {
+          bool2 = is.null(private$obs.var[[i]])
+          if (bool & bool2) {
             cat("\t",paste(names(private$obs.eqs)[i],": ",sep=""),deparse1(private$obs.eqs[[i]]$form),"+ e", "\t","e ~ N(0,",paste0(deparse1(private$obs.var[[i]]$rhs),")"),"\n")
           } else {
             cat("\t",paste(names(private$obs.eqs)[i],": ",sep=""),deparse1(private$obs.eqs[[i]]$form),"+ e", "\t","e ~ N(0,?)","\n")

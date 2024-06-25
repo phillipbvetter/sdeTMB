@@ -11,7 +11,7 @@ paste00 = function(str_vec){
 
 simplify_formula = function(form) {
 
-  form = as.formula(paste(
+  form = stats::as.formula(paste(
     form[[2]],
     paste(deparse(Deriv::Simplify(form[[3]])),collapse=""),
     sep="~"

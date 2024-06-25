@@ -103,10 +103,10 @@ add_observations = function(form,...,obsnames=NULL) {
 #' 
 #' @examples
 #' # Example 1
-#' \code{add_observation_variances(y ~ sigma_y^2}. 
+#' add_observation_variances(y ~ sigma_y^2). 
 #'
 #' # Example 2 
-#' \code{add_observation_variances(y ~ 0.1 + x * exp(logsigma_y)^2}. 
+#' add_observation_variances(y ~ 0.1 + x * exp(logsigma_y)^2). 
 #' 
 #' @param form formula class specifying the obsevation equation to be added 
 #' to the system.

@@ -53,6 +53,7 @@ obj$add_observation_variances(
   y ~ sigma_y^2
 )
 ```
+
 So the correct way to add the observation variance is this:
 ```{r}
 obj$add_observation_variances(

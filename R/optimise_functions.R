@@ -819,7 +819,7 @@ create_return_fit = function(self, private, calculate.laplace.onestep.residuals)
       covariance = try(solve(temp.hessian), silent=T)
       
       private$fit$cov.fixed = covariance
-      private$fit$sd.fixed = sdeTMB:::try_withWarningRecovery(sqrt(diag(covariance)))
+      private$fit$sd.fixed = try_withWarningRecovery(sqrt(diag(covariance)))
       
       if(inherits(private$fit$sd.fixed,"try-error")){
         private$fit$sd.fixed = rep(NA,length(private$fit$par.fixed))
@@ -838,7 +838,7 @@ create_return_fit = function(self, private, calculate.laplace.onestep.residuals)
         covariance = try(solve(covariance, silent=T))
         
         sd.fixed = rep(NA,length(private$fit$par.fixed))
-        sd.fixed[keep.ids] = sdeTMB:::try_withWarningRecovery(sqrt(diag(covariance)))
+        sd.fixed[keep.ids] = try_withWarningRecovery(sqrt(diag(covariance)))
         private$fit$sd.fixed = sd.fixed
         
         cov.fixed = temp.hessian * NA
@@ -1006,7 +1006,7 @@ create_return_fit = function(self, private, calculate.laplace.onestep.residuals)
       covariance = try(solve(temp.hessian), silent=T)
       
       private$fit$cov.fixed = covariance
-      private$fit$sd.fixed = sdeTMB:::try_withWarningRecovery(sqrt(diag(covariance)))
+      private$fit$sd.fixed = try_withWarningRecovery(sqrt(diag(covariance)))
       
       if(inherits(private$fit$sd.fixed,"try-error")){
         private$fit$sd.fixed = rep(NA,length(private$fit$par.fixed))
@@ -1025,7 +1025,7 @@ create_return_fit = function(self, private, calculate.laplace.onestep.residuals)
         covariance = try(solve(covariance, silent=T))
         
         sd.fixed = rep(NA,length(private$fit$par.fixed))
-        sd.fixed[keep.ids] = sdeTMB:::try_withWarningRecovery(sqrt(diag(covariance)))
+        sd.fixed[keep.ids] = try_withWarningRecovery(sqrt(diag(covariance)))
         private$fit$sd.fixed = sd.fixed
         
         cov.fixed = temp.hessian * NA
