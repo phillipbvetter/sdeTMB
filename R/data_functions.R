@@ -342,8 +342,8 @@ check_and_set_data = function(data, self, private) {
   basic_data_check(data, self, private)
   
   # set timestep
-  # set_ode_timestep(data, self, private)
-  # set_simulation_timestep(data, self, private)
+  set_ode_timestep(data, self, private)
+  set_simulation_timestep(data, self, private)
   
   # various calculations for tmb's laplace method
   set_data_for_laplace_method(data, self, private)
