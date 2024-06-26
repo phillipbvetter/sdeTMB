@@ -14,7 +14,7 @@ Author: Phillip Brinck Vetter [aut, cre],
 	Uffe H. Thygesen [ctb],
 	Peder Bacher [ctb],
 	Henrik Madsen [ctb]
-Description: 'sdeTMB' (Stochastic Differential Equations using Template Model Builder ) is a package inspired by Continuous Time Stochastic Modelling for R (CTSMr) and built around the Template Model Builder (TMB) R packages for user-friendly system construction, but with access to automatic differentiation and handling of random effect, for parameter estimation and prediction in stochastic state space systems.
+Description: The sdeTMB (Stochastic Differential Equations using Template Model Builder) is a package used to perform parameter and state estimation, and forecasting in stochastic state space systems. The package employs the R6 object for easy model construction, and uses the TMB/RTMB packages for its C++ properties, algorithmic differentiation, and Laplace approximation method.
 License: GPL-3
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)

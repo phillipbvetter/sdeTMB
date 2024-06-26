@@ -50,7 +50,7 @@ You can access the documentation for all the available methods with
 ``` r
 ?sdeTMB
 ```
-but the individual methods can't be accessed directly i.e. `?sdeTMB::estimate` or similar will not work. The methods documentation is also available on the [homepage](https://phillipbvetter.github.io/sdeTMB/reference/sdeTMB.html).
+or individually (for a subset of methods) using i.e. `?sdeTMB::add_systems`. The methods documentation is also available on the [homepage](https://phillipbvetter.github.io/sdeTMB/reference/sdeTMB.html).
 
 ## Example Usage
 
