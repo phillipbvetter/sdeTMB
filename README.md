@@ -7,7 +7,7 @@ The package implements the following methods
 
 1. The (Continous-Discrete) Extended Kalman Filter, `ekf`
 
-2. <del> The (Continous-Discrete) Unscented Kalman Filter, `ukf` </del>
+2. The (Continous-Discrete) Unscented Kalman Filter, `ukf`
  
 3. The Laplace-style approach where latent states are considered random effects (see e.g. [this example]( https://github.com/kaskr/adcomp/blob/master/tmb_examples/sde_linear.cpp)), `laplace`
 
@@ -66,24 +66,25 @@ library(sdeTMB)
 ############################################################
 
 # Simulate data using Euler Maruyama
-set.seed(10)
-pars = c(theta=10, mu=1, sigma_x=1, sigma_y=1e-2)
+set.seed(20)
+pars = c(theta=10, mu=1, sigma_x=1, sigma_y=0.1)
 # 
 dt.sim = 1e-3
-t.sim = seq(0,1,by=dt.sim)
+t.sim = seq(0,5,by=dt.sim)
 dw = rnorm(length(t.sim)-1,sd=sqrt(dt.sim))
-u.sim = cumsum(rnorm(length(t.sim)))
+u.sim = cumsum(rnorm(length(t.sim),sd=0.05))
 x = 3
 for(i in 1:(length(t.sim)-1)) {
   x[i+1] = x[i] + pars[1]*(pars[2]-x[i]+u.sim[i])*dt.sim + pars[3]*dw[i]
 }
 
 # Extract observations and add noise
-dt.obs = 1e-2
-t.obs = seq(0,1,by=dt.obs)
-y = x[t.sim %in% t.obs] + pars[4] * rnorm(length(t.obs))
+dt.obs = 1e-1
+ids = seq(1,length(t.sim),by=round(dt.obs / dt.sim))
+t.obs = t.sim[ids]
+y = x[ids] + pars[4] * rnorm(length(t.obs))
 # forcing input
-u = u.sim[t.sim %in% t.obs]
+u = u.sim[ids]
 
 # Create data
 .data = data.frame(
@@ -131,8 +132,8 @@ obj$add_inputs(u)
 obj$add_parameters(
   logtheta    = log(c(initial = 1, lower=1e-5, upper=50)),
   mu          = c(initial=1.5, lower=0, upper=5),
-  logsigma_x  = log(c(initial= 1e-1, lower=1e-10, upper=10)),
-  logsigma_y  = log(c(initial=1e-1, lower=1e-10, upper=10))
+  logsigma_x  = log(c(initial=1, lower=1e-10, upper=30)),
+  logsigma_y  = log(c(initial=1e-1, lower=1e-10, upper=30))
 )
 
 # Set initial state mean and covariance
@@ -141,7 +142,8 @@ obj$set_initial_state(list(x[1], 1e-1*diag(1)))
 # Carry out estimation using extended kalman filter method with stats::nlminb as optimizer
 fit <- obj$estimate(data=.data, 
                     method="ekf", 
-                    use.hessian=TRUE
+                    use.hessian=T,
+                    ode.timestep=1e-2
 )
 
 # Check parameter estimates against truth
@@ -156,7 +158,7 @@ plot1 = ggplot() +
   geom_ribbon(aes(x=t.est, ymin=x.mean-2*x.sd, ymax=x.mean+2*x.sd),fill="grey", alpha=0.9) +
   geom_line(aes(x=t.est, x.mean),col="steelblue",lwd=1) +
   geom_line(aes(x=t.sim,y=x)) + 
-  geom_point(aes(x=t.obs,y=y),col="tomato",size=2) +
+  geom_point(aes(x=t.obs,y=y),col="tomato",size=1) +
   labs(title="1-Step State Estimates vs Observations", x="Time", y="") +
   theme_minimal()
 
@@ -174,7 +176,7 @@ plot2 = ggplot() +
                   ymin=pred10step$x-2*sqrt(pred10step$var.x),
                   ymax=pred10step$x+2*sqrt(pred10step$var.x)),fill="grey", alpha=0.9) +
   geom_line(aes(x=pred10step$t.j,pred10step$x),color="steelblue",lwd=1) +
-  geom_point(aes(x=t.obs,y=y),color="tomato",size=2) +
+  geom_point(aes(x=t.obs,y=y),color="tomato",size=1) +
   labs(title="10 Step Predictions vs Observations", x="Time", y="") +
   theme_minimal()
 
@@ -200,7 +202,7 @@ sim.df = sim.list$states$x$i0 %>%
 plot3 = ggplot() +
   geom_line(data=sim.df, aes(x=t.j, y=value, group=variable),color="grey") +
   geom_line(aes(x=pred.list$states$t.j,y=pred.list$states$x),color="steelblue") +
-  geom_point(aes(x=t.obs,y=y),color="tomato",size=2) +
+  geom_point(aes(x=t.obs,y=y),color="tomato",size=1) +
   labs(title="No Update Prediction and Simulations vs Observations", x="Time", y="") +
   theme_minimal() + theme(legend.position = "none")
 

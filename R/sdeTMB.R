@@ -944,8 +944,7 @@ sdeTMB = R6::R6Class(
       
       # check and set data
       if(!silent) message("Checking data...")
-      check_and_set_data(data, self, private)
-      set_ukf_parameters(unscented_hyperpars, self, private)
+      check_and_set_data(data, unscented_hyperpars, self, private)
       
       # construct neg. log-likelihood
       if(!silent) message("Constructing objective function...")
@@ -1070,8 +1069,7 @@ sdeTMB = R6::R6Class(
       
       # check and set data
       if(!private$silent) message("Checking data...")
-      check_and_set_data(data, self, private)
-      set_ukf_parameters(unscented_hyperpars, self, private)
+      check_and_set_data(data, unscented_hyperpars, self, private)
       
       # construct neg. log-likelihood function
       if(!private$silent) message("Constructing objective function and derivative tables...")
@@ -1188,55 +1186,24 @@ sdeTMB = R6::R6Class(
       private$set_timestep(ode.timestep)
       private$set_simulation_timestep(simulation.timestep)
       private$set_pred_initial_state(initial.state)
+      private$set_silence(silent)
       
       
       ###### BUILD MODEL #######
-      if(!silent) message("Building model...")
+      if(!private$silent) message("Building model...")
       build_model(self, private, prediction=TRUE)
       
-      ###### CHECK AND SET DATA  #######
-      if(!silent) message("Checking data...")
-      check_and_set_data(data, self, private)
-      set_ukf_parameters(unscented_hyperpars, self, private)
-      
-      ###### SET PRED AHEAD FLAGS #######
-      private$set_n_ahead_and_last_pred_index(data, k.ahead)
-      if(is.null(return.k.ahead)){
-        return.k.ahead = 0:private$n.ahead
-      }
-      
-      ###### PARAMETERS #######
-      if(is.null(pars)){
-        if(!silent) message("No parameters were supplied - using estimated or initial values")
-        # if the estimation has been run, then use these parameters
-        if(!is.null(private$fit)){
-          # pars = self$get_parameters()[,"estimate"]
-          pars = self$get_parameters(value="estimate")
-        } else {
-          # pars = self$get_parameters()[,"initial"]
-          pars = self$get_parameters(value="initial")
-        }
-      } else {
-        # check if parameters is with or without fixed parameters
-        lp = length(private$parameter.names)
-        fp = length(private$fixed.pars)
-        # if not correct length give error
-        if(!any(length(pars) == c(lp,lp-fp))){
-          stop("Incorrect number of parameters supplied (",length(pars),"). ", "Please supply either ",lp," or ", lp-fp, ", i.e. with or without fixed parameters.")
-        }
-        # if not contain fixed parameters, add these
-        if(length(pars)==lp-fp){
-          # fp.id = self$get_parameters()[,"type"] == "fixed"
-          # pars = c(pars, self$get_parameters()[fp.id,"initial"] )
-          pars = c(pars, self$get_parameters(type="fixed",value="initial"))
-        }
-      }
+      ###### CHECK AND SET DATA, PARS, ETC.  #######
+      if(!private$silent) message("Checking data...")
+      check_and_set_data(data, unscented_hyperpars, self, private)
+      private$set_n_ahead_and_last_pred_index(k.ahead)
+      pars = set_parameters(pars, silent, self, private)
       
       ###### PERFORM PREDICTION #######
-      if(!silent) message("Compiling C++ functions...")
+      if(!private$silent) message("Compiling C++ functions...")
       create_rcpp_statespace_functions(self, private)
       
-      if(!silent) message("Simulating...")
+      if(!private$silent) message("Simulating...")
       predict.list = perform_rcpp_ekf_simulation(self, 
                                                  private, 
                                                  pars, 
@@ -1244,7 +1211,7 @@ sdeTMB = R6::R6Class(
                                                  n.sims)
       
       # construct return data.frame
-      if(!silent) message("Constructing return data.frame...")
+      if(!private$silent) message("Constructing return data.frame...")
       list.out = construct_simulate_rcpp_dataframe(pars,
                                                    predict.list,
                                                    data,
@@ -1254,7 +1221,7 @@ sdeTMB = R6::R6Class(
                                                    private)
       
       # return
-      if(!silent) message("Finished.")
+      if(!private$silent) message("Finished.")
       return(invisible(list.out))
     },
     ########################################################################
@@ -1327,7 +1294,7 @@ sdeTMB = R6::R6Class(
                        pars = NULL,
                        initial.state = self$get_initial_state(),
                        k.ahead = 1,
-                       return.k.ahead = NULL,
+                       return.k.ahead = 0:k.ahead,
                        return.covariance = TRUE,
                        unscented_hyperpars = list(alpha=1, beta=0, kappa=3-private$number.of.states),
                        silent = FALSE){
@@ -1340,62 +1307,33 @@ sdeTMB = R6::R6Class(
       private$set_method(method)
       private$set_ode_solver(ode.solver)
       private$set_timestep(ode.timestep)
-      # private$set_simulation_timestep(NULL)
+      private$set_simulation_timestep(ode.timestep)
       private$set_pred_initial_state(initial.state)
+      private$set_silence(silent)
       
       ###### BUILD MODEL #######
-      if(!silent) message("Building model...")
+      if(!private$silent) message("Building model...")
       build_model(self, private, prediction=TRUE)
       
-      ###### CHECK AND SET DATA  #######
-      if(!silent) message("Checking data...")
-      check_and_set_data(data, self, private)
-      set_ukf_parameters(unscented_hyperpars, self, private)
+      ###### CHECK AND SET DATA, PARS, ETC.  #######
+      if(!private$silent) message("Checking data...")
+      check_and_set_data(data, unscented_hyperpars, self, private)
+      private$set_n_ahead_and_last_pred_index(k.ahead)
+      pars = set_parameters(pars, silent, self, private)
       
-      
-      ###### SET PRED AHEAD FLAGS #######
-      private$set_n_ahead_and_last_pred_index(data, k.ahead)
-      if(is.null(return.k.ahead)){
-        return.k.ahead = 0:private$n.ahead
-      }
-      
-      ###### PARAMETERS #######
-      # IF THE USER PROVIDED PARAMETERS
-      if(is.null(pars)){
-        if(!silent) message("No parameters were supplied - using initial values, or most recent estimated values.")
-        
-        # if the estimation has been run, then use estimated parameters, else use initial
-        if(!is.null(private$fit)){
-          pars = self$get_parameters(value="estimate")
-        } else {
-          pars = self$get_parameters(value="initial")
-        }
-      } else {
-        # check if parameters is with or without fixed parameters
-        lp = length(private$parameter.names)
-        fp = length(private$fixed.pars)
-        # if not correct length give error
-        if(!any(length(pars) == c(lp,lp-fp))){
-          stop("Incorrect number of parameters supplied (",length(pars),"). ", "Please supply either ",lp," or ", lp-fp, ", i.e. with or without fixed parameters.")
-        }
-        # if not contain fixed parameters, add these
-        if(length(pars)==lp-fp){
-          # fp.id = self$get_parameters()[,"type"] == "fixed"
-          # pars = c(pars, self$get_parameters()[fp.id,"initial"] )
-          pars = c(pars, self$get_parameters(type="fixed",value="initial"))
-        }
-      }
       
       ##### COMPILE C++ FUNCTIONS #######
-      if(!silent) message("Compiling C++ functions...")
+      if(!private$silent) message("Compiling C++ functions...")
       create_rcpp_statespace_functions(self, private)
       
       ##### PERFORM PREDICTION #######
-      if(!silent) message("Predicting...")
+      if(!private$silent) message("Predicting...")
+      predict.out = perform_prediction(pars, self, private)
+      
       predict.list = perform_rcpp_ekf_prediction(self, private, pars)
       
       ##### CREATE RETURN DATA.FRAME #######
-      if(!silent) message("Constructing return data.frame...")
+      if(!private$silent) message("Constructing return data.frame...")
       df.out = construct_predict_rcpp_dataframe(pars,
                                                 predict.list,
                                                 data,
@@ -1405,7 +1343,7 @@ sdeTMB = R6::R6Class(
                                                 private)
       
       ##### RETURN #######
-      if(!silent) message("Finished.")
+      if(!private$silent) message("Finished.")
       return(invisible(df.out))
     },
     ########################################################################
@@ -1755,18 +1693,22 @@ sdeTMB = R6::R6Class(
       }
       
       # check if method is available
-      # available_methods = c("ekf", "ukf", "laplace")
-      available_methods = c("ekf","ekf_rtmb","laplace")
+      available_methods = c("ekf","ukf", "ekf_rtmb","laplace")
       if (!(method %in% available_methods)) {
         stop("That method is not available. Please choose one of:
-             1. 'ekf' - Extended Kalman Filter in TMB C++ (Requires Compilation, but 20 times faster than 'ekf_rtmb'
-             2. 'ekf_rtmb' - Extended Kalman Filter with RTMB (No compilation)
-             3. 'laplace' - Laplace Approximation using Random Effects Formulation with RTMB (No compilation)"
+             1. 'ekf' - Extended Kalman Filter in C++ (Requires Compilation, but faster than 'ekf_rtmb')
+             2. 'ekf_rtmb' - Extended Kalman Filter with RTMB (No Compilation)
+             3. 'ukf' - Unscented Kalman Filter with C++ (Requires Compilation)
+             4. 'laplace' - Laplace Approximation using Random Effects Formulation with RTMB (No Compilation)"
         )
       }
       
       # set flag
       private$method = method
+      
+      # set file with method flag
+      private$modelname.with.method = paste0(private$modelname,sprintf("_%s",private$method))
+      private$cppfile.path.with.method = paste0(private$cppfile.path,sprintf("_%s",private$method))
       
       # return
       return(invisible(self))
@@ -1793,12 +1735,6 @@ sdeTMB = R6::R6Class(
     ########################################################################
     set_timestep = function(dt) {
       
-      # OK if NULL
-      # if(is.null(dt)){
-        # private$ode.timestep = NULL
-        # return(invisible(NULL))
-      # }
-      
       # must be numeric
       if (!is.numeric(dt)) {
         stop("The timestep should be a numeric value.")
@@ -1810,12 +1746,6 @@ sdeTMB = R6::R6Class(
     # SET SIMULATION TIME-STEP
     ########################################################################
     set_simulation_timestep = function(dt) {
-      
-      # OK if NULL
-      # if(is.null(dt)){
-        # private$simulation.timestep = NULL
-        # return(invisible(NULL))
-      # }
       
       # must be numeric
       if (!is.numeric(dt)) {
@@ -1829,7 +1759,7 @@ sdeTMB = R6::R6Class(
     # UTILITY FUNCTION: FOR SETTING PREDICTION AHEAD AND LAST PRED INDEX
     ########################################################################
     # SET k step ahead and last pred index for obj$predict
-    set_n_ahead_and_last_pred_index = function(data, n.ahead) {
+    set_n_ahead_and_last_pred_index = function(n.ahead) {
       
       # check if n.ahead is positive with length 1
       if (!(is.numeric(n.ahead)) | !(length(n.ahead==1)) | !(n.ahead >= 1)) {
@@ -1837,16 +1767,16 @@ sdeTMB = R6::R6Class(
       }
       
       # Find last prediction index to avoid exciting boundary
-      last.pred.index = nrow(data) - n.ahead
+      last.pred.index = nrow(private$data) - n.ahead
       if(last.pred.index < 1){
         # message("The provided k.ahead is too large, setting it to the maximum value nrow(data)-1.")
-        n.ahead = nrow(data) - 1
+        n.ahead = nrow(private$data) - 1
         last.pred.index = 1
       }
       
       # set values
       private$n.ahead = n.ahead
-      private$last.pred.index = nrow(data) - n.ahead
+      private$last.pred.index = nrow(private$data) - n.ahead
       
       # return values
       return(invisible(self))

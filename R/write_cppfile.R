@@ -329,6 +329,104 @@ write_ukf_functions = function(self, private){
   
   txt = c()
   
+  # Create substitution translation list
+  obsList = lapply(seq_along(private$obs.names), function(id) substitute(obsVec(i),list(i=as.numeric(id-1))))
+  parList = lapply(seq_along(private$parameter.names), function(id) substitute(parVec(i),list(i=as.numeric(id-1))))
+  stateList = lapply(seq_along(private$state.names), function(id) substitute(stateVec(i),list(i=as.numeric(id-1))))
+  inputList = lapply(seq_along(private$input.names), function(id) substitute(inputVec(i),list(i=as.numeric(id-1))))
+  names(obsList) = private$obs.names
+  names(parList) = private$parameter.names
+  names(stateList) = private$state.names
+  names(inputList) = private$input.names
+  subsList = c(obsList, parList, stateList, inputList)
+  
+  ##################################################
+  # drift
+  ##################################################
+  
+  # Perform substitution of parameters, inputs and states
+  f = sapply( seq_along(private$state.names),
+              function(i){
+                drift.term = hat2pow(private$diff.terms[[i]]$dt)
+                new.drift.term = do.call(substitute, list(drift.term, subsList))
+                sprintf("f__(%i) = %s;",i-1,deparse1(new.drift.term))
+              })
+  
+  newtxt = "\n//////////// drift function //////////
+  template<class Type>
+  vector<Type> f__(vector<Type> stateVec, vector<Type> parVec, vector<Type> inputVec){
+    vector<Type> f__(%s);
+    %s
+    return f__;
+  }"
+  newtxt = sprintf(newtxt, private$number.of.states, paste(f,collapse="\n\t\t"))
+  txt = c(txt,newtxt)
+  
+  ##################################################
+  # diffusion
+  ##################################################
+  
+  # calculate all the terms and substitute variables
+  g = c()
+  for(i in seq_along(private$state.names)){
+    for(j in seq_along(private$diff.processes[-1])){
+      term = hat2pow(private$diff.terms[[i]][[j+1]])
+      new.term = do.call(substitute, list(term, subsList))
+      g = c(g, sprintf("g__(%s, %s) = %s;",i-1, j-1, deparse1(new.term)))
+    }
+  }
+  newtxt = "\n//////////// diffusion function ///////////
+  template<class Type>
+  matrix<Type> g__(vector<Type> stateVec, vector<Type> parVec, vector<Type> inputVec){
+    matrix<Type> g__(%s, %s);
+    %s
+    return g__;
+  }"
+  newtxt = sprintf(newtxt, private$number.of.states, private$number.of.diffusions, paste(g,collapse="\n\t\t"))
+  txt = c(txt, newtxt)
+  
+  ##################################################
+  # observation
+  ##################################################
+  
+  # calculate all the terms and substitute variables
+  h = sapply(seq_along(private$obs.names), 
+             function(i){
+               term = hat2pow(private$obs.eqs.trans[[i]]$rhs)
+               new.term = do.call(substitute, list(term, subsList))
+               sprintf("h__(%s) = %s;",i-1, deparse1(new.term))
+             }) 
+  
+  newtxt = "\n//////////// observation function ///////////
+  template<class Type>
+  vector<Type> h__(vector<Type> stateVec, vector<Type> parVec, vector<Type> inputVec){
+    vector<Type> h__(%s);
+    %s
+    return h__;
+  }"
+  newtxt = sprintf(newtxt, private$number.of.observations, paste(h,collapse="\n\t\t"))
+  txt = c(txt, newtxt)
+  
+  ##################################################
+  # observation variance
+  ##################################################
+  
+  obs.var = lapply(seq_along(private$obs.var.trans), 
+                   function(i) {
+                     term = hat2pow(private$obs.var.trans[[i]]$rhs)
+                     new.term = do.call(substitute, list(term, subsList))
+                     sprintf("hvar__(%s) = %s;", i-1, deparse1(new.term))
+                   })
+  newtxt = "\n//////////// observation variance matrix function ///////////
+  template<class Type>
+  vector<Type> hvar__(vector<Type> stateVec, vector<Type> parVec, vector<Type> inputVec){
+    vector<Type> hvar__(%s);
+    %s
+    return hvar__;
+  }"
+  newtxt = sprintf(newtxt, private$number.of.observations, paste(obs.var,collapse="\n\t\t"))
+  txt = c(txt, newtxt)
+  
   # Construct sigma points function
   newtxt = "\n//////////// UKF sigma points ///////////
   template<class Type>
@@ -508,7 +606,7 @@ write_ukf_estimate = function(self, private)
   # Maximum a Posterior
   txt = c(txt, "\n//// map estimation ////")
   txt = c(txt, "DATA_INTEGER(MAP_bool);")
-
+  
   # Parameters
   txt = c(txt, "\n//// parameters ////")
   for(i in 1:length(private$parameters)){
@@ -531,30 +629,30 @@ write_ukf_estimate = function(self, private)
                        private$number.of.pars
   ))
   txt = c(txt, sprintf("parVec << %s;", paste(private$parameter.names,collapse=", ")))
-
+  
   ##################################################
   # Storage variables
   txt = c(txt, "\n//////////// storage variables ///////////")
   txt = c(txt, "vector<vector<Type>> xPrior(tsize), xPost(tsize), Innovation(tsize);")
   txt = c(txt, "vector<matrix<Type>> pPrior(tsize), pPost(tsize), InnovationCovariance(tsize);")
   txt = c(txt, "vector<matrix<Type>> blatest1(tsize),blatest2(tsize);")
-
+  
   txt = c(txt, "\n//////////// set initial value ///////////")
   txt = c(txt, "xPrior(0) = stateVec, xPost(0) = stateVec;")
   txt = c(txt, "pPrior(0) = covMat, pPost(0) = covMat;")
-
+  
   txt = c(txt, "\n //////////// initialize variables ///////////")
   txt = c(txt, "int number_of_nonNA_observations;")
   txt = c(txt, "Type half_log2PI = Type(0.5) * log(2*M_PI);")
   txt = c(txt, "vector<Type> data_vector__(number_of_obs_eqs);")
   txt = c(txt, "vector<Type> y__,e__, is_not_na_obsVec;")
   txt = c(txt, "matrix<Type> E__, H__, Syy__, SyyInv__, Sxy__, K__, Xsigmapoints, sqrt_covMat;")
-
+  
   ##################################################
   # Observation variance matrix
   txt = c(txt,"matrix<Type> V0__(number_of_obs_eqs,number_of_obs_eqs);")
   txt = c(txt,"V0__.setZero();")
-
+  
   ##################################################
   # Weights
   txt = c(txt, "\n//////////// create weights ///////////")
@@ -604,7 +702,7 @@ write_ukf_estimate = function(self, private)
   txt = c(txt, "pPrior(i+1) = covMat;")
   
   # txt = c(txt, "blatest2(i) = Xsigmapoints;")
-
+  
   # Data Update
   txt = c(txt, "\n //////////// DATA-UPDATE ///////////")
   # Set observation indices (i+1)
@@ -634,7 +732,7 @@ write_ukf_estimate = function(self, private)
   txt = c(txt, "pPost(i+1) = covMat;")
   txt = c(txt, "};")
   txt = c(txt, "//////////// END MAIN LOOP ///////////")
-
+  
   ##################################################
   # Maximum-A-Posterior
   txt = c(txt, "\n//////////// MAP CONTRIBUTION ///////////")
@@ -653,7 +751,7 @@ write_ukf_estimate = function(self, private)
   txt = c(txt, "REPORT(map_pars__);")
   txt = c(txt, "REPORT(pars_eps__);")
   txt = c(txt, "}")
-
+  
   ##################################################
   # Report variables
   txt = c(txt, "\n//////////// Report //////////////")
@@ -674,7 +772,7 @@ write_ekf_estimate = function(self, private){
   # Observation Vectors
   txt = c(txt, "\n//// observations ////")
   txt = c(txt, "DATA_MATRIX(obsMat)")
-
+  
   # Input Vectors
   txt = c(txt, "\n//// inputs ////")
   txt = c(txt, "DATA_MATRIX(inputMat)")
@@ -717,7 +815,7 @@ write_ekf_estimate = function(self, private){
                        private$number.of.inputs,
                        private$number.of.observations,
                        private$number.of.pars
-                       ))
+  ))
   txt = c(txt, sprintf("parVec << %s;", paste(private$parameter.names,collapse=", ")))
   
   # Storage variables
@@ -896,14 +994,14 @@ write_cppfile = function(self, private) {
   
   newtxt = write_ekf_estimate(self, private)
   txt = c(txt, newtxt)
-
+  
   txt = c(txt, "\n//////////// UNSCENTED KALMAN FILTER ///////////")
   txt = c(txt, "//////////// UNSCENTED KALMAN FILTER ///////////")
   txt = c(txt, "//////////// UNSCENTED KALMAN FILTER ///////////")
   txt = c(txt, "} else if (estimation_method == 2) {")
   
-  # newtxt = write_ukf_estimate(self, private)
-  # txt = c(txt, newtxt)
+  newtxt = write_ukf_estimate(self, private)
+  txt = c(txt, newtxt)
   
   txt = c(txt, "} else {")
   
@@ -917,6 +1015,60 @@ write_cppfile = function(self, private) {
   txt = c(txt, "\n//////////// OBJECTIVE FUNCTION END ///////////")
   txt = c(txt, "//////////// OBJECTIVE FUNCTION END ///////////")
   txt = c(txt, "//////////// OBJECTIVE FUNCTION END ///////////")
+  
+  # Write cpp function and close file connection
+  writeLines(txt,fileconn)
+  close(fileconn)
+  
+  # Return
+  return(invisible(self))
+}
+
+write_method_cppfile = function(self, private) {
+  
+  #Initialize C++ file
+  fileconn = file(paste0(private$cppfile.path.with.method,".cpp"))
+  
+  # Header etc...
+  txt = "#include <TMB.hpp>"
+  newtxt = "using namespace density;"
+  txt = c(txt, newtxt)
+  
+  # Various helper functions
+  newtxt = write_helper_cppfunctions()
+  txt = c(txt, newtxt)
+  
+  # Specific method functions
+  if(private$method=="ekf"){
+    newtxt = write_ekf_functions(self, private)
+    txt = c(txt, newtxt)
+  }
+  if(private$method=="ukf"){
+    newtxt = write_ukf_functions(self,private)
+    txt = c(txt,newtxt)
+  }
+  
+  # Initialize TMB Objective Function
+  
+  txt = c(txt,"template<class Type>\nType objective_function<Type>::operator() ()\n{")
+  # txt = c(txt, "DATA_INTEGER(estimation_method);")
+  txt = c(txt, "DATA_INTEGER(ode_solver);")
+  txt = c(txt, "Type nll__ = 0;")
+  
+  # Specific estimation method
+  if(private$method=="ekf"){
+    newtxt = write_ekf_estimate(self, private)
+    txt = c(txt, newtxt)
+  }
+  if(private$method=="ukf"){
+    newtxt = write_ukf_estimate(self, private)
+    txt = c(txt, newtxt)
+  }
+  
+  # Return statement
+  txt = c(txt, "return nll__;")
+  txt = c(txt, "}")
+  
   # Write cpp function and close file connection
   writeLines(txt,fileconn)
   close(fileconn)

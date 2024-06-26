@@ -6,8 +6,8 @@ output: html_document
 ---
 
 ```{r, include=FALSE}
-library(sdeTMB)
-# devtools::load_all("/Users/pbrve/github/sdeTMB")
+# library(sdeTMB)
+devtools::load_all("~/github/sdeTMB")
 ```
 
 We demonstate how to use the `predict` method to obtain k-step ahead predictions / forecasts of a model object, and the observations.
@@ -132,11 +132,15 @@ We can use the predict function without having called `estimate` first, in which
 pred = obj$predict(.data)
 ```
 
-The output of `predict` is a data.frame with indices and time-points, state values and associated standard deviations, and observations provided in the data, and predicted observation values based from the predicted state values.
+The output of `predict` is a list of two data.frames, one for states and one for observations. The two data.frames share the same five initial columns that contain indices `i` and `j`, associated time-points `t.i` and `t.j`, and a `k.ahead`
+
+They both contain indices, time-points and associated k-step ahead 
+, state/observation values and associated standard deviations, and observations provided in the data, and predicted observation values based from the predicted state values.
 ```{r}
-head(pred)
+head(pred$states) 
+head(pred$observations)
 ```
-The indices `i` and `j` in the table refer to expectation and variance of the state vector
+The indices `i.` and `j.` in the table refer to expectation and variance of the state vector
 $$
 \mathrm{E}(x_{t_{i}} | x_{t_{j}}, y_{t_{j}}) \\
 \mathrm{V}(x_{t_{i}} | x_{t_{j}}, y_{t_{j}})

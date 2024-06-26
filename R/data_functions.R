@@ -1,6 +1,53 @@
 # These data checking and setting functions are called automatically when the user
 # requests an estimation, prediction or construct_nll.
 
+
+###############################################################
+# TOP-LAYER FUNCTION CALLING ALL OTHERS DEFINED IN THIS SCRIPT
+###############################################################
+
+check_and_set_data = function(data, unscented_hyperpars, self, private) {
+  
+  # is data provided, or does private$data hold any data?
+  was_any_data_provided(data, self, private)
+  
+  # convert to data.frame
+  data = as.data.frame(data)
+  
+  # calculate "complex" right-hand side observation equations
+  data = calculate_complex_observation_lefthandsides(data, self, private)
+  
+  # Check that inputs, and observations are there
+  basic_data_check(data, self, private)
+  
+  # set timestep
+  set_ode_timestep(data, self, private)
+  set_simulation_timestep(data, self, private)
+  
+  # ukf parameters
+  set_ukf_parameters(unscented_hyperpars, self, private)
+  
+  # various calculations for tmb's laplace method
+  set_data_for_laplace_method(data, self, private)
+  
+  # only store the obs.names, not the parsed data 
+  # example: if we have obs eq log(y) ~ y with name log_y, then we store log_y, but not y itself.
+  private$data = data[c(private$obs.names, private$input.names)]
+  
+  # Return
+  return(invisible(self))
+}
+
+#######################################################
+#######################################################
+#######################################################
+#######################################################
+#######################################################
+#######################################################
+#######################################################
+#######################################################
+
+
 #######################################################
 # CHECK AND SET DATA BEFORE OPTIMIZATION
 #######################################################
@@ -107,7 +154,7 @@ set_ode_timestep = function(data, self, private){
   
   # check for no provided time.step
   # if(is.null(private$ode.timestep)){
-    # private$ode.timestep = diff(data$t)
+  # private$ode.timestep = diff(data$t)
   # }
   
   # check that ode.timestep has length 1 or at least nrow(data)-1.
@@ -191,7 +238,6 @@ set_data_for_laplace_method = function(data, self, private){
   # Otherwise construct from the set_initial value
   bool = !(private$state.names %in% names(data))
   if(private$method=="laplace"){
-    
     if(any(bool)){
       data[private$state.names[bool]] =
         matrix(rep(private$initial.state$x0[bool], times=length(data$t)),ncol=sum(bool))
@@ -225,13 +271,6 @@ set_simulation_timestep = function(data, self, private){
   # so we round up the number of steps there i.e. ode.N = [1 , 1 , 3]. The last entry is the important one. 
   # We take 3 steps, so for last entry, we must reduce the step-size to data.dt[3] / ode.N[3] = 2.5 / 3  = 0.88883333 
   # down from the set ode.timestep = 1
-  
-  
-  # check for no provided time.step
-  # if(is.null(private$simulation.timestep)){
-    # private$simulation.timestep = diff(data$t)
-    # 
-  # }
   
   # check that simulation.timestep has length 1 or at least nrow(data)-1.
   if (length(private$simulation.timestep) == 1) {
@@ -323,35 +362,36 @@ was_any_data_provided = function(data, self, private)
     }
   }
   
+  # return
   return(invisible(self))
 }
 
-check_and_set_data = function(data, self, private) {
+set_parameters = function(pars, silent, self, private){
   
-  # is data provided, or does private$data hold any data?
-  was_any_data_provided(data, self, private)
+  ###### PARAMETERS #######
+  if(is.null(pars)){
+    if(!silent) message("No parameters were supplied - using estimated or initial values")
+    # if the estimation has been run, then use these parameters
+    if(!is.null(private$fit)){
+      # pars = self$get_parameters()[,"estimate"]
+      pars = self$get_parameters(value="estimate")
+    } else {
+      # pars = self$get_parameters()[,"initial"]
+      pars = self$get_parameters(value="initial")
+    }
+  } else {
+    # check if parameters is with or without fixed parameters
+    lp = length(private$parameter.names)
+    fp = length(private$fixed.pars)
+    # if not correct length give error
+    if(!any(length(pars) == c(lp,lp-fp))){
+      stop("Incorrect number of parameters supplied (",length(pars),"). ", "Please supply either ",lp," or ", lp-fp, ", i.e. with or without fixed parameters.")
+    }
+    # if not contain fixed parameters, add these
+    if(length(pars)==lp-fp){
+      pars = c(pars, self$get_parameters(type="fixed",value="initial"))
+    }
+  }
   
-  # convert to data.frame
-  data = as.data.frame(data)
-  
-  # calculate observations in 'call' form e.g. if complex obs lhs e.g:
-  # log(y) ~ ... , then we are given y in the data, and must compute log(y)
-  data = calculate_complex_observation_lefthandsides(data, self, private)
-  
-  # Check that inputs, and observations are there
-  basic_data_check(data, self, private)
-  
-  # set timestep
-  set_ode_timestep(data, self, private)
-  set_simulation_timestep(data, self, private)
-  
-  # various calculations for tmb's laplace method
-  set_data_for_laplace_method(data, self, private)
-  
-  # only store the obs.names, not the parsed data 
-  # example: if we have obs eq log(y) ~ y with name log_y, then we store log_y, but not y itself.
-  private$data = data[c(private$obs.names, private$input.names)]
-  
-  # Return
-  return(invisible(self))
+  return(pars)
 }

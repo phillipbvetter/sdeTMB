@@ -10,6 +10,9 @@ construct_makeADFun = function(self, private){
   if(private$method == "ekf"){
     construct_kalman_makeADFun(self, private)
   }
+  if(private$method == "ukf"){
+    construct_kalman_makeADFun(self, private)
+  }
   if(private$method == "ekf_rtmb"){
     construct_rtmb_ekf_makeADFun(self, private)
   }
@@ -105,7 +108,7 @@ construct_kalman_makeADFun = function(self, private){
   nll = TMB::MakeADFun(data = data,
                        parameters = parameters,
                        map = lapply(private$fixed.pars, function(x) x$factor),
-                       DLL = private$modelname,
+                       DLL = private$modelname.with.method,
                        silent = TRUE)
   
   # save objective function
@@ -773,7 +776,7 @@ create_return_fit = function(self, private, calculate.laplace.onestep.residuals)
   # FOR KALMAN FILTERS
   ################################################
   
-  if (any(private$method == c("ekf"))) {
+  if (any(private$method == c("ekf","ukf"))) {
     
     
     ################################################

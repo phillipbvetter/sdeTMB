@@ -1,10 +1,6 @@
 #include <TMB.hpp>
 using namespace density;
 
-//////////// HELPER FUNCTIONS ///////////
-//////////// HELPER FUNCTIONS ///////////
-//////////// HELPER FUNCTIONS ///////////
-
 //////////// FIND NA INDICES IN VECTOR ///////////
   template <class Type>
   vector<Type> is_not_na(vector<Type> x){
@@ -80,10 +76,6 @@ using namespace density;
 	  }
 	  return ans;
   }
-
-//////////// EKF FUNCTIONS ///////////
-//////////// EKF FUNCTIONS ///////////
-//////////// EKF FUNCTIONS ///////////
 
 //////////// drift function //////////
   template<class Type>
@@ -197,25 +189,12 @@ using namespace density;
 		 }
 		}
   };
-
-//////////// UKF FUNCTIONS ///////////
-//////////// UKF FUNCTIONS ///////////
-//////////// UKF FUNCTIONS ///////////
-
-//////////// OBJECTIVE FUNCTION START ///////////
-//////////// OBJECTIVE FUNCTION START ///////////
-//////////// OBJECTIVE FUNCTION START ///////////
 template<class Type>
 Type objective_function<Type>::operator() ()
 {
 DATA_INTEGER(estimation_method);
 DATA_INTEGER(ode_solver);
 Type nll__ = 0;
-
-//////////// EXTENDED KALMAN FILTER ///////////
-//////////// EXTENDED KALMAN FILTER ///////////
-//////////// EXTENDED KALMAN FILTER ///////////
-if (estimation_method == 1){
 
 //// observations ////
 DATA_MATRIX(obsMat)
@@ -335,18 +314,5 @@ REPORT(xPrior);
 REPORT(xPost);
 REPORT(pPrior);
 REPORT(pPost);
-
-//////////// UNSCENTED KALMAN FILTER ///////////
-//////////// UNSCENTED KALMAN FILTER ///////////
-//////////// UNSCENTED KALMAN FILTER ///////////
-} else if (estimation_method == 2) {
-} else {
-}
-
- //////////// Return //////////////
 return nll__;
 }
-
-//////////// OBJECTIVE FUNCTION END ///////////
-//////////// OBJECTIVE FUNCTION END ///////////
-//////////// OBJECTIVE FUNCTION END ///////////

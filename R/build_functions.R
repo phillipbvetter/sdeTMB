@@ -414,17 +414,18 @@ compile_cppfile = function(self, private) {
     } 
     
     # Create the C++ file
-    write_cppfile(self, private)
+    # write_cppfile(self, private)
+    write_method_cppfile(self, private)
     
     # Compile the C++ file with TMB
     message("Compiling C++ likelihood function...")
     was.there.an.error = tryCatch(
-      TMB::compile(paste(private$cppfile.path,".cpp",sep="")),
+      TMB::compile(paste(private$cppfile.path.with.method,".cpp",sep="")),
       error = function(e){
         message("----------------------")
         message("A compilation error occured. Here is the original error message: \n\t", 
                 conditionMessage(e))
-        message("Do you have any spaces in the file-path? Please remove these.")
+        message("Do you perhaps use spaces in the file-path? Please remove these.")
         return(TRUE)
       })
     if(was.there.an.error){
@@ -433,8 +434,8 @@ compile_cppfile = function(self, private) {
     
     # reload shared libraries
     # Suppress TMB output 'removing X pointers' with capture.output
-    utils::capture.output(try(dyn.unload(TMB::dynlib(private$cppfile.path)),silent=T))
-    utils::capture.output(try(dyn.load(TMB::dynlib(private$cppfile.path)),silent=T))
+    utils::capture.output(try(dyn.unload(TMB::dynlib(private$cppfile.path.with.method)),silent=T))
+    utils::capture.output(try(dyn.load(TMB::dynlib(private$cppfile.path.with.method)),silent=T))
   }
   
   # If compilation not requested
@@ -444,7 +445,7 @@ compile_cppfile = function(self, private) {
     if (.Platform$OS.type=="unix") {
       
       # get the compiled dynamic library file
-      modelpath.so = paste(private$cppfile.path,".so",sep="")
+      modelpath.so = paste(private$cppfile.path.with.method,".so",sep="")
       
       # If the model does not exist, then set compile flag and call function again
       if (!file.exists(modelpath.so)) {
@@ -457,7 +458,7 @@ compile_cppfile = function(self, private) {
     if (.Platform$OS.type=="windows") {
       
       # get the compiled dynamic library file
-      modelpath.dll = paste(private$cppfile.path,".dll",sep="")
+      modelpath.dll = paste(private$cppfile.path.with.method,".dll",sep="")
       
       # If the model does not exist, then set compile flag and call function again
       if (!file.exists(modelpath.dll)) {
@@ -468,8 +469,8 @@ compile_cppfile = function(self, private) {
     
     # reload shared libraries
     # Suppress TMB output 'removing X pointers' with capture.output
-    utils::capture.output(try(dyn.unload(TMB::dynlib(private$cppfile.path)),silent=T))
-    utils::capture.output(try(dyn.load(TMB::dynlib(private$cppfile.path)),silent=T))
+    utils::capture.output(try(dyn.unload(TMB::dynlib(private$cppfile.path.with.method)),silent=T))
+    utils::capture.output(try(dyn.load(TMB::dynlib(private$cppfile.path.with.method)),silent=T))
   }
   return(invisible(self))
 }

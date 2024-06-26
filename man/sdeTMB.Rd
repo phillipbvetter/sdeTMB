@@ -804,7 +804,7 @@ state estimate as the initial condition.
   pars = NULL,
   initial.state = self$get_initial_state(),
   k.ahead = 1,
-  return.k.ahead = NULL,
+  return.k.ahead = 0:k.ahead,
   return.covariance = TRUE,
   unscented_hyperpars = list(alpha = 1, beta = 0, kappa = 3 - private$number.of.states),
   silent = FALSE

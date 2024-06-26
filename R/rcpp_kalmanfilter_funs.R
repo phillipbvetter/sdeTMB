@@ -219,3 +219,43 @@ perform_rcpp_ekf_simulation = function(self, private, pars, initial.state, n.sim
   
   return(mylist)
 }
+
+perform_prediction = function(parVec, self, private){
+  
+  # observation matrix
+  obsMat = as.matrix(private$data[private$obs.names])
+  
+  # non-na observation matrix
+  numeric_is_not_na_obsMat = t(apply(obsMat, 1, FUN=function(x) as.numeric(!is.na(x))))
+  if(nrow(numeric_is_not_na_obsMat)==1) numeric_is_not_na_obsMat = t(numeric_is_not_na_obsMat)
+  
+  # number of non-na observations
+  number_of_available_obs = apply(numeric_is_not_na_obsMat, 1, sum)
+  
+  # predict using c++ function
+  mylist <- execute_ekf_prediction(private$Rcppfunction_f,
+                                   private$Rcppfunction_g,
+                                   private$Rcppfunction_dfdx,
+                                   private$Rcppfunction_h,
+                                   private$Rcppfunction_dhdx,
+                                   private$Rcppfunction_hvar,
+                                   as.matrix(private$data[private$obs.names]),
+                                   as.matrix(private$data[private$input.names]),
+                                   parVec,
+                                   private$pred.initial.state$p0,
+                                   private$pred.initial.state$x0,
+                                   private$ode.timestep.size,
+                                   private$ode.timesteps,
+                                   numeric_is_not_na_obsMat,
+                                   number_of_available_obs,
+                                   private$number.of.states,
+                                   private$number.of.observations,
+                                   private$last.pred.index,
+                                   private$n.ahead,
+                                   private$ode.solver)
+  
+  
+  return(mylist)
+  
+  
+}

@@ -8,24 +8,16 @@ static Ziggurat::Ziggurat::Ziggurat zigg; //zigg.norm() draws from a normal dist
 //#ifndef _HELPERFUNS_ 
 //#define _HELPERFUNS_
 
-//////////////////// New Fun ////////////////////
-//////////////////// New Fun ////////////////////
-//////////////////// New Fun ////////////////////
+// Inverse logit function
 double invlogit(double x);
 
-//////////////////// New Fun ////////////////////
-//////////////////// New Fun ////////////////////
-//////////////////// New Fun ////////////////////
+// function for constructing permutation matrix that removes NA data
 Eigen::MatrixXd construct_permutation_matrix(int number_of_available_obs, int number_of_obs_eqs, Eigen::VectorXi bool_is_not_na_obsVec);
 
-//////////////////// New Fun ////////////////////
-//////////////////// New Fun ////////////////////
-//////////////////// New Fun ////////////////////
+// Function for removing NA entries from data vector
 Eigen::VectorXd remove_NAs(Eigen::VectorXd obsVec, int number_of_available_obs, Eigen::VectorXi bool_is_not_na_obsVec);
 
-//////////////////// New Fun ////////////////////
-//////////////////// New Fun ////////////////////
-//////////////////// New Fun ////////////////////
+// forward-euler and rk4 ode integrator function
 template <typename T1, typename T2, typename T3>
 List ode_integrator(
   T1 f__, 
@@ -106,9 +98,7 @@ List ode_integrator(
 
 
 
-//////////////////// New Fun ////////////////////
-//////////////////// New Fun ////////////////////
-//////////////////// New Fun ////////////////////
+// Solving the variance moment differential equation 1-step forward
 template<typename T2, typename T3>
 Eigen::MatrixXd cov_ode_1step(
   T2 g__,
@@ -135,9 +125,7 @@ Eigen::MatrixXd cov_ode_1step(
 }
 
 
-//////////////////// New Fun ////////////////////
-//////////////////// New Fun ////////////////////
-//////////////////// New Fun ////////////////////
+// Euler-maruyama simulation scheme for 1-step for all simulations
 template<typename T1, typename T2>
 MatrixXd euler_maruyama_simulation(
   T1 f__, 
@@ -157,7 +145,7 @@ MatrixXd euler_maruyama_simulation(
   NumericVector F;
   NumericMatrix G;
   double sqrt_timestep = sqrt(timestep);
-
+  
   // Perform one-step simulation for each row in stateMat
   for(int i=0; i < nsims; i++){
 
