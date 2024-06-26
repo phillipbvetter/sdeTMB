@@ -6,7 +6,9 @@ output: html_document
 ---
 
 ```{r, include=FALSE}
-library(sdeTMB)
+# library(sdeTMB)
+devtools::load_all("~/github/sdeTMB")
+setwd("~/github/sdeTMB/vignettes")
 ```
 
 In this document we show how to use the `construct_nll` method to obtain function handlers for the objective function, gradient, and hessian (the latter is only avaible when there are no random effects in your model).
@@ -123,7 +125,7 @@ opt = nlminb(start=nll$par, objective=nll$fn, grad=nll$gr, hessian=nll$he)
 
 ---
 
-The `construct_nll` method allows you to retrieve the `nll` object. The function takes arguments similar to those of `estimate`.
+The `construct_nll` method allows you to retrieve the `nll` object that holds the negative log-likelihood, and its derivatives. The method takes arguments similar to those of `estimate`.
 
 ```{r}
 nll = obj$construct_nll(.data)

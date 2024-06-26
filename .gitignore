@@ -1,8 +1,6 @@
 .Rhistory
 .Rbuildignore
 .DS_Store
-vignettes/*.o 
-vignettes/*.cpp
-vignettes/*.so
 *.o
 *.so
+vignettes/sdeTMB_cppfiles

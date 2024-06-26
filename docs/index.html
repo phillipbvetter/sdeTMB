@@ -81,9 +81,7 @@
 <p>The package implements the following methods</p>
 <ol style="list-style-type: decimal">
 <li><p>The (Continous-Discrete) Extended Kalman Filter, <code>ekf</code></p></li>
-<li><del>
-<p>The (Continous-Discrete) Unscented Kalman Filter, <code>ukf</code></p>
-</del></li>
+<li><p>The (Continous-Discrete) Unscented Kalman Filter, <code>ukf</code></p></li>
 <li><p>The Laplace-style approach where latent states are considered random effects (see e.g. <a href="https://github.com/kaskr/adcomp/blob/master/tmb_examples/sde_linear.cpp" class="external-link">this example</a>), <code>laplace</code></p></li>
 </ol>
 <p>The main advantage of the Kalman Filter implementations are a large increase in the computation speed, and access to the fixed effects hessian for improved convergence of the optimization. In these cases TMB just provides automatic differentiation.</p>

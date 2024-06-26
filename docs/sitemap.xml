@@ -34,6 +34,24 @@
     <loc>/news/index.html</loc>
   </url>
   <url>
+    <loc>/reference/add_algebraics.html</loc>
+  </url>
+  <url>
+    <loc>/reference/add_inputs.html</loc>
+  </url>
+  <url>
+    <loc>/reference/add_observation_variances.html</loc>
+  </url>
+  <url>
+    <loc>/reference/add_observations.html</loc>
+  </url>
+  <url>
+    <loc>/reference/add_parameters.html</loc>
+  </url>
+  <url>
+    <loc>/reference/add_systems.html</loc>
+  </url>
+  <url>
     <loc>/reference/execute_ekf_prediction.html</loc>
   </url>
   <url>
@@ -59,6 +77,9 @@
   </url>
   <url>
     <loc>/reference/sdeTMB.html</loc>
+  </url>
+  <url>
+    <loc>/reference/set_initial_state.html</loc>
   </url>
   <url>
     <loc>/reference/summary.sdeTMB.html</loc>
